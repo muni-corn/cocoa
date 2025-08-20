@@ -36,6 +36,8 @@ interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 - The configuration format MUST be valid TOML v1.0.0
 - The system SHALL provide sensible defaults when no configuration is present
 - Invalid configuration MUST result in a clear error message
+- If a `deny` commit rule value is less than or equal to its `warn` counterpart,
+  the system MUST warn the user whenever the config is loaded
 
 ### 3.2 configuration schema
 
@@ -60,18 +62,36 @@ scopes = [] # optional: allowed scopes
 
 [commit.rules]
 enabled = true # whether to lint commit messages
-max_subject_length = 72
-max_body_length = 500
-require_scope = false
-require_body = false
-require_type = true
-require_breaking_change_footer = true
 ignore_fixup_commits = true
 ignore_amend_commits = true
 ignore_squash_commits = true
 ignore_merge_commits = true
 ignore_revert_commits = true
-regex_patterns = [] # Optional: custom validation patterns
+
+# warnings will be displayed when any of these rules are broken, but not past the same `deny` value.
+# if `deny` is not set, only warnings will be displayed if the
+# warnings will still allow a commit to be valid.
+# if a warn value isn't specified for a rule, we will use the default value.
+# if a warn value is set to false, we won't check it at all.
+[commit.rules.warn]
+subject_length = 72
+body_length = 500
+no_scope = false
+no_body = false
+no_type = true
+no_breaking_change_footer = true
+regex_patterns = []
+
+# errors will be displayed when any of these rules are broken.
+# errors render a commit message invalid and cocoa MUST exit with an error code.
+[commit.rules.deny]
+subject_length = 72
+body_length = 500
+no_scope = false
+no_body = false
+no_type = true
+no_breaking_change_footer = true
+regex_patterns = []
 
 [ai]
 provider = "openai" # or "anthropic", "ollama", "openrouter"
@@ -148,6 +168,14 @@ The linter SHALL validate:
 - Body length
 - Conventional Commits format compliance
 - Custom regex patterns (if configured)
+
+When checking commit messages, the system MUST:
+
+- display a prominent warning to the user when a configured `warn` rule is
+  violated
+- display a prominent error to the user when a configured `deny` rule is
+  violated
+- exit with an error code if the commit message is denied
 
 ### 5.2 git hook integration
 
