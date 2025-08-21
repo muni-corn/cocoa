@@ -2,6 +2,7 @@ mod cli;
 mod commit;
 mod config;
 mod lint;
+mod style;
 
 use std::io::{self, Read};
 
