@@ -70,9 +70,9 @@ impl Default for Config {
                     ignore_merge_commits: true,
                     ignore_revert_commits: true,
                     warn: RuleLevel {
-                        subject_length: Some(72),
-                        body_length: Some(500),
-                        no_scope: Some(false),
+                        subject_length: Some(50),
+                        body_length: Some(250),
+                        no_scope: Some(true),
                         no_body: Some(false),
                         no_type: Some(true),
                         no_breaking_change_footer: Some(true),
@@ -84,7 +84,7 @@ impl Default for Config {
                         no_scope: Some(false),
                         no_body: Some(false),
                         no_type: Some(true),
-                        no_breaking_change_footer: Some(true),
+                        no_breaking_change_footer: Some(false),
                         regex_patterns: Some(vec![]),
                     },
                 },
@@ -196,7 +196,7 @@ mod tests {
     fn test_default_config() {
         let config = Config::default();
         assert!(config.commit.rules.enabled);
-        assert_eq!(config.commit.rules.warn.subject_length, Some(72));
+        assert_eq!(config.commit.rules.warn.subject_length, Some(50));
         assert_eq!(config.commit.rules.deny.subject_length, Some(72));
         assert!(config.commit.types.contains("feat"));
         assert!(config.commit.types.contains("fix"));
@@ -257,7 +257,7 @@ regex_patterns = []
     fn test_load_or_default_fallback() {
         let config = Config::load_or_default("nonexistent.toml");
         assert!(config.commit.rules.enabled);
-        assert_eq!(config.commit.rules.warn.subject_length, Some(72));
+        assert_eq!(config.commit.rules.warn.subject_length, Some(50));
     }
 
     #[test]
