@@ -91,6 +91,7 @@
                         "fix"
                         "perf"
                         "refactor"
+                        "style"
                         "test"
                       ];
                     };
