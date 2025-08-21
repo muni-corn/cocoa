@@ -12,7 +12,7 @@ use cli::{Cli, Commands};
 use config::Config;
 use lint::Linter;
 
-use crate::style::{print_error, print_info, print_success, print_warning};
+use crate::style::{print_error, print_info, print_success, print_warning, welcome};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -22,29 +22,37 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Lint { input, stdin } => {
+            welcome("hi! checking this commit message...");
             handle_lint(&config, input, stdin, cli.json, cli.quiet)?;
         }
         Commands::Init => {
-            unimplemented!("init is not implemented yet");
+            welcome("cocoa");
+            print_error("init is not implemented yet");
             // TODO: Implement init command
         }
         Commands::Commit => {
-            print_info("interactive commit creation not yet implemented");
+            welcome("cocoa");
+            print_error("interactive commit creation not yet implemented");
         }
         Commands::Generate => {
-            print_info("commit generation not yet implemented");
+            welcome("cocoa");
+            print_error("commit generation not yet implemented");
         }
         Commands::Changelog { range: _ } => {
-            print_info("changelog generation not yet implemented");
+            welcome("cocoa");
+            print_error("changelog generation not yet implemented");
         }
         Commands::Bump { bump_type: _ } => {
-            print_info("version bumping not yet implemented");
+            welcome("cocoa");
+            print_error("version bumping not yet implemented");
         }
         Commands::Tag => {
-            print_info("git tagging not yet implemented");
+            welcome("cocoa");
+            print_error("git tagging not yet implemented");
         }
         Commands::Release => {
-            print_info("release management not yet implemented");
+            welcome("cocoa");
+            print_error("release management not yet implemented");
         }
     }
 
