@@ -359,14 +359,16 @@ impl<'a> Linter<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use crate::config::{CommitConfig, CommitRules, RuleLevel};
 
     fn create_test_config() -> Config {
         Config {
             commit: CommitConfig {
-                types: vec!["feat".to_string(), "fix".to_string()],
-                scopes: Some(vec!["api".to_string(), "ui".to_string()]),
+                types: HashSet::from(["feat".to_string(), "fix".to_string()]),
+                scopes: Some(HashSet::from(["api".to_string(), "ui".to_string()])),
                 rules: CommitRules {
                     enabled: true,
                     ignore_fixup_commits: true,

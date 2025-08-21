@@ -22,8 +22,8 @@ pub struct Config {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CommitConfig {
-    pub types: Vec<String>,
-    pub scopes: Option<Vec<String>>,
+    pub types: HashSet<String>,
+    pub scopes: Option<HashSet<String>>,
     pub rules: CommitRules,
 }
 
@@ -54,13 +54,13 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             commit: CommitConfig {
-                types: vec![
-                    "build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert",
-                    "style", "test",
-                ]
-                .into_iter()
-                .map(String::from)
-                .collect(),
+                types: HashSet::from(
+                    [
+                        "build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor",
+                        "revert", "style", "test",
+                    ]
+                    .map(String::from),
+                ),
                 scopes: None,
                 rules: CommitRules {
                     enabled: true,
@@ -198,8 +198,8 @@ mod tests {
         assert!(config.commit.rules.enabled);
         assert_eq!(config.commit.rules.warn.subject_length, Some(72));
         assert_eq!(config.commit.rules.deny.subject_length, Some(72));
-        assert!(config.commit.types.contains(&"feat".to_string()));
-        assert!(config.commit.types.contains(&"fix".to_string()));
+        assert!(config.commit.types.contains("feat"));
+        assert!(config.commit.types.contains("fix"));
     }
 
     #[test]
@@ -243,7 +243,7 @@ regex_patterns = []
 
         let config = Config::load(file.path()).unwrap();
         assert_eq!(config.commit.types.len(), 3);
-        assert!(config.commit.types.contains(&"feat".to_string()));
+        assert!(config.commit.types.contains("feat"));
         assert_eq!(config.commit.rules.warn.subject_length, Some(50));
         assert_eq!(config.commit.rules.deny.subject_length, Some(100));
         assert!(config.commit.rules.warn.get_no_scope());
