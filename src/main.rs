@@ -89,7 +89,7 @@ fn handle_lint(
     let result = linter.lint(&message)?;
 
     if json_output {
-        print_info(&serde_json::to_string_pretty(&result)?);
+        println!("{}", serde_json::to_string(&result)?);
     } else if !quiet {
         if result.violations.is_empty() {
             print_success("commit message is valid");
