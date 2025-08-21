@@ -9,6 +9,7 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
 use config::Config;
+use console::style;
 use lint::Linter;
 
 fn main() -> Result<()> {
@@ -26,22 +27,22 @@ fn main() -> Result<()> {
             // TODO: Implement init command
         }
         Commands::Commit => {
-            println!("Interactive commit creation not yet implemented");
+            println!("interactive commit creation not yet implemented");
         }
         Commands::Generate => {
-            println!("Commit generation not yet implemented");
+            println!("commit generation not yet implemented");
         }
         Commands::Changelog { range: _ } => {
-            println!("Changelog generation not yet implemented");
+            println!("changelog generation not yet implemented");
         }
         Commands::Bump { bump_type: _ } => {
-            println!("Version bumping not yet implemented");
+            println!("version bumping not yet implemented");
         }
         Commands::Tag => {
-            println!("Git tagging not yet implemented");
+            println!("git tagging not yet implemented");
         }
         Commands::Release => {
-            println!("Release management not yet implemented");
+            println!("release management not yet implemented");
         }
     }
 
@@ -63,15 +64,15 @@ fn handle_lint(
         buffer.trim().to_string()
     } else if let Some(input) = input {
         if input.contains("..") {
-            // TODO: Handle git range
-            eprintln!("Git range linting not yet implemented");
+            // TODO: handle git range
+            eprintln!("git range linting not yet implemented");
             std::process::exit(1);
         } else {
             input
         }
     } else {
-        // Read from git commit message if available
-        eprintln!("Please provide a commit message via --stdin or as an argument");
+        // read from git commit message if available
+        eprintln!("please provide a commit message via --stdin or as an argument");
         std::process::exit(1);
     };
 
@@ -81,7 +82,7 @@ fn handle_lint(
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else if !quiet {
         if result.violations.is_empty() {
-            println!("✓ Commit message is valid");
+            println!("{} commit message is valid", style("^u^").green().bold());
         } else {
             let error_count = result
                 .violations
@@ -95,29 +96,28 @@ fn handle_lint(
                 .count();
 
             if error_count > 0 {
-                println!("✗ Commit message has validation errors:");
+                println!(
+                    "{} commit message has validation errors:",
+                    style("×").red().bold()
+                );
             } else if warning_count > 0 {
-                println!("⚠️  Commit message is valid but has warnings:");
+                println!(
+                    "{} commit message is valid but has warnings:",
+                    style("◆").yellow().bold()
+                );
             }
 
             for violation in &result.violations {
                 let severity_icon = match violation.severity {
-                    lint::Severity::Error => "❌",
-                    lint::Severity::Warning => "⚠️",
-                    lint::Severity::Info => "ℹ️",
+                    lint::Severity::Error => style("×").red().bold(),
+                    lint::Severity::Warning => style("◆").yellow().bold(),
+                    lint::Severity::Info => style("ℹ").blue(),
                 };
 
-                if let Some(line) = violation.line {
-                    println!(
-                        "  {} [{}:{}] {}",
-                        severity_icon, violation.rule, line, violation.message
-                    );
-                } else {
-                    println!(
-                        "  {} [{}] {}",
-                        severity_icon, violation.rule, violation.message
-                    );
-                }
+                println!(
+                    "  {} [{}] {}",
+                    severity_icon, violation.rule, violation.message
+                );
             }
         }
     }
