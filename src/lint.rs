@@ -1,3 +1,6 @@
+use std::fmt;
+
+use console::style;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -27,6 +30,18 @@ pub struct LintViolation {
     pub message: String,
     pub line: Option<usize>,
     pub column: Option<usize>,
+}
+
+impl fmt::Display for LintViolation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let symbol_styled = match self.severity {
+            Severity::Error => style("×").red().bold(),
+            Severity::Warning => style("◆").yellow().bold(),
+            Severity::Info => style("!").blue().bold(),
+        };
+
+        write!(f, "{} {}", symbol_styled, self.message)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
