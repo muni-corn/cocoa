@@ -1,15 +1,18 @@
 use std::collections::HashMap;
 
-use regex::Regex;
+use nom::{
+    IResult, Parser,
+    bytes::complete::{is_not, take_while1},
+    character::complete::{char, space0},
+    combinator::{map, opt, rest},
+    sequence::delimited,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ParseError {
     #[error("invalid commit format")]
     InvalidFormat,
-
-    #[error("invalid regex pattern: {0}")]
-    InvalidRegex(#[from] regex::Error),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,41 +27,42 @@ pub struct CommitMessage {
 
 impl CommitMessage {
     pub fn parse(message: &str) -> Result<Self, ParseError> {
-        let lines: Vec<&str> = message.lines().collect();
-        if lines.is_empty() {
+        let mut lines = message.lines();
+        let Some(header) = lines.next() else {
             return Err(ParseError::InvalidFormat);
-        }
+        };
 
-        let header = lines[0];
         let mut body_lines = Vec::new();
         let mut footer_lines = Vec::new();
         let mut in_footer = false;
         let mut blank_line_found = false;
 
-        for line in lines.iter().skip(1) {
+        for line in lines {
             if line.trim().is_empty() && !blank_line_found {
                 blank_line_found = true;
                 continue;
             }
 
-            if blank_line_found && Self::is_footer_line(line) {
+            if blank_line_found && is_footer_line(line) {
                 in_footer = true;
             }
 
             if in_footer {
-                footer_lines.push(*line);
+                footer_lines.push(line);
             } else if blank_line_found {
-                body_lines.push(*line);
+                body_lines.push(line);
             }
         }
 
-        let (commit_type, scope, breaking, subject) = Self::parse_header(header)?;
+        let (commit_type, scope, breaking, subject) = parse_header(header)
+            .map(|(_, r)| r)
+            .map_err(|_| ParseError::InvalidFormat)?;
         let body = if body_lines.is_empty() {
             None
         } else {
             Some(body_lines.join("\n").trim().to_string())
         };
-        let footers = Self::parse_footers(&footer_lines);
+        let footers = parse_footers(&footer_lines);
 
         let breaking = breaking
             || footers.contains_key("BREAKING CHANGE")
@@ -72,56 +76,6 @@ impl CommitMessage {
             body,
             footers,
         })
-    }
-
-    fn parse_header(header: &str) -> Result<(String, Option<String>, bool, String), ParseError> {
-        let re = Regex::new(r"^(\w+)(\(([^)]+)\))?(!?):\s*(.+)$")?;
-
-        if let Some(caps) = re.captures(header) {
-            let commit_type = caps.get(1).unwrap().as_str().to_string();
-            let scope = caps.get(3).map(|m| m.as_str().to_string());
-            let breaking = caps.get(4).is_some_and(|m| m.as_str() == "!");
-            let subject = caps.get(5).unwrap().as_str().to_string();
-
-            Ok((commit_type, scope, breaking, subject))
-        } else {
-            Err(ParseError::InvalidFormat)
-        }
-    }
-
-    fn is_footer_line(line: &str) -> bool {
-        let footer_re = Regex::new(r"^[\w-]+:\s+.+$").unwrap();
-        let breaking_re = Regex::new(r"^BREAKING[ -]CHANGE:\s+.+$").unwrap();
-        footer_re.is_match(line) || breaking_re.is_match(line)
-    }
-
-    fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
-        let mut footers = HashMap::new();
-        let mut current_key: Option<String> = None;
-        let mut current_value = String::new();
-
-        for line in footer_lines {
-            if Self::is_footer_line(line) {
-                if let Some(key) = current_key.take() {
-                    footers.insert(key, current_value.trim().to_string());
-                    current_value.clear();
-                }
-
-                if let Some(colon_pos) = line.find(':') {
-                    current_key = Some(line[..colon_pos].to_string());
-                    current_value = line[colon_pos + 1..].trim().to_string();
-                }
-            } else if current_key.is_some() {
-                current_value.push('\n');
-                current_value.push_str(line);
-            }
-        }
-
-        if let Some(key) = current_key {
-            footers.insert(key, current_value.trim().to_string());
-        }
-
-        footers
     }
 
     pub fn is_fixup(&self) -> bool {
@@ -147,6 +101,72 @@ impl CommitMessage {
     pub fn get_body_length(&self) -> usize {
         self.body.as_ref().map_or(0, |b| b.chars().count())
     }
+}
+
+fn is_ident_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
+fn parse_header(input: &str) -> IResult<&str, (String, Option<String>, bool, String)> {
+    let (input, commit_type) =
+        map(take_while1(is_ident_char), |s: &str| s.to_string()).parse(input)?;
+    let (input, scope) = opt(delimited(
+        char('('),
+        map(is_not(")"), |s: &str| s.to_string()),
+        char(')'),
+    ))
+    .parse(input)?;
+    let (input, bang) = opt(char('!')).parse(input)?;
+    let (input, _) = (char(':'), space0).parse(input)?;
+    let (input, subject) = map(rest, |s: &str| s.trim().to_string()).parse(input)?;
+    let breaking = bang.is_some();
+    Ok((input, (commit_type, scope, breaking, subject)))
+}
+
+fn is_footer_line(input: &str) -> bool {
+    // BREAKING CHANGE / BREAKING-CHANGE
+    if input.starts_with("BREAKING CHANGE:") || input.starts_with("BREAKING-CHANGE:") {
+        let rest = input.split_once(':').map(|x| x.1).unwrap_or("");
+        return !rest.trim().is_empty();
+    }
+    // key: value with word/hyphen key
+    if let Some(colon) = input.find(':') {
+        let (key, val) = input.split_at(colon);
+        let val = &val[1..];
+        let valid_key = key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+        return valid_key && !val.trim().is_empty();
+    }
+    false
+}
+
+fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
+    let mut footers = HashMap::new();
+    let mut current_key: Option<String> = None;
+    let mut current_value = String::new();
+
+    for line in footer_lines {
+        if is_footer_line(line) {
+            if let Some(key) = current_key.take() {
+                footers.insert(key, current_value.trim().to_string());
+                current_value.clear();
+            }
+            if let Some(colon_pos) = line.find(':') {
+                current_key = Some(line[..colon_pos].to_string());
+                current_value = line[colon_pos + 1..].trim().to_string();
+            }
+        } else if current_key.is_some() {
+            current_value.push('\n');
+            current_value.push_str(line);
+        }
+    }
+
+    if let Some(key) = current_key {
+        footers.insert(key, current_value.trim().to_string());
+    }
+
+    footers
 }
 
 #[cfg(test)]

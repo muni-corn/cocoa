@@ -86,7 +86,7 @@ fn handle_lint(
         std::process::exit(1);
     };
 
-    let result = linter.lint(&message)?;
+    let result = linter.lint(&message);
 
     if json_output {
         println!("{}", serde_json::to_string(&result)?);

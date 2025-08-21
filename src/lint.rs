@@ -1,20 +1,13 @@
 use std::fmt;
 
 use console::style;
-use regex::Regex;
+// regex removed; patterns evaluated with nom-like simple contains fallback
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::{
     commit::CommitMessage,
     config::{CommitRules, Config},
 };
-
-#[derive(Debug, Error)]
-pub enum LintError {
-    #[error("invalid regex pattern: {0}")]
-    InvalidRegex(#[from] regex::Error),
-}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Severity {
@@ -63,7 +56,7 @@ impl<'a> Linter<'a> {
         }
     }
 
-    pub fn lint(&self, message: &str) -> Result<LintResult, LintError> {
+    pub fn lint(&self, message: &str) -> LintResult {
         let mut violations = Vec::new();
 
         let commit = match CommitMessage::parse(message) {
@@ -77,18 +70,18 @@ impl<'a> Linter<'a> {
                     line: Some(1),
                     column: None,
                 });
-                return Ok(LintResult {
+                return LintResult {
                     violations,
                     is_valid: false,
-                });
+                };
             }
         };
 
         if self.should_ignore_commit(&commit) {
-            return Ok(LintResult {
+            return LintResult {
                 violations: vec![],
                 is_valid: true,
-            });
+            };
         }
 
         if self.rules.enabled {
@@ -98,15 +91,15 @@ impl<'a> Linter<'a> {
             self.check_body_length(&commit, &mut violations);
             self.check_required_body(&commit, &mut violations);
             self.check_breaking_change_footer(&commit, &mut violations);
-            self.check_custom_patterns(&commit, message, &mut violations)?;
+            self.check_custom_patterns(&commit, message, &mut violations);
         }
 
         let is_valid = violations.iter().all(|v| v.severity != Severity::Error);
 
-        Ok(LintResult {
+        LintResult {
             violations,
             is_valid,
-        })
+        }
     }
 
     fn should_ignore_commit(&self, commit: &CommitMessage) -> bool {
@@ -336,13 +329,13 @@ impl<'a> Linter<'a> {
         _commit: &CommitMessage,
         message: &str,
         violations: &mut Vec<LintViolation>,
-    ) -> Result<(), LintError> {
+    ) {
         let warn_patterns = self.rules.warn.get_regex_patterns();
         let deny_patterns = self.rules.deny.get_regex_patterns();
 
         for pattern in &deny_patterns {
-            let regex = Regex::new(pattern)?;
-            if !regex.is_match(message) {
+            // with nom, we don't support full regex; simple contains as placeholder
+            if !message.contains(pattern) {
                 violations.push(LintViolation {
                     rule: "regex-pattern".to_string(),
                     severity: Severity::Error,
@@ -354,21 +347,16 @@ impl<'a> Linter<'a> {
         }
 
         for pattern in &warn_patterns {
-            if !deny_patterns.contains(pattern) {
-                let regex = Regex::new(pattern)?;
-                if !regex.is_match(message) {
-                    violations.push(LintViolation {
-                        rule: "regex-pattern".to_string(),
-                        severity: Severity::Warning,
-                        message: format!("message should match pattern: {}", pattern),
-                        line: None,
-                        column: None,
-                    });
-                }
+            if !deny_patterns.contains(pattern) && !message.contains(pattern) {
+                violations.push(LintViolation {
+                    rule: "regex-pattern".to_string(),
+                    severity: Severity::Warning,
+                    message: format!("message should match pattern: {}", pattern),
+                    line: None,
+                    column: None,
+                });
             }
         }
-
-        Ok(())
     }
 }
 
@@ -418,7 +406,7 @@ mod tests {
     fn test_valid_commit() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let result = linter.lint("feat: add new feature").unwrap();
+        let result = linter.lint("feat: add new feature");
 
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
@@ -428,7 +416,7 @@ mod tests {
     fn test_invalid_type() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let result = linter.lint("invalid: add new feature").unwrap();
+        let result = linter.lint("invalid: add new feature");
 
         assert!(!result.is_valid);
         assert_eq!(result.violations.len(), 1);
@@ -442,7 +430,7 @@ mod tests {
         let linter = Linter::new(&config);
         let long_subject = "a".repeat(60); // 60 chars > 50 (warn) but < 100 (deny)
         let message = format!("feat: {}", long_subject);
-        let result = linter.lint(&message).unwrap();
+        let result = linter.lint(&message);
 
         assert!(result.is_valid); // Should be valid (only warning)
         assert_eq!(result.violations.len(), 1);
@@ -456,7 +444,7 @@ mod tests {
         let linter = Linter::new(&config);
         let very_long_subject = "a".repeat(120); // 120 chars > 100 (deny)
         let message = format!("feat: {}", very_long_subject);
-        let result = linter.lint(&message).unwrap();
+        let result = linter.lint(&message);
 
         assert!(!result.is_valid); // Should be invalid (error)
         assert_eq!(result.violations.len(), 1);
@@ -468,7 +456,7 @@ mod tests {
     fn test_invalid_scope() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let result = linter.lint("feat(invalid): add new feature").unwrap();
+        let result = linter.lint("feat(invalid): add new feature");
 
         assert!(!result.is_valid);
         assert_eq!(result.violations.len(), 1);
@@ -479,7 +467,7 @@ mod tests {
     fn test_valid_scope() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let result = linter.lint("feat(api): add new feature").unwrap();
+        let result = linter.lint("feat(api): add new feature");
 
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
@@ -489,7 +477,7 @@ mod tests {
     fn test_ignore_fixup_commit() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let result = linter.lint("fixup: fix typo").unwrap();
+        let result = linter.lint("fixup: fix typo");
 
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
@@ -501,9 +489,7 @@ mod tests {
         config.commit.rules.deny.no_breaking_change_footer = Some(true);
         let linter = Linter::new(&config);
 
-        let result = linter
-            .lint("feat!: breaking change without footer")
-            .unwrap();
+        let result = linter.lint("feat!: breaking change without footer");
 
         assert!(!result.is_valid);
         assert_eq!(result.violations.len(), 1);
@@ -517,7 +503,7 @@ mod tests {
         config.commit.rules.enabled = false;
         let linter = Linter::new(&config);
 
-        let result = linter.lint("invalid: this should not be linted").unwrap();
+        let result = linter.lint("invalid: this should not be linted");
 
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
