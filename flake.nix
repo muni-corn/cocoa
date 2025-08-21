@@ -122,7 +122,16 @@
           # rust build settings
           rust-project = {
             # use fenix toolchain for nightly rust
-            toolchain = inputs.fenix.packages.${system}.default.toolchain;
+            toolchain = inputs.fenix.packages.${system}.complete.withComponents [
+              "cargo"
+              "clippy"
+              "rust-analyzer"
+              "rust-docs"
+              "rust-src"
+              "rust-std"
+              "rustc"
+              "rustfmt"
+            ];
 
             # setup build inputs for crane
             crates.${pname}.crane.args = {

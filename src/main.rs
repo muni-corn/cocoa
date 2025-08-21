@@ -3,12 +3,13 @@ mod commit;
 mod config;
 mod lint;
 
+use std::io::{self, Read};
+
 use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
 use config::Config;
 use lint::Linter;
-use std::io::{self, Read};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -21,7 +22,7 @@ fn main() -> Result<()> {
             handle_lint(&config, input, stdin, cli.json, cli.quiet)?;
         }
         Commands::Init => {
-            println!("Initializing cocoa configuration...");
+            unimplemented!("init is not implemented yet");
             // TODO: Implement init command
         }
         Commands::Commit => {
@@ -79,10 +80,26 @@ fn handle_lint(
     if json_output {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else if !quiet {
-        if result.is_valid {
+        if result.violations.is_empty() {
             println!("✓ Commit message is valid");
         } else {
-            println!("✗ Commit message has validation errors:");
+            let error_count = result
+                .violations
+                .iter()
+                .filter(|v| matches!(v.severity, lint::Severity::Error))
+                .count();
+            let warning_count = result
+                .violations
+                .iter()
+                .filter(|v| matches!(v.severity, lint::Severity::Warning))
+                .count();
+
+            if error_count > 0 {
+                println!("✗ Commit message has validation errors:");
+            } else if warning_count > 0 {
+                println!("⚠️  Commit message is valid but has warnings:");
+            }
+
             for violation in &result.violations {
                 let severity_icon = match violation.severity {
                     lint::Severity::Error => "❌",

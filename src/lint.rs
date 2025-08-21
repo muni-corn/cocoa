@@ -1,6 +1,5 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-
 use thiserror::Error;
 
 use crate::{
@@ -103,14 +102,27 @@ impl<'a> Linter<'a> {
     }
 
     fn check_type(&self, commit: &CommitMessage, violations: &mut Vec<LintViolation>) {
-        if self.rules.require_type && commit.commit_type.is_empty() {
-            violations.push(LintViolation {
-                rule: "type-required".to_string(),
-                severity: Severity::Error,
-                message: "Commit type is required".to_string(),
-                line: Some(1),
-                column: None,
-            });
+        let warn_no_type = self.rules.warn.get_no_type();
+        let deny_no_type = self.rules.deny.get_no_type();
+
+        if commit.commit_type.is_empty() {
+            if deny_no_type {
+                violations.push(LintViolation {
+                    rule: "no-type".to_string(),
+                    severity: Severity::Error,
+                    message: "Commit type is required".to_string(),
+                    line: Some(1),
+                    column: None,
+                });
+            } else if warn_no_type {
+                violations.push(LintViolation {
+                    rule: "no-type".to_string(),
+                    severity: Severity::Warning,
+                    message: "Commit type is missing".to_string(),
+                    line: Some(1),
+                    column: None,
+                });
+            }
             return;
         }
 
@@ -131,14 +143,27 @@ impl<'a> Linter<'a> {
     }
 
     fn check_scope(&self, commit: &CommitMessage, violations: &mut Vec<LintViolation>) {
-        if self.rules.require_scope && commit.scope.is_none() {
-            violations.push(LintViolation {
-                rule: "scope-required".to_string(),
-                severity: Severity::Error,
-                message: "Commit scope is required".to_string(),
-                line: Some(1),
-                column: None,
-            });
+        let warn_no_scope = self.rules.warn.get_no_scope();
+        let deny_no_scope = self.rules.deny.get_no_scope();
+
+        if commit.scope.is_none() {
+            if deny_no_scope {
+                violations.push(LintViolation {
+                    rule: "no-scope".to_string(),
+                    severity: Severity::Error,
+                    message: "Commit scope is required".to_string(),
+                    line: Some(1),
+                    column: None,
+                });
+            } else if warn_no_scope {
+                violations.push(LintViolation {
+                    rule: "no-scope".to_string(),
+                    severity: Severity::Warning,
+                    message: "Commit scope is missing".to_string(),
+                    line: Some(1),
+                    column: None,
+                });
+            }
             return;
         }
 
@@ -166,13 +191,32 @@ impl<'a> Linter<'a> {
 
     fn check_subject_length(&self, commit: &CommitMessage, violations: &mut Vec<LintViolation>) {
         let length = commit.get_subject_length();
-        if length > self.rules.max_subject_length {
+
+        if let Some(deny_length) = self.rules.deny.get_subject_length()
+            && length > deny_length
+        {
             violations.push(LintViolation {
                 rule: "subject-max-length".to_string(),
                 severity: Severity::Error,
                 message: format!(
                     "Subject line too long ({} chars). Maximum is {} chars",
-                    length, self.rules.max_subject_length
+                    length, deny_length
+                ),
+                line: Some(1),
+                column: None,
+            });
+            return;
+        }
+
+        if let Some(warn_length) = self.rules.warn.get_subject_length()
+            && length > warn_length
+        {
+            violations.push(LintViolation {
+                rule: "subject-max-length".to_string(),
+                severity: Severity::Warning,
+                message: format!(
+                    "Subject line is long ({} chars). Consider keeping it under {} chars",
+                    length, warn_length
                 ),
                 line: Some(1),
                 column: None,
@@ -182,13 +226,32 @@ impl<'a> Linter<'a> {
 
     fn check_body_length(&self, commit: &CommitMessage, violations: &mut Vec<LintViolation>) {
         let length = commit.get_body_length();
-        if length > self.rules.max_body_length {
+
+        if let Some(deny_length) = self.rules.deny.get_body_length()
+            && length > deny_length
+        {
+            violations.push(LintViolation {
+                rule: "body-max-length".to_string(),
+                severity: Severity::Error,
+                message: format!(
+                    "Body too long ({} chars). Maximum is {} chars",
+                    length, deny_length
+                ),
+                line: Some(3),
+                column: None,
+            });
+            return;
+        }
+
+        if let Some(warn_length) = self.rules.warn.get_body_length()
+            && length > warn_length
+        {
             violations.push(LintViolation {
                 rule: "body-max-length".to_string(),
                 severity: Severity::Warning,
                 message: format!(
-                    "Body too long ({} chars). Maximum is {} chars",
-                    length, self.rules.max_body_length
+                    "Body is long ({} chars). Consider keeping it under {} chars",
+                    length, warn_length
                 ),
                 line: Some(3),
                 column: None,
@@ -197,14 +260,27 @@ impl<'a> Linter<'a> {
     }
 
     fn check_required_body(&self, commit: &CommitMessage, violations: &mut Vec<LintViolation>) {
-        if self.rules.require_body && commit.body.is_none() {
-            violations.push(LintViolation {
-                rule: "body-required".to_string(),
-                severity: Severity::Error,
-                message: "Body is required".to_string(),
-                line: Some(3),
-                column: None,
-            });
+        let warn_no_body = self.rules.warn.get_no_body();
+        let deny_no_body = self.rules.deny.get_no_body();
+
+        if commit.body.is_none() {
+            if deny_no_body {
+                violations.push(LintViolation {
+                    rule: "no-body".to_string(),
+                    severity: Severity::Error,
+                    message: "Body is required".to_string(),
+                    line: Some(3),
+                    column: None,
+                });
+            } else if warn_no_body {
+                violations.push(LintViolation {
+                    rule: "no-body".to_string(),
+                    severity: Severity::Warning,
+                    message: "Body is missing".to_string(),
+                    line: Some(3),
+                    column: None,
+                });
+            }
         }
     }
 
@@ -213,18 +289,30 @@ impl<'a> Linter<'a> {
         commit: &CommitMessage,
         violations: &mut Vec<LintViolation>,
     ) {
-        if self.rules.require_breaking_change_footer
-            && commit.breaking
+        let warn_no_breaking_footer = self.rules.warn.get_no_breaking_change_footer();
+        let deny_no_breaking_footer = self.rules.deny.get_no_breaking_change_footer();
+
+        if commit.breaking
             && !commit.footers.contains_key("BREAKING CHANGE")
             && !commit.footers.contains_key("BREAKING-CHANGE")
         {
-            violations.push(LintViolation {
-                rule: "breaking-change-footer".to_string(),
-                severity: Severity::Error,
-                message: "Breaking changes must include a BREAKING CHANGE footer".to_string(),
-                line: None,
-                column: None,
-            });
+            if deny_no_breaking_footer {
+                violations.push(LintViolation {
+                    rule: "no-breaking-change-footer".to_string(),
+                    severity: Severity::Error,
+                    message: "Breaking changes must include a BREAKING CHANGE footer".to_string(),
+                    line: None,
+                    column: None,
+                });
+            } else if warn_no_breaking_footer {
+                violations.push(LintViolation {
+                    rule: "no-breaking-change-footer".to_string(),
+                    severity: Severity::Warning,
+                    message: "Breaking changes should include a BREAKING CHANGE footer".to_string(),
+                    line: None,
+                    column: None,
+                });
+            }
         }
     }
 
@@ -234,18 +322,37 @@ impl<'a> Linter<'a> {
         message: &str,
         violations: &mut Vec<LintViolation>,
     ) -> Result<(), LintError> {
-        for pattern in &self.rules.regex_patterns {
+        let warn_patterns = self.rules.warn.get_regex_patterns();
+        let deny_patterns = self.rules.deny.get_regex_patterns();
+
+        for pattern in &deny_patterns {
             let regex = Regex::new(pattern)?;
             if !regex.is_match(message) {
                 violations.push(LintViolation {
-                    rule: "custom-pattern".to_string(),
-                    severity: Severity::Warning,
+                    rule: "regex-pattern".to_string(),
+                    severity: Severity::Error,
                     message: format!("Message does not match required pattern: {}", pattern),
                     line: None,
                     column: None,
                 });
             }
         }
+
+        for pattern in &warn_patterns {
+            if !deny_patterns.contains(pattern) {
+                let regex = Regex::new(pattern)?;
+                if !regex.is_match(message) {
+                    violations.push(LintViolation {
+                        rule: "regex-pattern".to_string(),
+                        severity: Severity::Warning,
+                        message: format!("Message should match pattern: {}", pattern),
+                        line: None,
+                        column: None,
+                    });
+                }
+            }
+        }
+
         Ok(())
     }
 }
@@ -253,7 +360,7 @@ impl<'a> Linter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{CommitConfig, CommitRules};
+    use crate::config::{CommitConfig, CommitRules, RuleLevel};
 
     fn create_test_config() -> Config {
         Config {
@@ -262,18 +369,29 @@ mod tests {
                 scopes: Some(vec!["api".to_string(), "ui".to_string()]),
                 rules: CommitRules {
                     enabled: true,
-                    max_subject_length: 50,
-                    max_body_length: 100,
-                    require_scope: false,
-                    require_body: false,
-                    require_type: true,
-                    require_breaking_change_footer: false,
                     ignore_fixup_commits: true,
                     ignore_amend_commits: true,
                     ignore_squash_commits: true,
                     ignore_merge_commits: true,
                     ignore_revert_commits: true,
-                    regex_patterns: vec![],
+                    warn: RuleLevel {
+                        subject_length: Some(50),
+                        body_length: Some(100),
+                        no_scope: Some(false),
+                        no_body: Some(false),
+                        no_type: Some(true),
+                        no_breaking_change_footer: Some(false),
+                        regex_patterns: Some(vec![]),
+                    },
+                    deny: RuleLevel {
+                        subject_length: Some(100),
+                        body_length: Some(200),
+                        no_scope: Some(false),
+                        no_body: Some(false),
+                        no_type: Some(true),
+                        no_breaking_change_footer: Some(false),
+                        regex_patterns: Some(vec![]),
+                    },
                 },
             },
         }
@@ -302,16 +420,31 @@ mod tests {
     }
 
     #[test]
-    fn test_subject_too_long() {
+    fn test_subject_warning() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let long_subject = "a".repeat(60);
+        let long_subject = "a".repeat(60); // 60 chars > 50 (warn) but < 100 (deny)
         let message = format!("feat: {}", long_subject);
         let result = linter.lint(&message).unwrap();
 
-        assert!(!result.is_valid);
+        assert!(result.is_valid); // Should be valid (only warning)
         assert_eq!(result.violations.len(), 1);
         assert_eq!(result.violations[0].rule, "subject-max-length");
+        assert_eq!(result.violations[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_subject_error() {
+        let config = create_test_config();
+        let linter = Linter::new(&config);
+        let very_long_subject = "a".repeat(120); // 120 chars > 100 (deny)
+        let message = format!("feat: {}", very_long_subject);
+        let result = linter.lint(&message).unwrap();
+
+        assert!(!result.is_valid); // Should be invalid (error)
+        assert_eq!(result.violations.len(), 1);
+        assert_eq!(result.violations[0].rule, "subject-max-length");
+        assert_eq!(result.violations[0].severity, Severity::Error);
     }
 
     #[test]
@@ -348,7 +481,7 @@ mod tests {
     #[test]
     fn test_breaking_change_footer_requirement() {
         let mut config = create_test_config();
-        config.commit.rules.require_breaking_change_footer = true;
+        config.commit.rules.deny.no_breaking_change_footer = Some(true);
         let linter = Linter::new(&config);
 
         let result = linter
@@ -357,7 +490,8 @@ mod tests {
 
         assert!(!result.is_valid);
         assert_eq!(result.violations.len(), 1);
-        assert_eq!(result.violations[0].rule, "breaking-change-footer");
+        assert_eq!(result.violations[0].rule, "no-breaking-change-footer");
+        assert_eq!(result.violations[0].severity, Severity::Error);
     }
 
     #[test]
