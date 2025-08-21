@@ -10,8 +10,9 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
 use config::Config;
-use console::style;
 use lint::Linter;
+
+use crate::style::{print_error, print_info, print_success, print_warning};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -28,22 +29,22 @@ fn main() -> Result<()> {
             // TODO: Implement init command
         }
         Commands::Commit => {
-            println!("interactive commit creation not yet implemented");
+            print_info("interactive commit creation not yet implemented");
         }
         Commands::Generate => {
-            println!("commit generation not yet implemented");
+            print_info("commit generation not yet implemented");
         }
         Commands::Changelog { range: _ } => {
-            println!("changelog generation not yet implemented");
+            print_info("changelog generation not yet implemented");
         }
         Commands::Bump { bump_type: _ } => {
-            println!("version bumping not yet implemented");
+            print_info("version bumping not yet implemented");
         }
         Commands::Tag => {
-            println!("git tagging not yet implemented");
+            print_info("git tagging not yet implemented");
         }
         Commands::Release => {
-            println!("release management not yet implemented");
+            print_info("release management not yet implemented");
         }
     }
 
@@ -66,24 +67,24 @@ fn handle_lint(
     } else if let Some(input) = input {
         if input.contains("..") {
             // TODO: handle git range
-            eprintln!("git range linting not yet implemented");
+            print_error("git range linting not yet implemented");
             std::process::exit(1);
         } else {
             input
         }
     } else {
         // read from git commit message if available
-        eprintln!("please provide a commit message via --stdin or as an argument");
+        print_error("please provide a commit message via --stdin or as an argument");
         std::process::exit(1);
     };
 
     let result = linter.lint(&message)?;
 
     if json_output {
-        println!("{}", serde_json::to_string_pretty(&result)?);
+        print_info(&serde_json::to_string_pretty(&result)?);
     } else if !quiet {
         if result.violations.is_empty() {
-            println!("{} commit message is valid", style("^u^").green().bold());
+            print_success("commit message is valid");
         } else {
             let error_count = result
                 .violations
@@ -97,28 +98,13 @@ fn handle_lint(
                 .count();
 
             if error_count > 0 {
-                println!(
-                    "{} commit message has validation errors:",
-                    style("×").red().bold()
-                );
+                print_error("commit message has validation errors:");
             } else if warning_count > 0 {
-                println!(
-                    "{} commit message is valid but has warnings:",
-                    style("◆").yellow().bold()
-                );
+                print_warning("commit message is valid but has warnings:");
             }
 
             for violation in &result.violations {
-                let severity_icon = match violation.severity {
-                    lint::Severity::Error => style("×").red().bold(),
-                    lint::Severity::Warning => style("◆").yellow().bold(),
-                    lint::Severity::Info => style("ℹ").blue(),
-                };
-
-                println!(
-                    "  {} [{}] {}",
-                    severity_icon, violation.rule, violation.message
-                );
+                print_info(format!("[{}] {}", violation.rule, violation.message));
             }
         }
     }
