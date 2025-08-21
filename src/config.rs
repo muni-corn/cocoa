@@ -11,7 +11,7 @@ pub enum ConfigError {
     #[error("failed to parse config file: {0}")]
     Parse(#[from] toml::de::Error),
 
-    #[error("Configuration validation error: {0}")]
+    #[error("configuration validation error: {0}")]
     Validation(String),
 }
 
@@ -105,7 +105,7 @@ impl Config {
         match Self::load(path) {
             Ok(config) => config,
             Err(ConfigError::Validation(msg)) => {
-                eprintln!("Warning: Configuration validation failed: {}", msg);
+                eprintln!("configuration validation failed: {}", msg);
                 Self::default()
             }
             Err(_) => Self::default(),

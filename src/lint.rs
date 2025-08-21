@@ -9,7 +9,7 @@ use crate::{
 
 #[derive(Debug, Error)]
 pub enum LintError {
-    #[error("Invalid regex pattern: {0}")]
+    #[error("invalid regex pattern: {0}")]
     InvalidRegex(#[from] regex::Error),
 }
 
@@ -57,7 +57,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "format".to_string(),
                     severity: Severity::Error,
-                    message: "Commit message does not follow conventional commits format"
+                    message: "commit message does not follow conventional commits format"
                         .to_string(),
                     line: Some(1),
                     column: None,
@@ -110,7 +110,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-type".to_string(),
                     severity: Severity::Error,
-                    message: "Commit type is required".to_string(),
+                    message: "commit type is required".to_string(),
                     line: Some(1),
                     column: None,
                 });
@@ -118,7 +118,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-type".to_string(),
                     severity: Severity::Warning,
-                    message: "Commit type is missing".to_string(),
+                    message: "commit type is missing".to_string(),
                     line: Some(1),
                     column: None,
                 });
@@ -132,7 +132,7 @@ impl<'a> Linter<'a> {
                 rule: "type-enum".to_string(),
                 severity: Severity::Error,
                 message: format!(
-                    "Invalid commit type '{}'. Allowed types: {}",
+                    "invalid commit type '{}'. allowed types: {}",
                     commit.commit_type,
                     allowed_types.iter().cloned().collect::<Vec<_>>().join(", ")
                 ),
@@ -151,7 +151,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-scope".to_string(),
                     severity: Severity::Error,
-                    message: "Commit scope is required".to_string(),
+                    message: "commit scope is required".to_string(),
                     line: Some(1),
                     column: None,
                 });
@@ -159,7 +159,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-scope".to_string(),
                     severity: Severity::Warning,
-                    message: "Commit scope is missing".to_string(),
+                    message: "commit scope is missing".to_string(),
                     line: Some(1),
                     column: None,
                 });
@@ -175,7 +175,7 @@ impl<'a> Linter<'a> {
                 rule: "scope-enum".to_string(),
                 severity: Severity::Error,
                 message: format!(
-                    "Invalid scope '{}'. Allowed scopes: {}",
+                    "invalid scope '{}'. allowed scopes: {}",
                     scope,
                     allowed_scopes
                         .iter()
@@ -199,7 +199,7 @@ impl<'a> Linter<'a> {
                 rule: "subject-max-length".to_string(),
                 severity: Severity::Error,
                 message: format!(
-                    "Subject line too long ({} chars). Maximum is {} chars",
+                    "subject line too long ({} chars). maximum is {} chars",
                     length, deny_length
                 ),
                 line: Some(1),
@@ -215,7 +215,7 @@ impl<'a> Linter<'a> {
                 rule: "subject-max-length".to_string(),
                 severity: Severity::Warning,
                 message: format!(
-                    "Subject line is long ({} chars). Consider keeping it under {} chars",
+                    "subject line is long ({} chars). consider keeping it under {} chars",
                     length, warn_length
                 ),
                 line: Some(1),
@@ -234,7 +234,7 @@ impl<'a> Linter<'a> {
                 rule: "body-max-length".to_string(),
                 severity: Severity::Error,
                 message: format!(
-                    "Body too long ({} chars). Maximum is {} chars",
+                    "body too long ({} chars). maximum is {} chars",
                     length, deny_length
                 ),
                 line: Some(3),
@@ -250,7 +250,7 @@ impl<'a> Linter<'a> {
                 rule: "body-max-length".to_string(),
                 severity: Severity::Warning,
                 message: format!(
-                    "Body is long ({} chars). Consider keeping it under {} chars",
+                    "body is long ({} chars). consider keeping it under {} chars",
                     length, warn_length
                 ),
                 line: Some(3),
@@ -268,7 +268,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-body".to_string(),
                     severity: Severity::Error,
-                    message: "Body is required".to_string(),
+                    message: "body is required".to_string(),
                     line: Some(3),
                     column: None,
                 });
@@ -276,7 +276,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-body".to_string(),
                     severity: Severity::Warning,
-                    message: "Body is missing".to_string(),
+                    message: "body is missing".to_string(),
                     line: Some(3),
                     column: None,
                 });
@@ -300,7 +300,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-breaking-change-footer".to_string(),
                     severity: Severity::Error,
-                    message: "Breaking changes must include a BREAKING CHANGE footer".to_string(),
+                    message: "breaking changes must include a BREAKING CHANGE footer".to_string(),
                     line: None,
                     column: None,
                 });
@@ -308,7 +308,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "no-breaking-change-footer".to_string(),
                     severity: Severity::Warning,
-                    message: "Breaking changes should include a BREAKING CHANGE footer".to_string(),
+                    message: "breaking changes should include a BREAKING CHANGE footer".to_string(),
                     line: None,
                     column: None,
                 });
@@ -331,7 +331,7 @@ impl<'a> Linter<'a> {
                 violations.push(LintViolation {
                     rule: "regex-pattern".to_string(),
                     severity: Severity::Error,
-                    message: format!("Message does not match required pattern: {}", pattern),
+                    message: format!("message does not match required pattern: {}", pattern),
                     line: None,
                     column: None,
                 });
@@ -345,7 +345,7 @@ impl<'a> Linter<'a> {
                     violations.push(LintViolation {
                         rule: "regex-pattern".to_string(),
                         severity: Severity::Warning,
-                        message: format!("Message should match pattern: {}", pattern),
+                        message: format!("message should match pattern: {}", pattern),
                         line: None,
                         column: None,
                     });

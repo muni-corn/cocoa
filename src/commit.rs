@@ -1,13 +1,14 @@
-use regex::Regex;
 use std::collections::HashMap;
+
+use regex::Regex;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("Invalid commit format")]
+    #[error("invalid commit format")]
     InvalidFormat,
 
-    #[error("Invalid regex pattern: {0}")]
+    #[error("invalid regex pattern: {0}")]
     InvalidRegex(#[from] regex::Error),
 }
 
