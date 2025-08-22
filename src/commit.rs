@@ -163,7 +163,7 @@ impl CommitMessage {
 
 /// allowed identifier characters for type and footer keys
 fn is_ident_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
+    c.is_ascii_alphanumeric() || c == '_' || c == '-'
 }
 
 /// parse the header into `(type, scope, breaking, subject)`
