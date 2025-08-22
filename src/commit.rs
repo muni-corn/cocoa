@@ -1,3 +1,14 @@
+//! This module provides a small parser for conventional commit-style messages.
+//! It extracts the commit type, optional scope, breaking-change marker,
+//! subject, optional body, and structured footers. It is intentionally
+//! permissive for bodies and enforces a simple, readable header grammar.
+//!
+//! Non-goals:
+//! - enforcing allowed type/scope taxonomy
+//! - reflowing or wrapping text
+//!
+//! See [`CommitMessage::parse`] for usage and more examples.
+
 use std::collections::HashMap;
 
 use nom::{
@@ -9,23 +20,64 @@ use nom::{
 };
 use thiserror::Error;
 
+/// parser errors for commit messages
 #[derive(Debug, Error)]
 pub enum ParseError {
+    /// input didn't match the expected header/body/footer layout
     #[error("invalid commit format")]
     InvalidFormat,
 }
 
+/// a structured representation of a commit message
+///
+/// fields mirror conventional commit parts and some helpful derived flags.
+/// all strings are kept as provided (after minimal trimming), with the body
+/// preserving line breaks.
+///
+/// use [`CommitMessage::parse`] to build an instance from raw text.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitMessage {
+    /// commit type like `feat`, `fix`, `docs`, `chore`, etc.
     pub commit_type: String,
+    /// optional scope in parentheses from the header
     pub scope: Option<String>,
+    /// true when `!` is present after type/scope or when a breaking footer
+    /// exists
     pub breaking: bool,
+    /// short imperative description (first line after the colon)
     pub subject: String,
+    /// optional free-form body separated by a blank line from the header
     pub body: Option<String>,
+    /// structured trailer lines of the form `Key: Value` (multi-line supported)
     pub footers: HashMap<String, String>,
 }
 
 impl CommitMessage {
+    /// parse a raw commit message into a [`CommitMessage`].
+    ///
+    /// the parser expects the first line to be a valid header following the
+    /// simplified conventional commits grammar documented at the top of this
+    /// module. a blank line separates header from body/footers. once a valid
+    /// footer line is detected after a blank line, following lines are
+    /// considered footers, allowing multi-line values.
+    ///
+    /// examples
+    ///
+    /// ```rust
+    /// use cocoa::commit::CommitMessage;
+    ///
+    /// let msg = "feat(auth)!: rotate tokens\n\nreasoning\n\nCloses: #42";
+    /// let parsed = CommitMessage::parse(msg).unwrap();
+    /// assert_eq!(parsed.commit_type, "feat");
+    /// assert_eq!(parsed.scope.as_deref(), Some("auth"));
+    /// assert!(parsed.breaking);
+    /// assert_eq!(parsed.subject, "rotate tokens");
+    /// assert!(parsed.body.unwrap().starts_with("reasoning"));
+    /// assert_eq!(
+    ///     parsed.footers.get("Closes").map(String::as_str),
+    ///     Some("#42")
+    /// );
+    /// ```
     pub fn parse(message: &str) -> Result<Self, ParseError> {
         let mut lines = message.lines();
         let Some(header) = lines.next() else {
@@ -78,35 +130,43 @@ impl CommitMessage {
         })
     }
 
+    /// true when the commit is a `fixup:` commit (by type)
     pub fn is_fixup(&self) -> bool {
         self.commit_type == "fixup"
     }
 
+    /// true when the commit is a `squash:` commit (by type)
     pub fn is_squash(&self) -> bool {
         self.commit_type == "squash"
     }
 
+    /// true for likely merge commits (subject starts with `Merge`)
     pub fn is_merge(&self) -> bool {
         self.subject.starts_with("Merge")
     }
 
+    /// true for revert commits (`revert:` type or subject starts with `Revert`)
     pub fn is_revert(&self) -> bool {
         self.commit_type == "revert" || self.subject.starts_with("Revert")
     }
 
+    /// unicode scalar count of the subject line
     pub fn get_subject_length(&self) -> usize {
         self.subject.chars().count()
     }
 
+    /// unicode scalar count of the entire body (0 when absent)
     pub fn get_body_length(&self) -> usize {
         self.body.as_ref().map_or(0, |b| b.chars().count())
     }
 }
 
+/// allowed identifier characters for type and footer keys
 fn is_ident_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
+/// parse the header into `(type, scope, breaking, subject)`
 fn parse_header(input: &str) -> IResult<&str, (String, Option<String>, bool, String)> {
     let (input, commit_type) =
         map(take_while1(is_ident_char), |s: &str| s.to_string()).parse(input)?;
@@ -123,24 +183,16 @@ fn parse_header(input: &str) -> IResult<&str, (String, Option<String>, bool, Str
     Ok((input, (commit_type, scope, breaking, subject)))
 }
 
-fn is_footer_line(input: &str) -> bool {
-    // BREAKING CHANGE / BREAKING-CHANGE
-    if input.starts_with("BREAKING CHANGE:") || input.starts_with("BREAKING-CHANGE:") {
-        let rest = input.split_once(':').map(|x| x.1).unwrap_or("");
-        return !rest.trim().is_empty();
-    }
-    // key: value with word/hyphen key
-    if let Some(colon) = input.find(':') {
-        let (key, val) = input.split_at(colon);
-        let val = &val[1..];
-        let valid_key = key
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
-        return valid_key && !val.trim().is_empty();
-    }
-    false
+/// detect whether a line matches the `Key: Value` footer pattern
+fn is_footer_line(line: &str) -> bool {
+    let Some((key, val)) = line.split_once(":") else {
+        return false;
+    };
+
+    key.chars().all(is_ident_char) && !val.trim().is_empty()
 }
 
+/// parse trailer lines, supporting multi-line values by continuation
 fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
     let mut footers = HashMap::new();
     let mut current_key: Option<String> = None;
