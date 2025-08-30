@@ -185,11 +185,17 @@ fn parse_header(input: &str) -> IResult<&str, (String, Option<String>, bool, Str
 
 /// detect whether a line matches the `Key: Value` footer pattern
 fn is_footer_line(line: &str) -> bool {
-    let Some((key, val)) = line.split_once(":") else {
+    let Some((key, val)) = line
+        .split_once(":")
+        .map(|(key, val)| (key.trim(), val.trim()))
+    else {
         return false;
     };
 
-    key.chars().all(is_ident_char) && !val.trim().is_empty()
+    // allow alphanumeric chars, underscore, and hyphen for footer keys
+    // also allow "BREAKING CHANGE" as a key, because the space will not be picked
+    // up otherwise
+    key == "BREAKING CHANGE" || key.chars().all(is_ident_char) && !key.is_empty() && !val.is_empty()
 }
 
 /// parse trailer lines, supporting multi-line values by continuation
