@@ -3,10 +3,6 @@
 //! subject, optional body, and structured footers. It is intentionally
 //! permissive for bodies and enforces a simple, readable header grammar.
 //!
-//! Non-goals:
-//! - enforcing allowed type/scope taxonomy
-//! - reflowing or wrapping text
-//!
 //! See [`CommitMessage::parse`] for usage and more examples.
 
 use std::collections::HashMap;
@@ -20,21 +16,21 @@ use nom::{
 };
 use thiserror::Error;
 
-/// parser errors for commit messages
+/// Parser errors for commit messages.
 #[derive(Debug, Error)]
 pub enum ParseError {
-    /// input didn't match the expected header/body/footer layout
+    /// Input didn't match the expected header/body/footer layout.
     #[error("invalid commit format")]
     InvalidFormat,
 }
 
-/// a structured representation of a commit message
+/// A structured representation of a commit message.
 ///
-/// fields mirror conventional commit parts and some helpful derived flags.
+/// Fields mirror conventional commit parts and some helpful derived flags.
 /// all strings are kept as provided (after minimal trimming), with the body
 /// preserving line breaks.
 ///
-/// use [`CommitMessage::parse`] to build an instance from raw text.
+/// Use [`CommitMessage::parse`] to build an instance from raw text.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitMessage {
     /// commit type like `feat`, `fix`, `docs`, `chore`, etc.
@@ -53,15 +49,15 @@ pub struct CommitMessage {
 }
 
 impl CommitMessage {
-    /// parse a raw commit message into a [`CommitMessage`].
+    /// Parse a raw commit message into a [`CommitMessage`].
     ///
-    /// the parser expects the first line to be a valid header following the
+    /// The parser expects the first line to be a valid header following the
     /// simplified conventional commits grammar documented at the top of this
     /// module. a blank line separates header from body/footers. once a valid
     /// footer line is detected after a blank line, following lines are
     /// considered footers, allowing multi-line values.
     ///
-    /// examples
+    /// ## Example
     ///
     /// ```rust
     /// use cocoa::commit::CommitMessage;
@@ -130,43 +126,44 @@ impl CommitMessage {
         })
     }
 
-    /// true when the commit is a `fixup:` commit (by type)
+    /// True when the commit is a `fixup:` commit (by type).
     pub fn is_fixup(&self) -> bool {
         self.commit_type == "fixup"
     }
 
-    /// true when the commit is a `squash:` commit (by type)
+    /// True when the commit is a `squash:` commit (by type).
     pub fn is_squash(&self) -> bool {
         self.commit_type == "squash"
     }
 
-    /// true for likely merge commits (subject starts with `Merge`)
+    /// True for likely merge commits (subject starts with `Merge`).
     pub fn is_merge(&self) -> bool {
         self.subject.starts_with("Merge")
     }
 
-    /// true for revert commits (`revert:` type or subject starts with `Revert`)
+    /// True for revert commits (`revert:` type or subject starts with
+    /// `Revert`).
     pub fn is_revert(&self) -> bool {
         self.commit_type == "revert" || self.subject.starts_with("Revert")
     }
 
-    /// unicode scalar count of the subject line
+    /// Unicode scalar count of the subject line.
     pub fn get_subject_length(&self) -> usize {
         self.subject.chars().count()
     }
 
-    /// unicode scalar count of the entire body (0 when absent)
+    /// Length of the entire body (0 when absent).
     pub fn get_body_length(&self) -> usize {
         self.body.as_ref().map_or(0, |b| b.chars().count())
     }
 }
 
-/// allowed identifier characters for type and footer keys
+/// Allowed identifier characters for type and footer keys.
 fn is_ident_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '-'
 }
 
-/// parse the header into `(type, scope, breaking, subject)`
+/// Parse a header into `(type, scope, breaking, subject)`.
 fn parse_header(input: &str) -> IResult<&str, (String, Option<String>, bool, String)> {
     let (input, commit_type) =
         map(take_while1(is_ident_char), |s: &str| s.to_string()).parse(input)?;
