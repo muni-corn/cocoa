@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, process};
 
 use console::Style;
 
@@ -63,4 +63,17 @@ pub fn print_info(msg: impl fmt::Display) {
 
 pub fn welcome(msg: impl fmt::Display) {
     println!("{} {}", DIM.apply_to("╭─"), WHITE_BOLD.apply_to(msg))
+}
+
+pub fn goodbye_with_death(code: i32) -> ! {
+    println!("{} {}", DIM.apply_to("╰─"), ERROR_BOLD.apply_to("x~x"));
+    process::exit(code)
+}
+
+pub fn goodbye_with_warning() {
+    println!("{} {}", DIM.apply_to("╰─"), WARNING_BOLD.apply_to("o~o"));
+}
+
+pub fn goodbye_with_success() {
+    println!("{} {}", DIM.apply_to("╰─"), SUCCESS_BOLD.apply_to("^u^"));
 }

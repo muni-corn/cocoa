@@ -4,7 +4,10 @@ mod config;
 mod lint;
 mod style;
 
-use std::io::{self, Read};
+use std::{
+    io::{self, Read},
+    process,
+};
 
 use anyhow::Result;
 use clap::Parser;
@@ -13,8 +16,8 @@ use config::Config;
 use lint::Linter;
 
 use crate::style::{
-    print_error, print_error_bold, print_info, print_info_bold, print_success_bold, print_warning,
-    print_warning_bold, welcome,
+    goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
+    print_info, print_success_bold, print_warning, print_warning_bold, welcome,
 };
 
 fn main() -> Result<()> {
@@ -85,8 +88,11 @@ fn handle_lint(
         }
     } else {
         // read from git commit message if available
-        print_error_bold("please provide a commit message via --stdin or as an argument");
-        std::process::exit(1);
+        print_error_bold("um... i need a commit message to work with!");
+        print_info("you can pass a file containing the commit message");
+        print_info("or pass a commit message directly with `--text`");
+        print_info("or read stdin in with `--stdin`");
+        goodbye_with_death(1);
     };
 
     let result = linter.lint(&message);
@@ -95,13 +101,15 @@ fn handle_lint(
         println!("{}", serde_json::to_string(&result)?);
     } else if !quiet {
         if result.violations.is_empty() {
-            print_success_bold("commit message is valid");
+            print_success_bold("commit message is valid!");
+            goodbye_with_success();
         } else {
             let error_count = result
                 .violations
                 .iter()
                 .filter(|v| matches!(v.severity, lint::Severity::Error))
                 .count();
+
             let warning_count = result
                 .violations
                 .iter()
@@ -109,9 +117,9 @@ fn handle_lint(
                 .count();
 
             if error_count > 0 {
-                print_error_bold("commit message has validation errors:");
+                print_error_bold("commit message has errors:");
             } else if warning_count > 0 {
-                print_warning_bold("commit message is valid but has warnings:");
+                print_warning_bold("commit message is valid, but there are some warnings:");
             }
 
             for violation in &result.violations {
@@ -122,11 +130,17 @@ fn handle_lint(
                 };
                 print_fn(format!("[{}] {}", violation.rule, violation.message));
             }
+
+            if error_count > 0 {
+                goodbye_with_death(3);
+            } else {
+                goodbye_with_warning();
+            }
         }
     }
 
     if !result.is_valid {
-        std::process::exit(3); // Validation error exit code as per spec
+        process::exit(3);
     }
 
     Ok(())
