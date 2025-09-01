@@ -150,7 +150,10 @@
               self'.devShells.rust
               config.pre-commit.devShell
             ];
-            packages = [ pkgs.cargo-outdated ];
+            packages = with pkgs; [
+              bacon
+              cargo-outdated
+            ];
           };
         };
     };
