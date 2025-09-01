@@ -29,20 +29,36 @@ fn print_expression_message(
     )
 }
 
-pub fn print_success(msg: impl fmt::Display) {
+pub fn print_success_bold(msg: impl fmt::Display) {
     print_expression_message("✓", msg, SUCCESS, SUCCESS_BOLD);
 }
 
-pub fn print_warning(msg: impl fmt::Display) {
+pub fn print_warning_bold(msg: impl fmt::Display) {
     print_expression_message("♦", msg, WARNING, WARNING_BOLD);
 }
 
-pub fn print_error(msg: impl fmt::Display) {
+pub fn print_error_bold(msg: impl fmt::Display) {
     print_expression_message("×", msg, ERROR, ERROR_BOLD);
 }
 
+pub fn print_info_bold(msg: impl fmt::Display) {
+    print_expression_message("-", msg, INFO, INFO_BOLD);
+}
+
+pub fn print_success(msg: impl fmt::Display) {
+    print_expression_message("-", msg, SUCCESS, SUCCESS);
+}
+
+pub fn print_warning(msg: impl fmt::Display) {
+    print_expression_message("-", msg, WARNING, WARNING);
+}
+
+pub fn print_error(msg: impl fmt::Display) {
+    print_expression_message("-", msg, ERROR, ERROR);
+}
+
 pub fn print_info(msg: impl fmt::Display) {
-    print_expression_message("ℹ", msg, INFO, INFO);
+    print_expression_message("-", msg, INFO, INFO);
 }
 
 pub fn welcome(msg: impl fmt::Display) {

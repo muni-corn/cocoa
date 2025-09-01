@@ -3,7 +3,7 @@ use std::{collections::HashSet, fs, path::Path};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::style::print_error;
+use crate::style::print_error_bold;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -107,7 +107,7 @@ impl Config {
         match Self::load(path) {
             Ok(config) => config,
             Err(ConfigError::Validation(msg)) => {
-                print_error(format!("configuration validation failed: {}", msg));
+                print_error_bold(format!("configuration validation failed: {}", msg));
                 Self::default()
             }
             Err(_) => Self::default(),
