@@ -1,5 +1,5 @@
 {
-  description = "A Rust project";
+  description = "cocoa, the conventional commit assistant";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
