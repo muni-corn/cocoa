@@ -75,40 +75,59 @@ impl CommitMessage {
     /// );
     /// ```
     pub fn parse(message: &str) -> Result<Self, ParseError> {
-        let mut lines = message.lines();
-        let Some(header) = lines.next() else {
-            return Err(ParseError::InvalidFormat);
-        };
-
+        let lines = message.lines();
+        let mut header_lines = Vec::new();
         let mut body_lines = Vec::new();
         let mut footer_lines = Vec::new();
-        let mut in_footer = false;
-        let mut blank_line_found = false;
+
+        enum Section {
+            Header,
+            Body,
+            Footers,
+        }
+
+        let mut current_section = Section::Header;
 
         for line in lines {
-            if line.trim().is_empty() && !blank_line_found {
-                blank_line_found = true;
-                continue;
-            }
-
-            if blank_line_found && is_footer_line(line) {
-                in_footer = true;
-            }
-
-            if in_footer {
-                footer_lines.push(line);
-            } else if blank_line_found {
-                body_lines.push(line);
+            match current_section {
+                Section::Header => {
+                    if line.trim().is_empty() {
+                        current_section = Section::Body
+                    } else {
+                        header_lines.push(line);
+                    }
+                }
+                Section::Body => {
+                    if is_footer_line(line) {
+                        current_section = Section::Footers;
+                        footer_lines.push(line);
+                    } else {
+                        body_lines.push(line);
+                    }
+                }
+                Section::Footers => {
+                    footer_lines.push(line);
+                }
             }
         }
 
-        let (commit_type, scope, breaking, subject) = parse_header(header)
-            .map(|(_, r)| r)
-            .map_err(|_| ParseError::InvalidFormat)?;
+        // parse the header into conventional commit data. if the header contains a
+        // colon, we'll assume the commit summary has a type and maybe a scope. if
+        // there's no colon at all, we assume the entire commit summary is just the
+        // subject.
+        let header = header_lines.join(" ");
+        let (commit_type, scope, breaking, subject) = if header.contains(":") {
+            parse_header(&header)
+                .map(|(_, r)| r)
+                .map_err(|_| ParseError::InvalidFormat)?
+        } else {
+            (String::new(), None, false, header)
+        };
+
         let body = if body_lines.is_empty() {
             None
         } else {
-            Some(body_lines.join("\n").trim().to_string())
+            Some(body_lines.join(" ").trim().to_string())
         };
         let footers = parse_footers(&footer_lines);
 
@@ -149,12 +168,12 @@ impl CommitMessage {
 
     /// Unicode scalar count of the subject line.
     pub fn get_subject_length(&self) -> usize {
-        self.subject.chars().count()
+        self.subject.len()
     }
 
     /// Length of the entire body (0 when absent).
     pub fn get_body_length(&self) -> usize {
-        self.body.as_ref().map_or(0, |b| b.chars().count())
+        self.body.as_ref().map_or(0, |b| b.len())
     }
 }
 
@@ -163,8 +182,11 @@ fn is_ident_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '-'
 }
 
+/// Type, scope, exclamation point, subject.
+type CommitHeader = (String, Option<String>, bool, String);
+
 /// Parse a header into `(type, scope, breaking, subject)`.
-fn parse_header(input: &str) -> IResult<&str, (String, Option<String>, bool, String)> {
+fn parse_header(input: &str) -> IResult<&str, CommitHeader> {
     let (input, commit_type) =
         map(take_while1(is_ident_char), |s: &str| s.to_string()).parse(input)?;
     let (input, scope) = opt(delimited(
@@ -212,7 +234,7 @@ fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
                 current_value = line[colon_pos + 1..].trim().to_string();
             }
         } else if current_key.is_some() {
-            current_value.push('\n');
+            current_value.push(' ');
             current_value.push_str(line);
         }
     }
@@ -274,13 +296,9 @@ for all API endpoints."#;
 
         assert_eq!(commit.commit_type, "feat");
         assert_eq!(commit.subject, "add user authentication");
-        assert!(commit.body.is_some());
-        assert!(
-            commit
-                .body
-                .as_ref()
-                .unwrap()
-                .contains("JWT-based authentication")
+        assert_eq!(
+            commit.body,
+            Some("This commit adds JWT-based authentication for all API endpoints.".to_string())
         );
     }
 
@@ -318,10 +336,42 @@ BREAKING CHANGE: API now returns data in a different format"#;
     }
 
     #[test]
-    fn test_invalid_format() {
-        let message = "invalid commit message";
-        let result = CommitMessage::parse(message);
-        assert!(result.is_err());
+    fn test_long_lines() {
+        let message = r#"test: test really long messages that break up over
+multiple lines and are really really annoying to deal with
+
+BREAKING CHANGE: this footer value is really really really long and hopefully won't
+actually break the stuff we so lovingly programmed into cocoa because i put a lot
+of passion into my work and i will be very sad when tests fail
+Reviewed-by: municorn himself, probably, though honestly most of the work is just
+being done by `cargo test`
+"#;
+
+        let commit = CommitMessage::parse(message).unwrap();
+
+        assert_eq!(commit.commit_type, "test");
+        assert_eq!(commit.scope, None);
+        assert_eq!(
+            commit.subject,
+            "test really long messages that break up over multiple lines and are really really annoying to deal with"
+        );
+        assert_eq!(
+            commit.footers.get("BREAKING CHANGE"),
+            Some(
+                &"this footer value is really really really long and hopefully won't actually break the stuff we so lovingly programmed into cocoa because i put a lot of passion into my work and i will be very sad when tests fail".to_string()
+            )
+        );
+        assert_eq!(
+            commit.footers.get("Reviewed-by"),
+            Some(&"municorn himself, probably, though honestly most of the work is just being done by `cargo test`".to_string())
+        );
+    }
+
+    #[test]
+    fn test_no_colon() {
+        let message = "commit message that's just a subject";
+        let commit = CommitMessage::parse(message).unwrap();
+        assert_eq!(commit.subject, "commit message that's just a subject");
     }
 
     #[test]
