@@ -22,7 +22,8 @@ use crate::style::{
     print_info, print_success_bold, print_warning, print_warning_bold, welcome,
 };
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let config_path = cli.config.as_deref().unwrap_or(".cocoa.toml");
@@ -43,8 +44,8 @@ fn main() -> Result<()> {
             print_error_bold("interactive commit creation not yet implemented");
         }
         Commands::Generate => {
-            welcome("cocoa");
-            print_error_bold("commit generation not yet implemented");
+            welcome("hi! generating your commit message...");
+            handle_generate(&config, cli.json, cli.quiet).await?;
         }
         Commands::Changelog { range: _ } => {
             welcome("cocoa");
@@ -143,6 +144,113 @@ fn handle_lint(
 
     if !result.is_valid {
         process::exit(3);
+    }
+
+    Ok(())
+}
+
+async fn handle_generate(config: &Config, json_output: bool, quiet: bool) -> Result<()> {
+    // Check if AI is configured
+    if config.ai.is_none() {
+        print_error_bold("ai configuration required for commit generation");
+        print_info("add an [ai] section to your .cocoa.toml configuration");
+        print_info("see the documentation for configuration examples");
+        goodbye_with_death(2);
+    }
+
+    match generate::generate_commit_message(config).await {
+        Ok(message) => {
+            if json_output {
+                let result = serde_json::json!({
+                    "success": true,
+                    "message": message
+                });
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else if !quiet {
+                print_success_bold("generated commit message:");
+                println!("\n{}\n", message);
+
+                // Ask user if they want to commit with this message
+                print_info("would you like to commit with this message? (y/n)");
+
+                use std::io::Write;
+                print!("❯ ");
+                io::stdout().flush()?;
+
+                let mut response = String::new();
+                io::stdin().read_line(&mut response)?;
+
+                if response.trim().to_lowercase().starts_with('y') {
+                    // Commit with the generated message
+                    let output = std::process::Command::new("git")
+                        .args(["commit", "-m", &message])
+                        .output()?;
+
+                    if output.status.success() {
+                        print_success_bold("commit successful!");
+                        goodbye_with_success();
+                    } else {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        print_error_bold(&format!("git commit failed: {}", stderr));
+                        goodbye_with_death(5);
+                    }
+                } else {
+                    print_info("commit cancelled. you can use the generated message manually.");
+                    goodbye_with_warning();
+                }
+            }
+        }
+        Err(e) => {
+            if json_output {
+                let result = serde_json::json!({
+                    "success": false,
+                    "error": e.to_string()
+                });
+                println!("{}", serde_json::to_string_pretty(&result)?);
+                process::exit(match e {
+                    generate::GenerateError::NoStagedChanges => 1,
+                    generate::GenerateError::GitContext(_) => 5,
+                    generate::GenerateError::StagedChanges(_) => 5,
+                    generate::GenerateError::AiGeneration(_) => 4,
+                    generate::GenerateError::Validation(_) => 3,
+                    generate::GenerateError::GitCommand(_) => 5,
+                });
+            } else {
+                match &e {
+                    generate::GenerateError::NoStagedChanges => {
+                        print_error_bold("no staged changes found");
+                        print_info("use `git add <files>` to stage changes first");
+                        print_info("then run `cocoa generate` again");
+                    }
+                    generate::GenerateError::AiGeneration(msg) => {
+                        print_error_bold("ai generation failed");
+                        print_error(msg);
+                        print_info("check your ai configuration and api key");
+                    }
+                    generate::GenerateError::GitContext(msg)
+                    | generate::GenerateError::StagedChanges(msg)
+                    | generate::GenerateError::GitCommand(msg) => {
+                        print_error_bold("git operation failed");
+                        print_error(msg);
+                    }
+                    generate::GenerateError::Validation(msg) => {
+                        print_error_bold("generated message failed validation");
+                        print_error(msg);
+                        print_info("this may indicate an issue with ai configuration");
+                    }
+                }
+
+                let exit_code = match e {
+                    generate::GenerateError::NoStagedChanges => 1,
+                    generate::GenerateError::GitContext(_) => 5,
+                    generate::GenerateError::StagedChanges(_) => 5,
+                    generate::GenerateError::AiGeneration(_) => 4,
+                    generate::GenerateError::Validation(_) => 3,
+                    generate::GenerateError::GitCommand(_) => 5,
+                };
+                goodbye_with_death(exit_code);
+            }
+        }
     }
 
     Ok(())
