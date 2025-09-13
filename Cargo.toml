@@ -15,6 +15,8 @@ anyhow = "1"
 console = "0.16"
 dialoguer = "0.11"
 nom = "8"
+genai = "0.3"
+tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 tempfile = "3"

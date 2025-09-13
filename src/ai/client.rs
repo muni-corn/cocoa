@@ -1,34 +1,122 @@
 //! generic ai client wrapper
 
+use std::fmt::Debug;
+
+use genai::{
+    Client as GenaiClient, ClientConfig,
+    chat::{ChatMessage, ChatOptions, ChatRequest},
+};
+
 use super::{AiConfig, Provider, ProviderError};
 
 /// generic ai client for generating commit messages
 pub struct Client {
     config: AiConfig,
+    client: GenaiClient,
 }
 
 impl Client {
     /// create a new ai client with the given configuration
     pub fn new(config: AiConfig) -> Result<Self, ProviderError> {
-        // validate configuration
-        config.secret.resolve_api_key()?;
+        // validate and get api key
+        let api_key = config.secret.resolve_api_key()?;
 
-        Ok(Self { config })
+        // create genai client
+        let client = GenaiClient::default();
+
+        // set up the api key based on provider
+        match config.provider {
+            Provider::OpenAi => unsafe {
+                std::env::set_var("OPENAI_API_KEY", &api_key);
+            },
+            Provider::Anthropic => unsafe {
+                std::env::set_var("ANTHROPIC_API_KEY", &api_key);
+            },
+            Provider::Ollama => {
+                // ollama doesn't need an api key
+            }
+            Provider::OpenRouter => unsafe {
+                std::env::set_var("OPENROUTER_API_KEY", &api_key);
+            },
+        }
+
+        Ok(Self { config, client })
     }
 
     /// generate a commit message from the given context
     pub async fn generate_commit_message(
         &self,
-        _staged_changes: &str,
-        _context: &CommitContext,
+        staged_changes: &str,
+        context: &CommitContext,
     ) -> Result<String, ProviderError> {
-        // placeholder implementation
+        let model_name = self.get_model_name();
+        let prompt = self.build_prompt(staged_changes, context);
+
+        let messages = vec![
+            ChatMessage::system(
+                "you are an expert software engineer who writes excellent conventional commit messages. respond with only the commit message, no explanation or additional text.",
+            ),
+            ChatMessage::user(prompt),
+        ];
+
+        let chat_request = ChatRequest::new(messages);
+        let chat_options = ChatOptions::default()
+            .with_temperature(self.config.temperature as f64)
+            .with_max_tokens(self.config.max_tokens);
+
+        let response = self
+            .client
+            .exec_chat(&model_name, chat_request, Some(&chat_options))
+            .await
+            .map_err(|e| ProviderError::Api(format!("genai error: {e}")))?;
+
+        let content = response
+            .content_text_as_str()
+            .ok_or_else(|| ProviderError::Api("no text content in response".to_string()))?;
+
+        Ok(content.trim().to_string())
+    }
+
+    /// get the model name for the current provider
+    fn get_model_name(&self) -> String {
         match self.config.provider {
-            Provider::OpenAi => Ok("feat: placeholder commit message".to_string()),
-            Provider::Anthropic => Ok("feat: placeholder commit message".to_string()),
-            Provider::Ollama => Ok("feat: placeholder commit message".to_string()),
-            Provider::OpenRouter => Ok("feat: placeholder commit message".to_string()),
+            Provider::OpenAi => format!("gpt:{}", self.config.model),
+            Provider::Anthropic => format!("claude:{}", self.config.model),
+            Provider::Ollama => format!("ollama:{}", self.config.model),
+            Provider::OpenRouter => format!("openrouter:{}", self.config.model),
         }
+    }
+
+    /// build the prompt for commit generation
+    fn build_prompt(&self, staged_changes: &str, context: &CommitContext) -> String {
+        let mut prompt = String::new();
+
+        prompt.push_str("generate a conventional commit message for these staged changes:\n\n");
+        prompt.push_str("```diff\n");
+        prompt.push_str(staged_changes);
+        prompt.push_str("\n```\n\n");
+
+        if let Some(branch) = &context.branch_name {
+            prompt.push_str(&format!("branch name: {}\n\n", branch));
+        }
+
+        if !context.recent_commits.is_empty() {
+            prompt.push_str("recent commit messages for context:\n");
+            for commit in context.recent_commits.iter().take(5) {
+                prompt.push_str(&format!("- {}\n", commit));
+            }
+            prompt.push('\n');
+        }
+
+        prompt.push_str("requirements:\n");
+        prompt.push_str("- use conventional commits format (type: description)\n");
+        prompt.push_str("- type must be one of: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert\n");
+        prompt.push_str("- keep subject line under 50 characters if possible\n");
+        prompt.push_str("- use lowercase for the description\n");
+        prompt.push_str("- be concise and descriptive\n");
+        prompt.push_str("- respond with only the commit message, nothing else\n");
+
+        prompt
     }
 }
 
@@ -50,7 +138,7 @@ impl Default for CommitContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ai::SecretConfig;
+    use crate::ai::config::SecretConfig;
 
     fn test_config() -> AiConfig {
         unsafe {
@@ -71,11 +159,12 @@ mod tests {
     #[test]
     fn test_client_new() {
         let config = test_config();
-        let client = Client::new(config);
-        assert!(client.is_ok());
+        let result = Client::new(config);
+        assert!(result.is_ok());
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
         }
     }
 
@@ -88,8 +177,8 @@ mod tests {
             ..test_config()
         };
 
-        let client = Client::new(config);
-        assert!(client.is_err());
+        let result = Client::new(config);
+        assert!(result.is_err());
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");

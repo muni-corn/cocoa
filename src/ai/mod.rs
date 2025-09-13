@@ -5,5 +5,5 @@ pub mod config;
 pub mod provider;
 
 pub use client::Client;
-pub use config::AiConfig;
+pub use config::{AiConfig, SecretConfig};
 pub use provider::{Provider, ProviderError};
