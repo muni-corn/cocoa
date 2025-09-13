@@ -20,6 +20,7 @@ pub enum ConfigError {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     pub commit: CommitConfig,
+    pub ai: Option<crate::ai::config::AiConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -55,6 +56,7 @@ pub struct RuleLevel {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            ai: None,
             commit: CommitConfig {
                 types: HashSet::from(
                     [

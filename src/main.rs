@@ -2,6 +2,7 @@ mod ai;
 mod cli;
 mod commit;
 mod config;
+mod generate;
 mod lint;
 mod style;
 
