@@ -1,10 +1,10 @@
 use crate::ai::client::{Client as AiClient, CommitContext};
 use crate::config::Config;
+use crate::git_ops::{GitOperations, RealGitOps};
 use crate::lint::Linter;
-use std::process::Command;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum GenerateError {
     #[error("no staged changes found - use `git add` to stage files first")]
     NoStagedChanges,
@@ -36,13 +36,20 @@ pub struct StagedChanges {
 }
 
 pub async fn generate_commit_message(config: &Config) -> Result<String, GenerateError> {
-    let staged_changes = analyze_staged_changes()?;
+    generate_commit_message_with_git(config, &RealGitOps).await
+}
+
+pub async fn generate_commit_message_with_git<G: GitOperations>(
+    config: &Config,
+    git_ops: &G,
+) -> Result<String, GenerateError> {
+    let staged_changes = analyze_staged_changes_with_git(git_ops)?;
 
     if staged_changes.diff.trim().is_empty() {
         return Err(GenerateError::NoStagedChanges);
     }
 
-    let context = extract_git_context()?;
+    let context = extract_git_context_with_git(git_ops)?;
 
     let ai_config = config
         .ai
@@ -63,11 +70,17 @@ pub async fn generate_commit_message(config: &Config) -> Result<String, Generate
 }
 
 pub fn extract_git_context() -> Result<CommitContext, GenerateError> {
-    let branch_name = get_current_branch().ok();
-    let recent_commits = get_recent_commit_messages(5)?;
-    let repository_name = get_repository_name().ok();
-    let is_merge = is_merge_in_progress();
-    let is_rebase = is_rebase_in_progress();
+    extract_git_context_with_git(&RealGitOps)
+}
+
+pub fn extract_git_context_with_git<G: GitOperations>(
+    git_ops: &G,
+) -> Result<CommitContext, GenerateError> {
+    let branch_name = git_ops.get_current_branch().ok();
+    let recent_commits = git_ops.get_recent_commit_messages(5)?;
+    let repository_name = git_ops.get_repository_name().ok();
+    let is_merge = git_ops.is_merge_in_progress();
+    let is_rebase = git_ops.is_rebase_in_progress();
 
     Ok(CommitContext {
         branch_name,
@@ -79,15 +92,21 @@ pub fn extract_git_context() -> Result<CommitContext, GenerateError> {
 }
 
 pub fn analyze_staged_changes() -> Result<StagedChanges, GenerateError> {
-    let diff = get_staged_diff()?;
+    analyze_staged_changes_with_git(&RealGitOps)
+}
+
+pub fn analyze_staged_changes_with_git<G: GitOperations>(
+    git_ops: &G,
+) -> Result<StagedChanges, GenerateError> {
+    let diff = git_ops.get_staged_diff()?;
 
     if diff.trim().is_empty() {
         return Err(GenerateError::NoStagedChanges);
     }
 
-    let files_added = get_staged_files_by_status("A")?;
-    let files_modified = get_staged_files_by_status("M")?;
-    let files_deleted = get_staged_files_by_status("D")?;
+    let files_added = git_ops.get_staged_files_by_status("A")?;
+    let files_modified = git_ops.get_staged_files_by_status("M")?;
+    let files_deleted = git_ops.get_staged_files_by_status("D")?;
 
     let (total_additions, total_deletions) = count_diff_changes(&diff);
 
@@ -99,130 +118,6 @@ pub fn analyze_staged_changes() -> Result<StagedChanges, GenerateError> {
         total_additions,
         total_deletions,
     })
-}
-
-fn get_current_branch() -> Result<String, GenerateError> {
-    let output = Command::new("git")
-        .args(["branch", "--show-current"])
-        .output()
-        .map_err(|e| GenerateError::GitCommand(format!("failed to run git branch: {}", e)))?;
-
-    if !output.status.success() {
-        return Err(GenerateError::GitCommand(
-            "git branch command failed".to_string(),
-        ));
-    }
-
-    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if branch.is_empty() {
-        return Err(GenerateError::GitContext(
-            "not on any branch (detached HEAD)".to_string(),
-        ));
-    }
-
-    Ok(branch)
-}
-
-fn get_recent_commit_messages(count: usize) -> Result<Vec<String>, GenerateError> {
-    let output = Command::new("git")
-        .args(["log", &format!("-{}", count), "--oneline", "--format=%s"])
-        .output()
-        .map_err(|e| GenerateError::GitCommand(format!("failed to run git log: {}", e)))?;
-
-    if !output.status.success() {
-        return Ok(Vec::new());
-    }
-
-    let commits: Vec<String> = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .map(|line| line.trim().to_string())
-        .filter(|line| !line.is_empty())
-        .collect();
-
-    Ok(commits)
-}
-
-fn get_repository_name() -> Result<String, GenerateError> {
-    let output = Command::new("git")
-        .args(["config", "--get", "remote.origin.url"])
-        .output()
-        .map_err(|e| GenerateError::GitCommand(format!("failed to get remote url: {}", e)))?;
-
-    if !output.status.success() {
-        return Err(GenerateError::GitContext(
-            "no remote origin found".to_string(),
-        ));
-    }
-
-    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-    // Extract repository name from URL
-    let repo_name = url
-        .split('/')
-        .last()
-        .unwrap_or("unknown")
-        .strip_suffix(".git")
-        .unwrap_or_else(|| url.split('/').last().unwrap_or("unknown"))
-        .to_string();
-
-    Ok(repo_name)
-}
-
-fn is_merge_in_progress() -> bool {
-    Command::new("git")
-        .args(["rev-parse", "--verify", "MERGE_HEAD"])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
-}
-
-fn is_rebase_in_progress() -> bool {
-    std::path::Path::new(".git/rebase-merge").exists()
-        || std::path::Path::new(".git/rebase-apply").exists()
-}
-
-fn get_staged_diff() -> Result<String, GenerateError> {
-    let output = Command::new("git")
-        .args(["diff", "--cached"])
-        .output()
-        .map_err(|e| GenerateError::GitCommand(format!("failed to run git diff: {}", e)))?;
-
-    if !output.status.success() {
-        return Err(GenerateError::StagedChanges(
-            "git diff --cached failed".to_string(),
-        ));
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-fn get_staged_files_by_status(status: &str) -> Result<Vec<String>, GenerateError> {
-    let output = Command::new("git")
-        .args(["diff", "--cached", "--name-status"])
-        .output()
-        .map_err(|e| {
-            GenerateError::GitCommand(format!("failed to run git diff --name-status: {}", e))
-        })?;
-
-    if !output.status.success() {
-        return Err(GenerateError::StagedChanges(
-            "git diff --name-status failed".to_string(),
-        ));
-    }
-
-    let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .filter_map(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 2 && parts[0] == status {
-                Some(parts[1].to_string())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    Ok(files)
 }
 
 fn count_diff_changes(diff: &str) -> (usize, usize) {
@@ -241,7 +136,7 @@ fn count_diff_changes(diff: &str) -> (usize, usize) {
 }
 
 fn validate_generated_message(message: &str, config: &Config) -> Result<(), GenerateError> {
-    // Use existing lint module to validate the message
+    // use existing lint module to validate the message
     let linter = Linter::new(config);
     let result = linter.lint(message);
 
@@ -260,6 +155,7 @@ fn validate_generated_message(message: &str, config: &Config) -> Result<(), Gene
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::git_ops::MockGitOps;
 
     #[test]
     fn test_count_diff_changes() {
@@ -284,7 +180,7 @@ index 1234567..abcdefg 100644
 
     #[test]
     fn test_staged_changes_empty_diff() {
-        // Test that empty diff is handled properly
+        // test that empty diff is handled properly
         let (additions, deletions) = count_diff_changes("");
         assert_eq!(additions, 0);
         assert_eq!(deletions, 0);
@@ -292,8 +188,7 @@ index 1234567..abcdefg 100644
 
     #[test]
     fn test_extract_repository_name() {
-        // Mock git command would be needed for proper testing
-        // For now, test the URL parsing logic directly
+        // test the URL parsing logic directly
         let test_urls = vec![
             ("https://github.com/user/repo.git", "repo"),
             ("git@github.com:user/repo.git", "repo"),
@@ -348,5 +243,52 @@ index 1234567..abcdefg 100644
         assert_eq!(changes.files_deleted.len(), 1);
         assert_eq!(changes.total_additions, 10);
         assert_eq!(changes.total_deletions, 5);
+    }
+
+    #[test]
+    fn test_extract_git_context_with_mock() {
+        let mut mock = MockGitOps::default();
+        mock.current_branch = Ok("feature/test".to_string());
+        mock.recent_commits = Ok(vec![
+            "feat: add feature".to_string(),
+            "fix: bug fix".to_string(),
+        ]);
+        mock.repository_name = Ok("test-repo".to_string());
+
+        let context = extract_git_context_with_git(&mock).unwrap();
+
+        assert_eq!(context.branch_name, Some("feature/test".to_string()));
+        assert_eq!(context.recent_commits.len(), 2);
+        assert_eq!(context.repository_name, Some("test-repo".to_string()));
+        assert!(!context.is_merge);
+        assert!(!context.is_rebase);
+    }
+
+    #[test]
+    fn test_analyze_staged_changes_with_mock() {
+        let mut mock = MockGitOps::default();
+        mock.staged_diff = Ok(r#"
+diff --git a/test.rs b/test.rs
++++ test.rs
++fn new_function() {}
+"#
+        .to_string());
+        mock.staged_files
+            .insert("A".to_string(), vec!["test.rs".to_string()]);
+
+        let changes = analyze_staged_changes_with_git(&mock).unwrap();
+
+        assert!(!changes.diff.is_empty());
+        assert_eq!(changes.files_added.len(), 1);
+        assert_eq!(changes.total_additions, 1);
+    }
+
+    #[test]
+    fn test_analyze_staged_changes_empty_diff() {
+        let mut mock = MockGitOps::default();
+        mock.staged_diff = Ok("".to_string());
+
+        let result = analyze_staged_changes_with_git(&mock);
+        assert!(matches!(result, Err(GenerateError::NoStagedChanges)));
     }
 }
