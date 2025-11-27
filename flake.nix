@@ -87,6 +87,7 @@
                         "chore"
                         "ci"
                         "docs"
+                        "dx"
                         "feat"
                         "fix"
                         "perf"
