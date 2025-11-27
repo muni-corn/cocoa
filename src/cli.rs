@@ -62,3 +62,69 @@ pub enum Commands {
     #[command(about = "full release (version + changelog + tag)")]
     Release,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn test_cli_can_parse() {
+        // verify cli structure is valid
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn test_parse_lint_with_stdin() {
+        let args = vec!["cocoa", "lint", "--stdin"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Commands::Lint { stdin, .. } => assert!(stdin),
+            _ => panic!("expected lint command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_lint_with_input() {
+        let args = vec!["cocoa", "lint", "feat: test"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Commands::Lint { input, .. } => assert_eq!(input, Some("feat: test".to_string())),
+            _ => panic!("expected lint command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_generate_command() {
+        let args = vec!["cocoa", "generate"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        assert!(matches!(cli.command, Commands::Generate));
+    }
+
+    #[test]
+    fn test_parse_with_config_flag() {
+        let args = vec!["cocoa", "--config", "custom.toml", "lint", "--stdin"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        assert_eq!(cli.config, Some("custom.toml".to_string()));
+    }
+
+    #[test]
+    fn test_parse_with_json_flag() {
+        let args = vec!["cocoa", "--json", "lint", "--stdin"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        assert!(cli.json);
+    }
+
+    #[test]
+    fn test_parse_with_quiet_flag() {
+        let args = vec!["cocoa", "--quiet", "lint", "--stdin"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        assert!(cli.quiet);
+    }
+}

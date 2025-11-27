@@ -77,3 +77,61 @@ pub fn goodbye_with_warning() {
 pub fn goodbye_with_success() {
     println!("{} {}", DIM.apply_to("╰─"), SUCCESS_BOLD.apply_to("^u^"));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_style_constants_are_valid() {
+        // ensure style constants can be created
+        let _ = SUCCESS;
+        let _ = WARNING;
+        let _ = ERROR;
+        let _ = INFO;
+        let _ = WHITE;
+        let _ = DIM;
+    }
+
+    #[test]
+    fn test_bold_styles_are_valid() {
+        let _ = SUCCESS_BOLD;
+        let _ = WARNING_BOLD;
+        let _ = ERROR_BOLD;
+        let _ = INFO_BOLD;
+        let _ = WHITE_BOLD;
+    }
+
+    #[test]
+    fn test_print_functions_dont_panic() {
+        // these functions print to stdout, just verify they don't panic
+        print_success("test success");
+        print_warning("test warning");
+        print_error("test error");
+        print_info("test info");
+        print_success_bold("test success bold");
+        print_warning_bold("test warning bold");
+        print_error_bold("test error bold");
+        print_info_bold("test info bold");
+    }
+
+    #[test]
+    fn test_welcome_message() {
+        // should not panic
+        welcome("test welcome");
+    }
+
+    #[test]
+    fn test_goodbye_with_warning() {
+        // should not panic
+        goodbye_with_warning();
+    }
+
+    #[test]
+    fn test_goodbye_with_success() {
+        // should not panic
+        goodbye_with_success();
+    }
+
+    // note: goodbye_with_death exits the process, so we can't test it directly
+}

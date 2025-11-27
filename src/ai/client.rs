@@ -191,4 +191,103 @@ mod tests {
             std::env::remove_var("TEST_API_KEY");
         }
     }
+
+    #[test]
+    fn test_get_model_name_openai() {
+        unsafe {
+            std::env::set_var("TEST_API_KEY", "test-key");
+        }
+
+        let config = AiConfig {
+            provider: Provider::OpenAi,
+            model: "gpt-4".to_string(),
+            ..test_config()
+        };
+        let client = Client::new(config).unwrap();
+        assert_eq!(client.get_model_name(), "gpt:gpt-4");
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+    }
+
+    #[test]
+    fn test_get_model_name_anthropic() {
+        unsafe {
+            std::env::set_var("TEST_API_KEY", "test-key");
+        }
+
+        let config = AiConfig {
+            provider: Provider::Anthropic,
+            model: "claude-3-sonnet".to_string(),
+            ..test_config()
+        };
+        let client = Client::new(config).unwrap();
+        assert_eq!(client.get_model_name(), "claude:claude-3-sonnet");
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("ANTHROPIC_API_KEY");
+        }
+    }
+
+    #[test]
+    fn test_build_prompt_with_context() {
+        unsafe {
+            std::env::set_var("TEST_API_KEY", "test-key");
+        }
+
+        let client = Client::new(test_config()).unwrap();
+        let context = CommitContext {
+            branch_name: Some("feature/test".to_string()),
+            recent_commits: vec!["feat: previous commit".to_string()],
+            repository_name: Some("test-repo".to_string()),
+            is_merge: false,
+            is_rebase: false,
+        };
+
+        let prompt = client.build_prompt("test diff", &context);
+
+        assert!(prompt.contains("test diff"));
+        assert!(prompt.contains("feature/test"));
+        assert!(prompt.contains("feat: previous commit"));
+        assert!(prompt.contains("conventional commits"));
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+    }
+
+    #[test]
+    fn test_build_prompt_without_branch() {
+        unsafe {
+            std::env::set_var("TEST_API_KEY", "test-key");
+        }
+
+        let client = Client::new(test_config()).unwrap();
+        let context = CommitContext::default();
+
+        let prompt = client.build_prompt("test diff", &context);
+
+        assert!(prompt.contains("test diff"));
+        assert!(!prompt.contains("branch name:"));
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+    }
+
+    #[test]
+    fn test_commit_context_default() {
+        let context = CommitContext::default();
+
+        assert!(context.branch_name.is_none());
+        assert!(context.recent_commits.is_empty());
+        assert!(context.repository_name.is_none());
+        assert!(!context.is_merge);
+        assert!(!context.is_rebase);
+    }
 }
