@@ -1,0 +1,5 @@
+[commit]
+types = ["feat", "fix", "docs"]
+max_subject_length = 50
+require_scope = true
+scopes = ["api", "ui", "db"]

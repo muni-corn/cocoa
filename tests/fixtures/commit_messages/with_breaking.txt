@@ -1,0 +1,3 @@
+feat!: breaking change
+
+BREAKING CHANGE: this breaks the API
