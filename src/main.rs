@@ -1,9 +1,4 @@
-mod ai;
 mod cli;
-mod commit;
-mod config;
-mod generate;
-mod lint;
 mod style;
 
 use std::{
@@ -14,10 +9,9 @@ use std::{
 use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands};
-use config::Config;
-use lint::Linter;
-
-use crate::style::{
+use cocoa::{Config, generate, lint};
+use lint::{Linter, Severity};
+use style::{
     goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
     print_info, print_success_bold, print_warning, print_warning_bold, welcome,
 };
