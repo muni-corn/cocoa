@@ -4,8 +4,8 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    fenix = {
-      url = "github:nix-community/fenix";
+    devenv = {
+      url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -14,8 +14,8 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
 
-    git-hooks-nix = {
-      url = "github:cachix/git-hooks.nix";
+    musicaloft-style = {
+      url = "git+https://git.musicaloft.com/municorn/musicaloft-style";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -24,9 +24,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    devenv-root = {
+      url = ./.devenv/root;
+      flake = false;
     };
   };
 
@@ -41,121 +51,60 @@
       ];
 
       imports = [
-        inputs.git-hooks-nix.flakeModule
+        inputs.devenv.flakeModule
         inputs.rust-flake.flakeModules.default
         inputs.rust-flake.flakeModules.nixpkgs
-        inputs.treefmt-nix.flakeModule
+
+        # sets up code formatting and commit linting
+        inputs.musicaloft-style.flakeModule
       ];
 
       perSystem =
         {
-          self',
           config,
           pkgs,
-          system,
           ...
         }:
         let
           pname = "cocoa";
+
+          buildInputs = with pkgs; [
+            libressl
+            libgit2
+          ];
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+          ];
         in
         {
-          # git hooks
-          pre-commit.settings.hooks = {
-            # commit linting
-            commitlint-rs =
-              let
-                config = pkgs.writers.writeYAML "commitlintrc.yml" {
-                  rules = {
-                    description-empty.level = "error";
-                    description-format = {
-                      level = "error";
-                      format = "^[a-z].*$";
-                    };
-                    description-max-length = {
-                      level = "error";
-                      length = 72;
-                    };
-                    scope-max-length = {
-                      level = "warning";
-                      length = 10;
-                    };
-                    scope-empty.level = "warning";
-                    type = {
-                      level = "error";
-                      options = [
-                        "build"
-                        "chore"
-                        "ci"
-                        "docs"
-                        "dx"
-                        "feat"
-                        "fix"
-                        "perf"
-                        "refactor"
-                        "style"
-                        "test"
-                      ];
-                    };
-                  };
-                };
+          # rust setup
+          devenv.shells.default = {
+            languages.rust = {
+              enable = true;
+              channel = "nightly";
+              mold.enable = true;
+            };
 
-              in
-              {
-                enable = true;
-                name = "commitlint-rs";
-                package = pkgs.commitlint-rs;
-                description = "Validate commit messages with commitlint-rs";
-                entry = "${pkgs.lib.getExe pkgs.commitlint-rs} -g ${config} -e";
-                always_run = true;
-                stages = [ "commit-msg" ];
-              };
-
-            # format on commit
-            treefmt.enable = true;
+            packages = [
+              pkgs.bacon
+              pkgs.cargo-outdated
+            ]
+            ++ buildInputs
+            ++ nativeBuildInputs;
           };
 
-          # formatting
-          treefmt.programs = {
-            nixfmt.enable = true;
-            rustfmt.enable = true;
-            taplo.enable = true;
-          };
-
-          # rust build settings
+          # setup rust packages
           rust-project = {
-            # use fenix toolchain for nightly rust
-            toolchain = inputs.fenix.packages.${system}.complete.withComponents [
-              "cargo"
-              "clippy"
-              "rust-analyzer"
-              "rust-docs"
-              "rust-src"
-              "rust-std"
-              "rustc"
-              "rustfmt"
-            ];
+            # use the same rust toolchain from the dev shell for consistency
+            toolchain = config.devenv.shells.default.languages.rust.toolchainPackage;
 
-            # setup build inputs for crane
-            crates.${pname}.crane.args = {
-              buildInputs = [ ];
-              nativeBuildInputs = [ ];
+            # specify dependencies
+            defaults.perCrate.crane.args = {
+              inherit nativeBuildInputs buildInputs;
             };
           };
 
-          # package definitions
-          packages.default = self'.packages.${pname};
-
-          # development environment
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [
-              self'.devShells.rust
-              config.pre-commit.devShell
-            ];
-            packages = with pkgs; [
-              bacon
-              cargo-outdated
-            ];
-          };
+          packages.default = config.rust-project.crates.${pname}.crane.outputs.packages.${pname};
         };
     };
 }

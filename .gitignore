@@ -1,8 +1,9 @@
 # exclude cargo artifacts directory
 /target
 
-# exclude direnv
-.direnv/
+# exclude direnv and devenv
+.direnv
+.devenv
 
 # exclude file backups by git
 *.orig
