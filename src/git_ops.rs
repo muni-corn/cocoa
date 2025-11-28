@@ -1,7 +1,8 @@
 //! git operations abstraction for testability
 
-use crate::generate::GenerateError;
 use std::process::Command;
+
+use crate::generate::GenerateError;
 
 /// trait for git operations, allows mocking in tests
 pub trait GitOperations {

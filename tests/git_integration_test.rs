@@ -1,9 +1,8 @@
-//! integration tests for git operations
+//! Integration tests for git operations.
 
 mod helpers;
 
 use cocoa::generate::{analyze_staged_changes_with_git, extract_git_context_with_git};
-use cocoa::git_ops::RealGitOps;
 use helpers::git_repo::TestRepo;
 
 #[test]
@@ -14,11 +13,8 @@ fn test_analyze_staged_changes_with_real_repo() {
     repo.create_and_stage_file("main.rs", "fn main() {}");
     repo.create_and_stage_file("lib.rs", "pub fn hello() {}");
 
-    let git_ops = RealGitOps;
-    let result = analyze_staged_changes_with_git(&git_ops);
+    let changes = analyze_staged_changes_with_git(&repo).unwrap();
 
-    assert!(result.is_ok());
-    let changes = result.unwrap();
     assert!(!changes.diff.is_empty());
     assert_eq!(changes.files_added.len(), 2);
 }
@@ -30,8 +26,7 @@ fn test_analyze_staged_changes_no_changes() {
     // create initial commit
     repo.create_commit("README.md", "# Test", "feat: initial commit");
 
-    let git_ops = RealGitOps;
-    let result = analyze_staged_changes_with_git(&git_ops);
+    let result = analyze_staged_changes_with_git(&repo);
 
     assert!(result.is_err());
 }
@@ -45,8 +40,7 @@ fn test_extract_git_context_with_real_repo() {
     repo.create_commit("file2.txt", "content2", "fix: add file2");
     repo.create_commit("file3.txt", "content3", "docs: add file3");
 
-    let git_ops = RealGitOps;
-    let result = extract_git_context_with_git(&git_ops);
+    let result = extract_git_context_with_git(&repo);
 
     assert!(result.is_ok());
     let context = result.unwrap();
@@ -70,8 +64,7 @@ fn test_extract_context_with_branch_name() {
     repo.create_branch("feature/test");
     repo.checkout("feature/test");
 
-    let git_ops = RealGitOps;
-    let result = extract_git_context_with_git(&git_ops);
+    let result = extract_git_context_with_git(&repo);
 
     assert!(result.is_ok());
     let context = result.unwrap();
@@ -93,8 +86,7 @@ fn test_analyze_mixed_file_changes() {
     // add new file
     repo.create_and_stage_file("new.txt", "new file");
 
-    let git_ops = RealGitOps;
-    let result = analyze_staged_changes_with_git(&git_ops);
+    let result = analyze_staged_changes_with_git(&repo);
 
     assert!(result.is_ok());
     let changes = result.unwrap();
@@ -114,8 +106,7 @@ fn test_git_context_with_repository_url() {
     // create a commit
     repo.create_commit("file.txt", "content", "feat: initial");
 
-    let git_ops = RealGitOps;
-    let result = extract_git_context_with_git(&git_ops);
+    let result = extract_git_context_with_git(&repo);
 
     assert!(result.is_ok());
     let context = result.unwrap();
