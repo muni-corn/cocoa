@@ -149,7 +149,7 @@ fn handle_lint(
 async fn handle_generate(config: &Config, json_output: bool, quiet: bool) -> Result<()> {
     // Check if AI is configured
     if config.ai.is_none() {
-        print_error_bold("ai configuration required for commit generation");
+        print_error_bold("you don't have ai configured for me, so i can't use ai");
         print_info("add an [ai] section to your .cocoa.toml configuration");
         print_info("see the documentation for configuration examples");
         goodbye_with_death(2);
