@@ -121,25 +121,13 @@ impl Client {
 }
 
 /// context information for commit generation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CommitContext {
     pub branch_name: Option<String>,
     pub recent_commits: Vec<String>,
     pub repository_name: Option<String>,
     pub is_merge: bool,
     pub is_rebase: bool,
-}
-
-impl Default for CommitContext {
-    fn default() -> Self {
-        Self {
-            branch_name: None,
-            recent_commits: Vec::new(),
-            repository_name: None,
-            is_merge: false,
-            is_rebase: false,
-        }
-    }
 }
 
 #[cfg(test)]

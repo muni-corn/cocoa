@@ -188,7 +188,7 @@ async fn handle_generate(config: &Config, json_output: bool, quiet: bool) -> Res
                         goodbye_with_success();
                     } else {
                         let stderr = String::from_utf8_lossy(&output.stderr);
-                        print_error_bold(&format!("git commit failed: {}", stderr));
+                        print_error_bold(format!("git commit failed: {}", stderr));
                         goodbye_with_death(5);
                     }
                 } else {

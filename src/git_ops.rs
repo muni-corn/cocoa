@@ -77,10 +77,10 @@ impl GitOperations for RealGitOps {
         // extract repository name from URL
         let repo_name = url
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("unknown")
             .strip_suffix(".git")
-            .unwrap_or_else(|| url.split('/').last().unwrap_or("unknown"))
+            .unwrap_or_else(|| url.split('/').next_back().unwrap_or("unknown"))
             .to_string();
 
         Ok(repo_name)
