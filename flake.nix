@@ -85,12 +85,17 @@
               mold.enable = true;
             };
 
-            packages = [
-              pkgs.bacon
-              pkgs.cargo-outdated
-            ]
-            ++ buildInputs
-            ++ nativeBuildInputs;
+            packages =
+              with pkgs;
+              [
+                bacon
+                cargo-outdated
+                cargo-tarpaulin
+              ]
+              ++ buildInputs
+              ++ nativeBuildInputs;
+
+            scripts.tarp.exec = ''cargo tarpaulin --engine llvm "$@"'';
           };
 
           # setup rust packages
