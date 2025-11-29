@@ -7,10 +7,10 @@ use std::{
 };
 
 use anyhow::Result;
-use clap::Parser;
+use clap::FromArgMatches;
 use cli::{Cli, Commands};
 use cocoa::{Config, generate, lint};
-use lint::{Linter, Severity};
+use lint::Linter;
 use style::{
     goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
     print_info, print_success_bold, print_warning, print_warning_bold, welcome,
@@ -18,7 +18,10 @@ use style::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let matches = Cli::command_with_conditional_help().get_matches();
+    let cli = Cli::from_arg_matches(&matches)
+        .map_err(|e| e.exit())
+        .unwrap();
 
     let config_path = cli.config.as_deref().unwrap_or(".cocoa.toml");
     let config = Config::load_or_default(config_path);

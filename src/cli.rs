@@ -1,9 +1,49 @@
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+
+const HELP_TEMPLATE: &str = "\
+{name} {version}
+
+{about}
+
+usage:
+  {usage}
+
+commands:
+{subcommands}
+
+options:
+{options}
+";
+
+const SUBCOMMAND_HELP_TEMPLATE_WITH_ARGS: &str = "\
+{about}
+
+usage:
+  {usage}
+
+arguments:
+{positionals}
+
+options:
+{options}
+";
+
+const SUBCOMMAND_HELP_TEMPLATE_NO_ARGS: &str = "\
+{about}
+
+usage:
+  {usage}
+
+options:
+{options}
+";
 
 #[derive(Parser)]
 #[command(name = "cocoa")]
 #[command(about = "the conventional commit assistant")]
 #[command(version, author)]
+#[command(help_template = HELP_TEMPLATE)]
+#[command(disable_help_subcommand = true)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -61,6 +101,26 @@ pub enum Commands {
 
     #[command(about = "full release (version + changelog + tag)")]
     Release,
+}
+
+impl Cli {
+    /// Creates a Command with conditional help templates for subcommands.
+    pub fn command_with_conditional_help() -> clap::Command {
+        let mut cmd = Self::command();
+
+        // iterate through subcommands and set appropriate help template
+        cmd = cmd.mut_subcommands(|subcmd| {
+            let has_positionals = subcmd.get_positionals().next().is_some();
+            let template = if has_positionals {
+                SUBCOMMAND_HELP_TEMPLATE_WITH_ARGS
+            } else {
+                SUBCOMMAND_HELP_TEMPLATE_NO_ARGS
+            };
+            subcmd.help_template(template)
+        });
+
+        cmd
+    }
 }
 
 #[cfg(test)]
