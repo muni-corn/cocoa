@@ -3,11 +3,12 @@
 use std::fmt::Debug;
 
 use genai::{
-    Client as GenaiClient, ClientConfig,
+    Client as GenaiClient,
+    adapter::AdapterKind,
     chat::{ChatMessage, ChatOptions, ChatRequest},
 };
 
-use super::{AiConfig, Provider, ProviderError};
+use super::{AiConfig, ProviderError};
 
 /// generic ai client for generating commit messages
 pub struct Client {
@@ -23,22 +24,6 @@ impl Client {
 
         // create genai client
         let client = GenaiClient::default();
-
-        // set up the api key based on provider
-        match config.provider {
-            Provider::OpenAi => unsafe {
-                std::env::set_var("OPENAI_API_KEY", &api_key);
-            },
-            Provider::Anthropic => unsafe {
-                std::env::set_var("ANTHROPIC_API_KEY", &api_key);
-            },
-            Provider::Ollama => {
-                // ollama doesn't need an api key
-            }
-            Provider::OpenRouter => unsafe {
-                std::env::set_var("OPENROUTER_API_KEY", &api_key);
-            },
-        }
 
         Ok(Self { config, client })
     }
@@ -79,11 +64,11 @@ impl Client {
 
     /// get the model name for the current provider
     fn get_model_name(&self) -> String {
-        match self.config.provider {
-            Provider::OpenAi => format!("gpt:{}", self.config.model),
-            Provider::Anthropic => format!("claude:{}", self.config.model),
-            Provider::Ollama => format!("ollama:{}", self.config.model),
-            Provider::OpenRouter => format!("openrouter:{}", self.config.model),
+        match self.config.provider.0 {
+            AdapterKind::OpenAI => format!("gpt:{}", self.config.model),
+            AdapterKind::Anthropic => format!("claude:{}", self.config.model),
+            AdapterKind::Ollama => format!("ollama:{}", self.config.model),
+            _ => self.config.model.to_string(),
         }
     }
 
@@ -133,7 +118,7 @@ pub struct CommitContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ai::config::SecretConfig;
+    use crate::ai::{Provider, config::SecretConfig};
 
     fn test_config() -> AiConfig {
         unsafe {
@@ -141,7 +126,7 @@ mod tests {
         }
 
         AiConfig {
-            provider: Provider::OpenAi,
+            provider: Provider(AdapterKind::OpenAI),
             model: "gpt-4".to_string(),
             temperature: 0.7,
             max_tokens: 500,
@@ -187,7 +172,7 @@ mod tests {
         }
 
         let config = AiConfig {
-            provider: Provider::OpenAi,
+            provider: Provider(AdapterKind::OpenAI),
             model: "gpt-4".to_string(),
             ..test_config()
         };
@@ -207,7 +192,7 @@ mod tests {
         }
 
         let config = AiConfig {
-            provider: Provider::Anthropic,
+            provider: Provider(AdapterKind::Anthropic),
             model: "claude-3-sonnet".to_string(),
             ..test_config()
         };

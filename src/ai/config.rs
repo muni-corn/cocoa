@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use genai::adapter::AdapterKind;
 use serde::{Deserialize, Serialize};
 
 use super::{Provider, ProviderError};
@@ -24,7 +25,7 @@ pub struct AiConfig {
 impl Default for AiConfig {
     fn default() -> Self {
         Self {
-            provider: Provider::OpenAi,
+            provider: Provider(AdapterKind::OpenAI),
             model: String::new(),
             temperature: default_temperature(),
             max_tokens: default_max_tokens(),
@@ -80,8 +81,8 @@ mod tests {
     #[test]
     fn test_ai_config_default() {
         let config = AiConfig::default();
-        assert_eq!(config.provider, Provider::OpenAi);
-        assert_eq!(config.model, "gpt-4");
+        assert_eq!(config.provider, Provider(AdapterKind::OpenAI));
+        assert_eq!(config.model, "");
         assert_eq!(config.temperature, 0.7);
         assert_eq!(config.max_tokens, 500);
     }

@@ -1,40 +1,42 @@
 //! ai provider abstraction and implementations
 
-use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{
+    fmt::{self, Display, Formatter},
+    str::FromStr,
+};
+
+use genai::adapter::AdapterKind;
+use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 
 /// supported ai providers
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Provider {
-    OpenAi,
-    Anthropic,
-    Ollama,
-    OpenRouter,
-}
+#[serde(rename_all = "lowercase")]
+pub struct Provider(#[serde(deserialize_with = "de_provider")] pub AdapterKind);
 
-impl fmt::Display for Provider {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Provider::OpenAi => write!(f, "openai"),
-            Provider::Anthropic => write!(f, "anthropic"),
-            Provider::Ollama => write!(f, "ollama"),
-            Provider::OpenRouter => write!(f, "openrouter"),
-        }
+impl Display for Provider {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0.to_string().to_lowercase())
     }
 }
 
-impl std::str::FromStr for Provider {
+impl FromStr for Provider {
     type Err = ProviderError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "openai" => Ok(Provider::OpenAi),
-            "anthropic" => Ok(Provider::Anthropic),
-            "ollama" => Ok(Provider::Ollama),
-            "openrouter" => Ok(Provider::OpenRouter),
-            _ => Err(ProviderError::UnsupportedProvider(s.to_string())),
-        }
+        let adapter_kind = AdapterKind::from_lower_str(s.to_lowercase().as_str())
+            .ok_or(ProviderError::UnsupportedProvider(s.to_string()))?;
+        Ok(Self(adapter_kind))
     }
+}
+
+/// custom deserializer for case-insensitive provider names
+fn de_provider<'de, D>(deserializer: D) -> Result<AdapterKind, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    AdapterKind::from_lower_str(&s.to_lowercase())
+        .ok_or_else(|| D::Error::custom(format!("unsupported provider: {}", s)))
 }
 
 /// errors related to ai providers
@@ -62,23 +64,24 @@ mod tests {
 
     #[test]
     fn test_provider_display() {
-        assert_eq!(Provider::OpenAi.to_string(), "openai");
-        assert_eq!(Provider::Anthropic.to_string(), "anthropic");
-        assert_eq!(Provider::Ollama.to_string(), "ollama");
-        assert_eq!(Provider::OpenRouter.to_string(), "openrouter");
+        assert_eq!(Provider(AdapterKind::OpenAI).to_string(), "openai");
+        assert_eq!(Provider(AdapterKind::Anthropic).to_string(), "anthropic");
+        assert_eq!(Provider(AdapterKind::Ollama).to_string(), "ollama");
     }
 
     #[test]
     fn test_provider_from_str() {
-        assert_eq!("openai".parse::<Provider>().unwrap(), Provider::OpenAi);
+        assert_eq!(
+            "openai".parse::<Provider>().unwrap(),
+            Provider(AdapterKind::OpenAI)
+        );
         assert_eq!(
             "ANTHROPIC".parse::<Provider>().unwrap(),
-            Provider::Anthropic
+            Provider(AdapterKind::Anthropic)
         );
-        assert_eq!("Ollama".parse::<Provider>().unwrap(), Provider::Ollama);
         assert_eq!(
-            "openrouter".parse::<Provider>().unwrap(),
-            Provider::OpenRouter
+            "Ollama".parse::<Provider>().unwrap(),
+            Provider(AdapterKind::Ollama)
         );
     }
 
