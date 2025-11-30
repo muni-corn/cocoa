@@ -1,4 +1,4 @@
-//! cocoa - conventional commits made easy
+//! cocoa: the conventional commit assistant <3
 
 pub mod ai;
 pub mod commit;

@@ -1,4 +1,4 @@
-//! ai provider abstraction and implementations
+//! AI provider abstraction and implementations.
 
 use std::{
     fmt::{self, Display, Formatter},
@@ -8,7 +8,7 @@ use std::{
 use genai::adapter::AdapterKind;
 use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 
-/// supported ai providers
+/// Represents supported AI providers.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provider(#[serde(deserialize_with = "de_provider")] pub AdapterKind);
@@ -29,7 +29,7 @@ impl FromStr for Provider {
     }
 }
 
-/// custom deserializer for case-insensitive provider names
+/// Custom deserializer for case-insensitive provider names.
 fn de_provider<'de, D>(deserializer: D) -> Result<AdapterKind, D::Error>
 where
     D: Deserializer<'de>,
@@ -39,7 +39,7 @@ where
         .ok_or_else(|| D::Error::custom(format!("unsupported provider: {}", s)))
 }
 
-/// errors related to ai providers
+/// Errors related to AI providers.
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
     #[error("unsupported provider: {0}")]

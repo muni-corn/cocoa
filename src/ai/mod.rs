@@ -1,4 +1,4 @@
-//! ai module for commit message generation using multiple llm providers
+//! AI module for commit message generation using multiple LLM providers.
 
 pub mod client;
 pub mod config;

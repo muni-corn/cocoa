@@ -1,4 +1,4 @@
-//! AI configuration parsing and management
+//! AI configuration parsing and management.
 
 use std::path::PathBuf;
 

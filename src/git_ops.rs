@@ -1,10 +1,10 @@
-//! git operations abstraction for testability
+//! Git operations abstraction for testability.
 
 use std::process::Command;
 
 use crate::generate::GenerateError;
 
-/// trait for git operations, allows mocking in tests
+/// Trait for git operations, allows mocking in tests.
 pub trait GitOperations {
     fn get_current_branch(&self) -> Result<String, GenerateError>;
     fn get_recent_commit_messages(&self, count: usize) -> Result<Vec<String>, GenerateError>;
@@ -15,7 +15,7 @@ pub trait GitOperations {
     fn get_staged_files_by_status(&self, status: &str) -> Result<Vec<String>, GenerateError>;
 }
 
-/// real git operations using actual git commands
+/// Real git operations using actual git commands.
 pub struct RealGitOps;
 
 impl GitOperations for RealGitOps {
@@ -144,7 +144,7 @@ impl GitOperations for RealGitOps {
     }
 }
 
-/// mock git operations for testing
+/// Mock git operations for testing.
 #[cfg(test)]
 pub struct MockGitOps {
     pub current_branch: Result<String, GenerateError>,

@@ -1,4 +1,4 @@
-//! generic ai client wrapper
+//! Generic AI client wrapper for commit message generation.
 
 use std::fmt::Debug;
 
@@ -9,14 +9,14 @@ use genai::{
 
 use super::{AiConfig, ProviderError};
 
-/// generic ai client for generating commit messages
+/// Generic AI client for generating commit messages.
 pub struct Client {
     config: AiConfig,
     client: GenaiClient,
 }
 
 impl Client {
-    /// create a new ai client with the given configuration
+    /// Creates a new AI client with the given configuration.
     pub fn new(config: AiConfig) -> Result<Self, ProviderError> {
         // validate and get api key
         let api_key = config.secret.resolve_api_key()?;
@@ -41,7 +41,7 @@ impl Client {
         Ok(Self { config, client })
     }
 
-    /// generate a commit message from the given context
+    /// Generates a commit message from the given context.
     pub async fn generate_commit_message(
         &self,
         staged_changes: &str,
@@ -73,7 +73,7 @@ impl Client {
         Ok(content.trim().to_string())
     }
 
-    /// build the prompt for commit generation
+    /// Builds the prompt for commit generation.
     fn build_prompt(&self, staged_changes: &str, context: &CommitContext) -> String {
         let mut prompt = String::new();
 
@@ -106,7 +106,7 @@ impl Client {
     }
 }
 
-/// context information for commit generation
+/// Context information for commit generation.
 #[derive(Debug, Clone, Default)]
 pub struct CommitContext {
     pub branch_name: Option<String>,
