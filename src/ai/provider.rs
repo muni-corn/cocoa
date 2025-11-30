@@ -90,4 +90,35 @@ mod tests {
         assert!("invalid".parse::<Provider>().is_err());
         assert!("".parse::<Provider>().is_err());
     }
+
+    #[test]
+    fn test_provider_deserialize() {
+        #[derive(Deserialize)]
+        struct Test {
+            provider: Provider,
+        }
+        let json = r#"{"provider":"openai"}"#;
+        let test_de = serde_json::from_str::<Test>(json).unwrap();
+        assert_eq!(test_de.provider.0, AdapterKind::OpenAI);
+
+        // test case-insensitive deserialization
+        assert_eq!(
+            serde_json::from_str::<Provider>(r#""openai""#).unwrap(),
+            Provider(AdapterKind::OpenAI)
+        );
+        assert_eq!(
+            serde_json::from_str::<Provider>(r#""ANTHROPIC""#).unwrap(),
+            Provider(AdapterKind::Anthropic)
+        );
+        assert_eq!(
+            serde_json::from_str::<Provider>(r#""Ollama""#).unwrap(),
+            Provider(AdapterKind::Ollama)
+        );
+    }
+
+    #[test]
+    fn test_provider_deserialize_invalid() {
+        assert!(serde_json::from_str::<Provider>(r#""invalid""#).is_err());
+        assert!(serde_json::from_str::<Provider>(r#""""#).is_err());
+    }
 }
