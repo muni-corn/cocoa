@@ -1,8 +1,11 @@
-use crate::ai::client::{Client as AiClient, CommitContext};
-use crate::config::Config;
-use crate::git_ops::{GitOperations, RealGitOps};
-use crate::lint::Linter;
 use thiserror::Error;
+
+use crate::{
+    ai::client::{Client as AiClient, CommitContext},
+    config::Config,
+    git_ops::{GitOperations, RealGitOps},
+    lint::Linter,
+};
 
 #[derive(Error, Debug, Clone)]
 pub enum GenerateError {

@@ -3,7 +3,7 @@ use std::{collections::HashSet, fs, path::Path};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::style::print_error_bold;
+use crate::{ai::config::AiConfig, style::print_error_bold};
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -20,7 +20,7 @@ pub enum ConfigError {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     pub commit: CommitConfig,
-    pub ai: Option<crate::ai::config::AiConfig>,
+    pub ai: Option<AiConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
