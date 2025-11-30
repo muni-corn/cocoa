@@ -1,8 +1,7 @@
-//! ai configuration parsing and management
+//! AI configuration parsing and management
 
 use std::path::PathBuf;
 
-use genai::adapter::AdapterKind;
 use serde::{Deserialize, Serialize};
 
 use super::{Provider, ProviderError};
@@ -10,25 +9,31 @@ use super::{Provider, ProviderError};
 const DEFAULT_TEMPERATURE: f32 = 0.7;
 const DEFAULT_MAX_TOKENS: u32 = 500;
 
-/// ai configuration section from .cocoa.toml
+/// AI configuration section from .cocoa.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiConfig {
-    pub provider: Provider,
+    /// Optional, because providers can be inferred from `model`
+    #[serde(default)]
+    pub provider: Option<Provider>,
+
     pub model: String,
+
     #[serde(default = "default_temperature")]
     pub temperature: f32,
+
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
+
     pub secret: SecretConfig,
 }
 
 impl Default for AiConfig {
     fn default() -> Self {
         Self {
-            provider: Provider(AdapterKind::OpenAI),
+            provider: None,
             model: String::new(),
-            temperature: default_temperature(),
-            max_tokens: default_max_tokens(),
+            temperature: DEFAULT_TEMPERATURE,
+            max_tokens: DEFAULT_MAX_TOKENS,
             secret: SecretConfig::default(),
         }
     }
@@ -81,7 +86,7 @@ mod tests {
     #[test]
     fn test_ai_config_default() {
         let config = AiConfig::default();
-        assert_eq!(config.provider, Provider(AdapterKind::OpenAI));
+        assert_eq!(config.provider, None);
         assert_eq!(config.model, "");
         assert_eq!(config.temperature, 0.7);
         assert_eq!(config.max_tokens, 500);

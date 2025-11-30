@@ -4,7 +4,6 @@ use std::fmt::Debug;
 
 use genai::{
     Client as GenaiClient,
-    adapter::AdapterKind,
     chat::{ChatMessage, ChatOptions, ChatRequest},
 };
 
@@ -105,6 +104,8 @@ pub struct CommitContext {
 
 #[cfg(test)]
 mod tests {
+    use genai::adapter::AdapterKind;
+
     use super::*;
     use crate::ai::{Provider, config::SecretConfig};
 
@@ -114,7 +115,7 @@ mod tests {
         }
 
         AiConfig {
-            provider: Provider(AdapterKind::OpenAI),
+            provider: Some(Provider(AdapterKind::OpenAI)),
             model: "gpt-4".to_string(),
             temperature: 0.7,
             max_tokens: 500,
@@ -160,7 +161,7 @@ mod tests {
         }
 
         let config = AiConfig {
-            provider: Provider(AdapterKind::OpenAI),
+            provider: Some(Provider(AdapterKind::OpenAI)),
             model: "gpt-4".to_string(),
             ..test_config()
         };
@@ -180,7 +181,7 @@ mod tests {
         }
 
         let config = AiConfig {
-            provider: Provider(AdapterKind::Anthropic),
+            provider: Some(Provider(AdapterKind::Anthropic)),
             model: "claude-3-sonnet".to_string(),
             ..test_config()
         };
