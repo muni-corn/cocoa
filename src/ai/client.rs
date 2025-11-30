@@ -3,7 +3,7 @@
 use std::fmt::Debug;
 
 use genai::{
-    Client as GenaiClient,
+    Client as GenaiClient, ModelName,
     chat::{ChatMessage, ChatOptions, ChatRequest},
 };
 
@@ -22,7 +22,21 @@ impl Client {
         let api_key = config.secret.resolve_api_key()?;
 
         // create genai client
-        let client = GenaiClient::default();
+        let mut client_builder = GenaiClient::builder()
+            .with_auth_resolver_fn(|_| Ok(Some(genai::resolver::AuthData::from_single(api_key))));
+
+        if let Some(provider) = config.provider {
+            let model_name = ModelName::from(&config.model);
+            let adapter_kind = provider.0;
+            client_builder = client_builder.with_model_mapper_fn(move |_| {
+                Ok(genai::ModelIden {
+                    adapter_kind,
+                    model_name,
+                })
+            })
+        }
+
+        let client = client_builder.build();
 
         Ok(Self { config, client })
     }
