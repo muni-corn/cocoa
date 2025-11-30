@@ -34,7 +34,7 @@ impl Client {
         staged_changes: &str,
         context: &CommitContext,
     ) -> Result<String, ProviderError> {
-        let model_name = self.get_model_name();
+        let model_name = &self.config.model;
         let prompt = self.build_prompt(staged_changes, context);
 
         let messages = vec![
@@ -51,23 +51,13 @@ impl Client {
 
         let response = self
             .client
-            .exec_chat(&model_name, chat_request, Some(&chat_options))
+            .exec_chat(model_name, chat_request, Some(&chat_options))
             .await
             .map_err(|e| ProviderError::Api(format!("genai error: {e}")))?;
 
         let content = response.texts().join("");
 
         Ok(content.trim().to_string())
-    }
-
-    /// get the model name for the current provider
-    fn get_model_name(&self) -> String {
-        match self.config.provider.0 {
-            AdapterKind::OpenAI => format!("gpt:{}", self.config.model),
-            AdapterKind::Anthropic => format!("claude:{}", self.config.model),
-            AdapterKind::Ollama => format!("ollama:{}", self.config.model),
-            _ => self.config.model.to_string(),
-        }
     }
 
     /// build the prompt for commit generation
@@ -175,7 +165,7 @@ mod tests {
             ..test_config()
         };
         let client = Client::new(config).unwrap();
-        assert_eq!(client.get_model_name(), "gpt:gpt-4");
+        assert_eq!(client.config.model, "gpt-4");
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
@@ -195,7 +185,7 @@ mod tests {
             ..test_config()
         };
         let client = Client::new(config).unwrap();
-        assert_eq!(client.get_model_name(), "claude:claude-3-sonnet");
+        assert_eq!(client.config.model, "claude-3-sonnet");
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
