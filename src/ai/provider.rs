@@ -9,7 +9,7 @@ use genai::adapter::AdapterKind;
 use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 
 /// supported ai providers
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provider(#[serde(deserialize_with = "de_provider")] pub AdapterKind);
 
