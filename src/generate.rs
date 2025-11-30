@@ -154,6 +154,8 @@ fn validate_generated_message(message: &str, config: &Config) -> Result<(), Gene
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
     use crate::git_ops::MockGitOps;
 
@@ -197,11 +199,11 @@ index 1234567..abcdefg 100644
 
         for (url, expected) in test_urls {
             let repo_name = url
-                .split('/')
-                .last()
+                .rsplit('/')
+                .next()
                 .unwrap()
                 .strip_suffix(".git")
-                .unwrap_or_else(|| url.split('/').last().unwrap())
+                .unwrap_or_else(|| url.rsplit('/').next().unwrap())
                 .to_string();
 
             assert_eq!(repo_name, expected);
@@ -247,13 +249,15 @@ index 1234567..abcdefg 100644
 
     #[test]
     fn test_extract_git_context_with_mock() {
-        let mut mock = MockGitOps::default();
-        mock.current_branch = Ok("feature/test".to_string());
-        mock.recent_commits = Ok(vec![
-            "feat: add feature".to_string(),
-            "fix: bug fix".to_string(),
-        ]);
-        mock.repository_name = Ok("test-repo".to_string());
+        let mock = MockGitOps {
+            current_branch: Ok("feature/test".to_string()),
+            recent_commits: Ok(vec![
+                "feat: add feature".to_string(),
+                "fix: bug fix".to_string(),
+            ]),
+            repository_name: Ok("test-repo".to_string()),
+            ..Default::default()
+        };
 
         let context = extract_git_context_with_git(&mock).unwrap();
 
@@ -266,15 +270,16 @@ index 1234567..abcdefg 100644
 
     #[test]
     fn test_analyze_staged_changes_with_mock() {
-        let mut mock = MockGitOps::default();
-        mock.staged_diff = Ok(r#"
+        let mock = MockGitOps {
+            staged_diff: Ok(r#"
 diff --git a/test.rs b/test.rs
 +++ test.rs
 +fn new_function() {}
 "#
-        .to_string());
-        mock.staged_files
-            .insert("A".to_string(), vec!["test.rs".to_string()]);
+            .to_string()),
+            staged_files: HashMap::from([("A".to_string(), vec!["test.rs".to_string()])]),
+            ..Default::default()
+        };
 
         let changes = analyze_staged_changes_with_git(&mock).unwrap();
 
@@ -285,8 +290,10 @@ diff --git a/test.rs b/test.rs
 
     #[test]
     fn test_analyze_staged_changes_empty_diff() {
-        let mut mock = MockGitOps::default();
-        mock.staged_diff = Ok("".to_string());
+        let mock = MockGitOps {
+            staged_diff: Ok("".to_string()),
+            ..Default::default()
+        };
 
         let result = analyze_staged_changes_with_git(&mock);
         assert!(matches!(result, Err(GenerateError::NoStagedChanges)));

@@ -222,10 +222,12 @@ mod tests {
 
     #[test]
     fn test_mock_git_ops_custom() {
-        let mut mock = MockGitOps::default();
-        mock.current_branch = Ok("feature/test".to_string());
-        mock.recent_commits = Ok(vec!["feat: add feature".to_string()]);
-        mock.is_merge = true;
+        let mock = MockGitOps {
+            current_branch: Ok("feature/test".to_string()),
+            recent_commits: Ok(vec!["feat: add feature".to_string()]),
+            is_merge: true,
+            ..Default::default()
+        };
 
         assert_eq!(mock.get_current_branch().unwrap(), "feature/test");
         assert_eq!(mock.get_recent_commit_messages(5).unwrap().len(), 1);
@@ -234,8 +236,10 @@ mod tests {
 
     #[test]
     fn test_mock_git_ops_error() {
-        let mut mock = MockGitOps::default();
-        mock.current_branch = Err(GenerateError::GitContext("test error".to_string()));
+        let mock = MockGitOps {
+            current_branch: Err(GenerateError::GitContext("test error".to_string())),
+            ..Default::default()
+        };
 
         assert!(mock.get_current_branch().is_err());
     }

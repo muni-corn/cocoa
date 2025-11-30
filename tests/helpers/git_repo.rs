@@ -5,8 +5,7 @@ use std::{
     process::Command,
 };
 
-use cocoa::generate::GenerateError;
-use cocoa::git_ops::GitOperations;
+use cocoa::{generate::GenerateError, git_ops::GitOperations};
 use tempfile::TempDir;
 
 /// Helper struct for creating and managing test git repositories.
@@ -255,11 +254,11 @@ impl GitOperations for TestRepo {
 
         // extract repository name from URL
         let repo_name = url
-            .split('/')
-            .last()
+            .rsplit('/')
+            .next()
             .unwrap_or("unknown")
             .strip_suffix(".git")
-            .unwrap_or_else(|| url.split('/').last().unwrap_or("unknown"))
+            .unwrap_or_else(|| url.rsplit('/').next().unwrap_or("unknown"))
             .to_string();
 
         Ok(repo_name)
