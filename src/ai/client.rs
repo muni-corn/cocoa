@@ -55,9 +55,7 @@ impl Client {
             .await
             .map_err(|e| ProviderError::Api(format!("genai error: {e}")))?;
 
-        let content = response
-            .content_text_as_str()
-            .ok_or_else(|| ProviderError::Api("no text content in response".to_string()))?;
+        let content = response.texts().join("");
 
         Ok(content.trim().to_string())
     }

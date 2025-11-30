@@ -1,11 +1,11 @@
-//! end-to-end tests for lint command
+//! End-to-end tests for `lint` command
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 
 #[test]
 fn test_lint_valid_commit_via_stdin() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("lint")
         .arg("--stdin")
@@ -17,7 +17,7 @@ fn test_lint_valid_commit_via_stdin() {
 
 #[test]
 fn test_lint_invalid_commit_via_stdin() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("lint")
         .arg("--stdin")
@@ -29,7 +29,7 @@ fn test_lint_invalid_commit_via_stdin() {
 
 #[test]
 fn test_lint_with_scope() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("lint")
         .arg("--stdin")
@@ -41,7 +41,7 @@ fn test_lint_with_scope() {
 
 #[test]
 fn test_lint_breaking_change() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("lint")
         .arg("--stdin")
@@ -52,7 +52,7 @@ fn test_lint_breaking_change() {
 
 #[test]
 fn test_lint_json_output_valid() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("--json")
         .arg("lint")
@@ -65,7 +65,7 @@ fn test_lint_json_output_valid() {
 
 #[test]
 fn test_lint_json_output_invalid() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("--json")
         .arg("lint")
@@ -78,7 +78,7 @@ fn test_lint_json_output_invalid() {
 
 #[test]
 fn test_lint_quiet_mode() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     cmd.arg("--quiet")
         .arg("lint")
@@ -102,7 +102,7 @@ fn test_lint_multiple_types() {
     ];
 
     for commit_msg in types {
-        let mut cmd = Command::cargo_bin("cocoa").unwrap();
+        let mut cmd = cargo_bin_cmd!("cocoa");
         cmd.arg("lint")
             .arg("--stdin")
             .write_stdin(format!("{}\n", commit_msg))
@@ -113,7 +113,7 @@ fn test_lint_multiple_types() {
 
 #[test]
 fn test_lint_subject_too_long() {
-    let mut cmd = Command::cargo_bin("cocoa").unwrap();
+    let mut cmd = cargo_bin_cmd!("cocoa");
 
     let long_subject = format!("feat: {}", "a".repeat(100));
 
