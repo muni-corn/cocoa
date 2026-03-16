@@ -358,11 +358,32 @@ impl GitOperations for Git2Ops {
 
     fn create_tag(&self, name: &str, message: &str, sign: bool) -> Result<(), GenerateError> {
         if sign {
-            // GPG signing via libgit2 requires a custom signing callback; defer to a future
-            // phase
-            return Err(GenerateError::GitCommand(
-                "GPG-signed tags are not yet supported by Git2Ops".to_string(),
-            ));
+            // libgit2 signing requires a custom callback; fall back to the git CLI which
+            // uses the user's configured GPG key transparently
+            let workdir = self.repo.workdir().ok_or_else(|| {
+                GenerateError::GitContext(
+                    "repository has no working directory (bare repo)".to_string(),
+                )
+            })?;
+
+            let output = std::process::Command::new("git")
+                .args(["tag", "-s", "-a", name, "-m", message])
+                .current_dir(workdir)
+                .output()
+                .map_err(|e| {
+                    GenerateError::GitCommand(format!("failed to invoke git for signing: {}", e))
+                })?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(GenerateError::GitCommand(format!(
+                    "failed to create signed tag '{}': {}",
+                    name,
+                    stderr.trim()
+                )));
+            }
+
+            return Ok(());
         }
 
         let head_commit = self
