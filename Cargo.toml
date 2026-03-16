@@ -29,6 +29,7 @@ git2 = "0.20.2"
 chrono = "0.4"
 minijinja = "2.18.0"
 semver = "1.0.27"
+rust-i18n = "3.1.5"
 
 [dev-dependencies]
 assert_cmd = "2.1.1"

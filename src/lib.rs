@@ -9,6 +9,7 @@ pub mod config;
 pub mod generate;
 pub mod git_ops;
 pub mod hook;
+pub mod i18n;
 pub mod init;
 pub mod interactive;
 pub mod lint;
