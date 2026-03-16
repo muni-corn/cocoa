@@ -344,6 +344,26 @@ impl Config {
         }
     }
 
+    /// Discovers and cascades all config files, returning the merged result.
+    ///
+    /// Loads from system → user → repository, with each layer overriding the
+    /// previous. Falls back to `Config::default()` if no config files exist or
+    /// if a validation error occurs.
+    pub fn load_discovered_or_default() -> Self {
+        let paths = Self::discover();
+        match Self::load_merged(&paths) {
+            Ok(config) => config,
+            Err(ConfigError::Validation(msg)) => {
+                print_error_bold(format!("configuration validation failed: {}", msg));
+                Self::default()
+            }
+            Err(e) => {
+                print_error_bold(format!("failed to load configuration: {}", e));
+                Self::default()
+            }
+        }
+    }
+
     pub fn validate(&self) -> Result<(), ConfigError> {
         self.commit.rules.validate()
     }

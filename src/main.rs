@@ -29,8 +29,10 @@ async fn main() -> Result<()> {
         console::set_colors_enabled(false);
     }
 
-    let config_path = cli.config.as_deref().unwrap_or(".cocoa.toml");
-    let config = Config::load_or_default(config_path);
+    let config = match cli.config.as_deref() {
+        Some(path) => Config::load_or_default(path),
+        None => Config::load_discovered_or_default(),
+    };
 
     match cli.command {
         Commands::Lint { input, stdin } => {
