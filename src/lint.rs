@@ -378,6 +378,7 @@ mod tests {
     fn create_test_config() -> Config {
         Config {
             ai: None,
+            changelog: None,
             commit: CommitConfig {
                 types: HashSet::from(["feat".to_string(), "fix".to_string()]),
                 scopes: Some(HashSet::from(["api".to_string(), "ui".to_string()])),

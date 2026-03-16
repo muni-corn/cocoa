@@ -1,4 +1,8 @@
-use std::{collections::HashSet, fs, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::PathBuf,
+};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -26,6 +30,55 @@ pub struct Config {
     #[serde(default)]
     pub commit: CommitConfig,
     pub ai: Option<AiConfig>,
+    pub changelog: Option<ChangelogConfig>,
+}
+
+/// Configuration for changelog generation.
+///
+/// Maps to the `[changelog]` section in `.cocoa.toml`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ChangelogConfig {
+    /// Path where the changelog file is written.
+    #[serde(default = "default_changelog_output_file")]
+    pub output_file: String,
+
+    /// Whether to include merge commits in the changelog.
+    #[serde(default)]
+    pub include_merge_commits: bool,
+
+    /// Whether to include revert commits in the changelog.
+    #[serde(default = "default_true")]
+    pub include_reverts: bool,
+
+    /// Date format string used for version headings (strftime syntax).
+    #[serde(default = "default_date_format")]
+    pub date_format: String,
+
+    /// Mapping of commit type to human-readable section title.
+    ///
+    /// Only types listed here appear in the changelog. The special key
+    /// `"breaking"` controls the section heading for breaking changes.
+    pub sections: Option<HashMap<String, String>>,
+}
+
+impl Default for ChangelogConfig {
+    fn default() -> Self {
+        Self {
+            output_file: default_changelog_output_file(),
+            include_merge_commits: false,
+            include_reverts: true,
+            date_format: default_date_format(),
+            sections: None,
+        }
+    }
+}
+
+fn default_changelog_output_file() -> String {
+    "CHANGELOG.md".to_string()
+}
+
+fn default_date_format() -> String {
+    "%Y-%m-%d".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
