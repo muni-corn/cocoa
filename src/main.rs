@@ -11,7 +11,11 @@ use std::{
 use anyhow::Result;
 use clap::FromArgMatches;
 use cli::{Cli, Commands};
-use cocoa::{Config, generate, init, lint};
+use cocoa::{
+    Config, generate,
+    git_ops::{Git2Ops, GitOperations},
+    init, lint,
+};
 use lint::Linter;
 use style::{
     goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
@@ -109,28 +113,35 @@ fn handle_lint(
     json_output: bool,
     quiet: bool,
     verbose: bool,
-    _dry_run: bool,
+    dry_run: bool,
 ) -> Result<()> {
     let linter = Linter::new(config);
 
-    let message = if stdin {
+    let message: String = if stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer)?;
         buffer.trim().to_string()
-    } else if let Some(input) = input {
-        if input.contains("..") {
-            // TODO: handle git range
-            print_error_bold("git range linting not yet implemented");
-            std::process::exit(1);
+    } else if let Some(input_str) = input {
+        let path = std::path::Path::new(&input_str);
+        if path.exists() && path.is_file() {
+            // treat input as a file path containing a commit message
+            let contents = std::fs::read_to_string(path)
+                .map_err(|e| anyhow::anyhow!("failed to read '{}': {}", input_str, e))?;
+            if verbose {
+                print_info(format!("reading commit message from file: {}", input_str));
+            }
+            contents.trim().to_string()
+        } else if input_str.contains("..") {
+            // treat input as a git range (e.g., HEAD~5..HEAD)
+            return handle_range_lint(&linter, &input_str, json_output, quiet, verbose, dry_run);
         } else {
-            input
+            // treat input as a raw commit message string
+            input_str
         }
     } else {
-        // read from git commit message if available
         print_error_bold("um... i need a commit message to work with!");
-        print_info("you can pass a file containing the commit message");
-        print_info("or pass a commit message directly with `--text`");
-        print_info("or read stdin in with `--stdin`");
+        print_info("pass a commit message, a file path, or a git range (e.g., HEAD~5..HEAD)");
+        print_info("or read stdin with `--stdin`");
         goodbye_with_death(1);
     };
 
@@ -142,9 +153,22 @@ fn handle_lint(
     }
 
     let result = linter.lint(&message);
+    output_single_lint_result(&result, json_output, quiet, dry_run)
+}
 
+/// Output the result of linting a single commit message, respecting output
+/// flags.
+///
+/// Exits the process with code 3 if the message is invalid and dry-run is not
+/// set.
+fn output_single_lint_result(
+    result: &lint::LintResult,
+    json_output: bool,
+    quiet: bool,
+    dry_run: bool,
+) -> Result<()> {
     if json_output {
-        println!("{}", serde_json::to_string(&result)?);
+        println!("{}", serde_json::to_string(result)?);
     } else if !quiet {
         if result.violations.is_empty() {
             print_success_bold("commit message is valid!");
@@ -178,14 +202,153 @@ fn handle_lint(
             }
 
             if error_count > 0 {
-                goodbye_with_death(3);
+                if dry_run {
+                    print_info("dry-run mode: errors detected but not failing");
+                    goodbye_with_warning();
+                } else {
+                    goodbye_with_death(3);
+                }
             } else {
                 goodbye_with_warning();
             }
         }
     }
 
-    if !result.is_valid {
+    if !result.is_valid && !dry_run {
+        process::exit(3);
+    }
+
+    Ok(())
+}
+
+/// Lint all commits in a git range (e.g., `HEAD~5..HEAD`).
+///
+/// Parses the `from..to` syntax, walks the range with libgit2, lints each
+/// commit subject, and reports per-commit results. Exits with code 3 if any
+/// commit fails, unless `dry_run` is set.
+fn handle_range_lint(
+    linter: &Linter,
+    range: &str,
+    json_output: bool,
+    quiet: bool,
+    verbose: bool,
+    dry_run: bool,
+) -> Result<()> {
+    // parse "from..to" — everything before the first ".." is `from`
+    let (from, to) = if let Some((f, t)) = range.split_once("..") {
+        (f, t)
+    } else {
+        print_error_bold(format!("invalid git range: '{}'", range));
+        goodbye_with_death(1);
+    };
+
+    if verbose {
+        print_info(format!("linting commits in range '{}..{}'", from, to));
+    }
+
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    let commits = match git_ops.get_commits_in_range(from, to) {
+        Ok(c) => c,
+        Err(e) => {
+            print_error_bold(format!("failed to get commits in range '{}': {}", range, e));
+            goodbye_with_death(5);
+        }
+    };
+
+    if commits.is_empty() {
+        if !quiet {
+            print_warning_bold("no commits found in range");
+        }
+        goodbye_with_warning();
+        return Ok(());
+    }
+
+    if verbose {
+        print_info(format!("found {} commits to lint", commits.len()));
+    }
+
+    // lint each commit's subject line
+    let lint_results: Vec<_> = commits
+        .into_iter()
+        .map(|commit| {
+            let result = linter.lint(&commit.message);
+            (commit, result)
+        })
+        .collect();
+
+    let invalid_count = lint_results.iter().filter(|(_, r)| !r.is_valid).count();
+
+    if json_output {
+        let json_results: Vec<serde_json::Value> = lint_results
+            .iter()
+            .map(|(commit, result)| {
+                let short_id = commit.id.get(..8).unwrap_or(&commit.id);
+                serde_json::json!({
+                    "commit_id": short_id,
+                    "message": commit.message,
+                    "is_valid": result.is_valid,
+                    "violations": result.violations,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string(&json_results)?);
+    } else if !quiet {
+        for (commit, result) in &lint_results {
+            let short_id = commit.id.get(..8).unwrap_or(&commit.id);
+            let commit_label = format!("[{}] {}", short_id, commit.message);
+
+            if result.violations.is_empty() {
+                print_success_bold(&commit_label);
+            } else {
+                let err_count = result
+                    .violations
+                    .iter()
+                    .filter(|v| matches!(v.severity, lint::Severity::Error))
+                    .count();
+
+                if err_count > 0 {
+                    print_error_bold(&commit_label);
+                } else {
+                    print_warning_bold(&commit_label);
+                }
+
+                for violation in &result.violations {
+                    let print_fn = match violation.severity {
+                        lint::Severity::Error => print_error,
+                        lint::Severity::Warning => print_warning,
+                        lint::Severity::Info => print_info,
+                    };
+                    print_fn(format!("  [{}] {}", violation.rule, violation.message));
+                }
+            }
+        }
+
+        if invalid_count > 0 {
+            print_error_bold(format!(
+                "{}/{} commit(s) failed linting",
+                invalid_count,
+                lint_results.len()
+            ));
+            if dry_run {
+                print_info("dry-run mode: errors detected but not failing");
+                goodbye_with_warning();
+            } else {
+                goodbye_with_death(3);
+            }
+        } else {
+            print_success_bold(format!("all {} commits passed!", lint_results.len()));
+            goodbye_with_success();
+        }
+    }
+
+    if invalid_count > 0 && !dry_run {
         process::exit(3);
     }
 

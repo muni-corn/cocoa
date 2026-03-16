@@ -44,7 +44,8 @@ pub struct CommitMessage {
     pub subject: String,
     /// Optional free-form body separated by a blank line from the header.
     pub body: Option<String>,
-    /// Structured trailer lines of the form `Key: Value` (multi-line supported).
+    /// Structured trailer lines of the form `Key: Value` (multi-line
+    /// supported).
     pub footers: HashMap<String, String>,
 }
 
@@ -177,12 +178,14 @@ impl CommitMessage {
     }
 }
 
-/// Determines if a character is allowed in identifier contexts for type and footer keys.
+/// Determines if a character is allowed in identifier contexts for type and
+/// footer keys.
 fn is_ident_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '-'
 }
 
-/// Represents parsed commit header components: type, scope, breaking flag, and subject.
+/// Represents parsed commit header components: type, scope, breaking flag, and
+/// subject.
 type CommitHeader = (String, Option<String>, bool, String);
 
 /// Parses a header into `(type, scope, breaking, subject)` components.
