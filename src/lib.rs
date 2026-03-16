@@ -9,6 +9,7 @@ pub mod generate;
 pub mod git_ops;
 pub mod hook;
 pub mod init;
+pub mod interactive;
 pub mod lint;
 pub(crate) mod style;
 
