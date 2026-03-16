@@ -14,7 +14,7 @@ use cli::{Cli, Commands};
 use cocoa::{
     Config, generate,
     git_ops::{Git2Ops, GitOperations},
-    hook, init, lint,
+    hook, init, interactive, lint,
 };
 use lint::Linter;
 use style::{
@@ -78,8 +78,8 @@ async fn main() -> Result<()> {
             }
         }
         Commands::Commit => {
-            welcome("cocoa");
-            print_error_bold("interactive commit creation not yet implemented");
+            welcome("cocoa commit");
+            handle_commit(&config, cli.dry_run)?;
         }
         Commands::Generate => {
             welcome("hi! generating your commit message...");
@@ -519,6 +519,52 @@ fn handle_unhook(_config: &Config, dry_run: bool) -> Result<()> {
         }
         Err(e) => {
             print_error_bold(format!("hook removal failed: {}", e));
+            goodbye_with_death(1);
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs the interactive commit wizard and performs the commit.
+///
+/// Opens the configured git repository, collects commit details via
+/// interactive prompts, validates the assembled message, and creates the
+/// commit. In dry-run mode the message is printed but not committed.
+fn handle_commit(config: &Config, dry_run: bool) -> Result<()> {
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    match interactive::run(config, &git_ops, dry_run) {
+        Ok(message) => {
+            if dry_run {
+                print_info("dry-run: commit message assembled (not committed):");
+                println!("\n{}\n", message);
+            } else {
+                print_success_bold("committed!");
+            }
+            goodbye_with_success();
+        }
+        Err(interactive::InteractiveError::Aborted) => {
+            print_warning("commit cancelled");
+            goodbye_with_warning();
+        }
+        Err(interactive::InteractiveError::Lint(msg)) => {
+            print_error_bold("commit message failed validation:");
+            print_error(&msg);
+            goodbye_with_death(3);
+        }
+        Err(interactive::InteractiveError::Commit(msg)) => {
+            print_error_bold(format!("git commit failed: {}", msg));
+            goodbye_with_death(5);
+        }
+        Err(e) => {
+            print_error_bold(format!("commit failed: {}", e));
             goodbye_with_death(1);
         }
     }
