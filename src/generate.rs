@@ -5,6 +5,7 @@ use crate::{
     config::Config,
     git_ops::{Git2Ops, GitOperations},
     lint::Linter,
+    security,
 };
 
 #[derive(Error, Debug, Clone)]
@@ -28,6 +29,19 @@ pub enum GenerateError {
     GitCommand(String),
 }
 
+/// The result of a successful commit message generation.
+#[derive(Debug)]
+pub struct GenerateResult {
+    /// The generated conventional commit message.
+    pub message: String,
+    /// Human-readable warnings for sensitive content detected in the diff.
+    ///
+    /// Non-empty when the staged diff appears to contain secrets such as API
+    /// keys or tokens. The caller should surface these to the user before
+    /// proceeding with the commit.
+    pub sensitive_warnings: Vec<String>,
+}
+
 #[derive(Debug)]
 pub struct StagedChanges {
     pub diff: String,
@@ -38,7 +52,7 @@ pub struct StagedChanges {
     pub total_deletions: usize,
 }
 
-pub async fn generate_commit_message(config: &Config) -> Result<String, GenerateError> {
+pub async fn generate_commit_message(config: &Config) -> Result<GenerateResult, GenerateError> {
     let git_ops = Git2Ops::open()?;
     generate_commit_message_with_git(config, &git_ops).await
 }
@@ -46,12 +60,25 @@ pub async fn generate_commit_message(config: &Config) -> Result<String, Generate
 pub async fn generate_commit_message_with_git<G: GitOperations>(
     config: &Config,
     git_ops: &G,
-) -> Result<String, GenerateError> {
+) -> Result<GenerateResult, GenerateError> {
     let staged_changes = analyze_staged_changes_with_git(git_ops)?;
 
     if staged_changes.diff.trim().is_empty() {
         return Err(GenerateError::NoStagedChanges);
     }
+
+    // scan for sensitive content and collect human-readable warnings; we warn
+    // rather than block so the user retains the ability to proceed if the
+    // match is a false positive
+    let sensitive_warnings: Vec<String> = security::scan_diff(&staged_changes.diff)
+        .into_iter()
+        .map(|m| {
+            format!(
+                "line {}: possible {} detected in staged changes",
+                m.line_number, m.pattern_name
+            )
+        })
+        .collect();
 
     let context = extract_git_context_with_git(git_ops)?;
 
@@ -70,7 +97,10 @@ pub async fn generate_commit_message_with_git<G: GitOperations>(
 
     validate_generated_message(&generated_message, config)?;
 
-    Ok(generated_message)
+    Ok(GenerateResult {
+        message: generated_message,
+        sensitive_warnings,
+    })
 }
 
 pub fn extract_git_context() -> Result<CommitContext, GenerateError> {

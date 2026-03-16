@@ -616,13 +616,31 @@ async fn handle_generate(
     }
 
     match generate::generate_commit_message(config).await {
-        Ok(message) => {
+        Ok(result) => {
+            // destructure upfront to avoid partial-move issues
+            let generate::GenerateResult {
+                message,
+                sensitive_warnings,
+            } = result;
+
+            // surface sensitive-content warnings before showing the message so
+            // the user can decide whether to abort before committing
+            if !sensitive_warnings.is_empty() && !quiet {
+                for warning in &sensitive_warnings {
+                    print_warning_bold(warning);
+                }
+                print_warning(
+                    "review staged changes carefully — secrets should never be committed",
+                );
+            }
+
             if json_output {
-                let result = serde_json::json!({
+                let json_result = serde_json::json!({
                     "success": true,
-                    "message": message
+                    "message": message,
+                    "sensitive_warnings": sensitive_warnings,
                 });
-                println!("{}", serde_json::to_string_pretty(&result)?);
+                println!("{}", serde_json::to_string_pretty(&json_result)?);
             } else if !quiet {
                 print_success_bold("generated commit message:");
                 println!("\n{}\n", message);

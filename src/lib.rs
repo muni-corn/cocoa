@@ -13,6 +13,7 @@ pub mod init;
 pub mod interactive;
 pub mod lint;
 pub mod release;
+pub mod security;
 pub(crate) mod style;
 pub mod tag;
 pub mod version;
