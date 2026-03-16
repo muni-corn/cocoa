@@ -572,6 +572,10 @@ pub struct MockGitOps {
     pub is_rebase: bool,
     pub staged_diff: Result<String, GenerateError>,
     pub staged_files: std::collections::HashMap<String, Vec<String>>,
+    pub commits_in_range: Result<Vec<CommitInfo>, GenerateError>,
+    pub tags: Result<Vec<TagInfo>, GenerateError>,
+    pub hook_path: Result<PathBuf, GenerateError>,
+    pub repo_root: Result<PathBuf, GenerateError>,
 }
 
 #[cfg(test)]
@@ -585,6 +589,10 @@ impl Default for MockGitOps {
             is_rebase: false,
             staged_diff: Ok(String::new()),
             staged_files: std::collections::HashMap::new(),
+            commits_in_range: Ok(Vec::new()),
+            tags: Ok(Vec::new()),
+            hook_path: Ok(PathBuf::from(".git/hooks")),
+            repo_root: Ok(PathBuf::from(".")),
         }
     }
 }
@@ -622,6 +630,34 @@ impl GitOperations for MockGitOps {
             .cloned()
             .unwrap_or_else(Vec::new))
     }
+
+    fn get_commits_in_range(
+        &self,
+        _from: &str,
+        _to: &str,
+    ) -> Result<Vec<CommitInfo>, GenerateError> {
+        self.commits_in_range.clone()
+    }
+
+    fn get_tags(&self) -> Result<Vec<TagInfo>, GenerateError> {
+        self.tags.clone()
+    }
+
+    fn create_tag(&self, _name: &str, _message: &str, _sign: bool) -> Result<(), GenerateError> {
+        Ok(())
+    }
+
+    fn create_commit(&self, _message: &str) -> Result<(), GenerateError> {
+        Ok(())
+    }
+
+    fn get_hook_path(&self) -> Result<PathBuf, GenerateError> {
+        self.hook_path.clone()
+    }
+
+    fn get_repo_root(&self) -> Result<PathBuf, GenerateError> {
+        self.repo_root.clone()
+    }
 }
 
 #[cfg(test)]
@@ -636,6 +672,10 @@ mod tests {
         assert_eq!(mock.get_repository_name().unwrap(), "test-repo");
         assert!(!mock.is_merge_in_progress());
         assert!(!mock.is_rebase_in_progress());
+        assert!(mock.get_tags().unwrap().is_empty());
+        assert!(mock.get_commits_in_range("", "HEAD").unwrap().is_empty());
+        assert!(mock.get_hook_path().is_ok());
+        assert!(mock.get_repo_root().is_ok());
     }
 
     #[test]
@@ -660,5 +700,48 @@ mod tests {
         };
 
         assert!(mock.get_current_branch().is_err());
+    }
+
+    #[test]
+    fn test_mock_git_ops_tags() {
+        let mock = MockGitOps {
+            tags: Ok(vec![TagInfo {
+                name: "v1.0.0".to_string(),
+                message: Some("release v1.0.0".to_string()),
+                target: "abc123".to_string(),
+            }]),
+            ..Default::default()
+        };
+
+        let tags = mock.get_tags().unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0].name, "v1.0.0");
+        assert_eq!(tags[0].message, Some("release v1.0.0".to_string()));
+    }
+
+    #[test]
+    fn test_mock_git_ops_commits_in_range() {
+        let mock = MockGitOps {
+            commits_in_range: Ok(vec![
+                CommitInfo {
+                    id: "abc123".to_string(),
+                    message: "feat: add feature".to_string(),
+                    author: "Alice".to_string(),
+                    timestamp: 1000,
+                },
+                CommitInfo {
+                    id: "def456".to_string(),
+                    message: "fix: fix bug".to_string(),
+                    author: "Bob".to_string(),
+                    timestamp: 900,
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let commits = mock.get_commits_in_range("v0.9.0", "HEAD").unwrap();
+        assert_eq!(commits.len(), 2);
+        assert_eq!(commits[0].message, "feat: add feature");
+        assert_eq!(commits[1].author, "Bob");
     }
 }
