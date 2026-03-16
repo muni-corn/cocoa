@@ -14,7 +14,7 @@ use cli::{Cli, Commands};
 use cocoa::{
     Config, generate,
     git_ops::{Git2Ops, GitOperations},
-    init, lint,
+    hook, init, lint,
 };
 use lint::Linter;
 use style::{
@@ -356,6 +356,91 @@ fn handle_range_lint(
 
     if invalid_count > 0 && !dry_run {
         process::exit(3);
+    }
+
+    Ok(())
+}
+
+/// Installs the cocoa `commit-msg` git hook.
+///
+/// Resolves the hooks directory from the current git repository and delegates
+/// to [`hook::install`]. Reports the outcome to the user and exits with an
+/// appropriate code.
+fn handle_hook(_config: &Config, dry_run: bool) -> Result<()> {
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    let hooks_dir = match git_ops.get_hook_path() {
+        Ok(p) => p,
+        Err(e) => {
+            print_error_bold(format!("failed to locate hooks directory: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    match hook::install(&hooks_dir, dry_run) {
+        Ok(hook::InstallOutcome::Installed { hook_path }) => {
+            if dry_run {
+                print_info(format!(
+                    "dry-run: would write commit-msg hook to {}",
+                    hook_path.display()
+                ));
+            } else {
+                print_success_bold(format!(
+                    "installed commit-msg hook at {}",
+                    hook_path.display()
+                ));
+            }
+            goodbye_with_success();
+        }
+        Ok(hook::InstallOutcome::Updated { hook_path }) => {
+            if dry_run {
+                print_info(format!(
+                    "dry-run: would update existing cocoa hook at {}",
+                    hook_path.display()
+                ));
+            } else {
+                print_success_bold(format!(
+                    "updated commit-msg hook at {}",
+                    hook_path.display()
+                ));
+            }
+            goodbye_with_success();
+        }
+        Ok(hook::InstallOutcome::Replaced {
+            hook_path,
+            backup_path,
+        }) => {
+            if dry_run {
+                print_info(format!(
+                    "dry-run: would back up existing hook to {} and install cocoa hook",
+                    backup_path.display()
+                ));
+            } else {
+                print_warning(format!(
+                    "backed up existing hook to {}",
+                    backup_path.display()
+                ));
+                print_success_bold(format!(
+                    "installed commit-msg hook at {}",
+                    hook_path.display()
+                ));
+            }
+            goodbye_with_success();
+        }
+        Err(hook::HookError::NotAGitRepo) => {
+            print_error_bold("not inside a git repository");
+            goodbye_with_death(5);
+        }
+        Err(e) => {
+            print_error_bold(format!("hook installation failed: {}", e));
+            goodbye_with_death(1);
+        }
     }
 
     Ok(())
