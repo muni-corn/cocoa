@@ -23,6 +23,7 @@ use cocoa::{
     hook, init, interactive, lint, release, tag, version,
 };
 use lint::Linter;
+use rust_i18n::t;
 use style::{
     goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
     print_info, print_success_bold, print_warning, print_warning_bold, welcome,
@@ -46,7 +47,7 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Lint { input, stdin } => {
-            welcome("hi! checking this commit message...");
+            welcome(t!("main.lint.welcome"));
             handle_lint(
                 &config,
                 input,
@@ -58,37 +59,37 @@ async fn main() -> Result<()> {
             )?;
         }
         Commands::Init => {
-            welcome("cocoa init");
+            welcome(t!("main.init.welcome"));
             match init::init(cli.dry_run) {
                 Ok(()) => {
                     if cli.dry_run {
-                        print_info("dry run complete — no file was written");
+                        print_info(t!("main.init.dry_run_done"));
                     } else {
-                        print_success_bold("wrote .cocoa.toml");
+                        print_success_bold(t!("main.init.wrote_config"));
                     }
                     goodbye_with_success();
                 }
                 Err(init::InitError::Aborted) => {
-                    print_warning("init cancelled");
+                    print_warning(t!("main.init.cancelled"));
                     goodbye_with_warning();
                 }
                 Err(init::InitError::FileExists) => {
-                    print_error_bold(".cocoa.toml already exists");
-                    print_info("delete it or run interactively to overwrite");
+                    print_error_bold(t!("main.init.file_exists"));
+                    print_info(t!("main.init.file_exists_hint"));
                     goodbye_with_death(1);
                 }
                 Err(e) => {
-                    print_error_bold(format!("init failed: {}", e));
+                    print_error_bold(t!("main.init.failed", error = e.to_string()));
                     goodbye_with_death(1);
                 }
             }
         }
         Commands::Commit => {
-            welcome("cocoa commit");
+            welcome(t!("main.commit.welcome"));
             handle_commit(&config, cli.dry_run)?;
         }
         Commands::Generate => {
-            welcome("hi! generating your commit message...");
+            welcome(t!("main.generate.welcome"));
             handle_generate(&config, cli.json, cli.quiet, cli.verbose, cli.dry_run).await?;
         }
         Commands::Changelog {
@@ -96,7 +97,7 @@ async fn main() -> Result<()> {
             format,
             output,
         } => {
-            welcome("cocoa changelog");
+            welcome(t!("main.changelog.welcome"));
             handle_changelog(
                 &config,
                 range.as_deref(),
@@ -106,19 +107,19 @@ async fn main() -> Result<()> {
             )?;
         }
         Commands::Bump { bump_type } => {
-            welcome("cocoa bump");
+            welcome(t!("main.bump.welcome"));
             handle_bump(&config, bump_type.as_deref(), cli.dry_run)?;
         }
         Commands::Hook => {
-            welcome("cocoa hook");
+            welcome(t!("main.hook.welcome"));
             handle_hook(&config, cli.dry_run)?;
         }
         Commands::Unhook => {
-            welcome("cocoa unhook");
+            welcome(t!("main.unhook.welcome"));
             handle_unhook(&config, cli.dry_run)?;
         }
         Commands::Tag { version } => {
-            welcome("cocoa tag");
+            welcome(t!("main.tag.welcome"));
             handle_tag(&config, version.as_deref(), cli.dry_run)?;
         }
         Commands::Release {
@@ -127,7 +128,7 @@ async fn main() -> Result<()> {
             skip_commit,
             skip_tag,
         } => {
-            welcome("cocoa release");
+            welcome(t!("main.release.welcome"));
             handle_release(
                 &config,
                 bump_type.as_deref(),
@@ -164,7 +165,7 @@ fn handle_lint(
             let contents = std::fs::read_to_string(path)
                 .map_err(|e| anyhow::anyhow!("failed to read '{}': {}", input_str, e))?;
             if verbose {
-                print_info(format!("reading commit message from file: {}", input_str));
+                print_info(t!("main.lint.reading_from_file", path = input_str));
             }
             contents.trim().to_string()
         } else if input_str.contains("..") {
@@ -175,14 +176,14 @@ fn handle_lint(
             input_str
         }
     } else {
-        print_error_bold("um... i need a commit message to work with!");
-        print_info("pass a commit message, a file path, or a git range (e.g., HEAD~5..HEAD)");
-        print_info("or read stdin with `--stdin`");
+        print_error_bold(t!("main.lint.no_input"));
+        print_info(t!("main.lint.no_input_hint"));
+        print_info(t!("main.lint.stdin_hint"));
         goodbye_with_death(1);
     };
 
     if verbose {
-        print_info(format!("linting message ({} chars):", message.len()));
+        print_info(t!("main.lint.linting_message", len = message.len()));
         for line in message.lines() {
             print_info(format!("  {}", line));
         }
@@ -207,7 +208,7 @@ fn output_single_lint_result(
         println!("{}", serde_json::to_string(result)?);
     } else if !quiet {
         if result.violations.is_empty() {
-            print_success_bold("commit message is valid!");
+            print_success_bold(t!("main.lint.message_valid"));
             goodbye_with_success();
         } else {
             let error_count = result
@@ -223,9 +224,9 @@ fn output_single_lint_result(
                 .count();
 
             if error_count > 0 {
-                print_error_bold("commit message has errors:");
+                print_error_bold(t!("main.lint.message_has_errors"));
             } else if warning_count > 0 {
-                print_warning_bold("commit message is valid, but there are some warnings:");
+                print_warning_bold(t!("main.lint.message_has_warnings"));
             }
 
             for violation in &result.violations {
@@ -239,7 +240,7 @@ fn output_single_lint_result(
 
             if error_count > 0 {
                 if dry_run {
-                    print_info("dry-run mode: errors detected but not failing");
+                    print_info(t!("main.lint.dry_run_errors"));
                     goodbye_with_warning();
                 } else {
                     goodbye_with_death(3);
@@ -271,21 +272,21 @@ fn handle_range_lint(
     dry_run: bool,
 ) -> Result<()> {
     // parse "from..to" — everything before the first ".." is `from`
-    let (from, to) = if let Some((f, t)) = range.split_once("..") {
-        (f, t)
+    let (from, to) = if let Some((f, tgt)) = range.split_once("..") {
+        (f, tgt)
     } else {
-        print_error_bold(format!("invalid git range: '{}'", range));
+        print_error_bold(t!("main.lint.invalid_range", range = range));
         goodbye_with_death(1);
     };
 
     if verbose {
-        print_info(format!("linting commits in range '{}..{}'", from, to));
+        print_info(t!("main.lint.linting_range", from = from, to = to));
     }
 
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -293,21 +294,25 @@ fn handle_range_lint(
     let commits = match git_ops.get_commits_in_range(from, to) {
         Ok(c) => c,
         Err(e) => {
-            print_error_bold(format!("failed to get commits in range '{}': {}", range, e));
+            print_error_bold(t!(
+                "main.lint.range_commits_failed",
+                range = range,
+                error = e.to_string()
+            ));
             goodbye_with_death(5);
         }
     };
 
     if commits.is_empty() {
         if !quiet {
-            print_warning_bold("no commits found in range");
+            print_warning_bold(t!("main.lint.no_commits"));
         }
         goodbye_with_warning();
         return Ok(());
     }
 
     if verbose {
-        print_info(format!("found {} commits to lint", commits.len()));
+        print_info(t!("main.lint.found_commits", count = commits.len()));
     }
 
     // lint each commit's subject line
@@ -367,19 +372,19 @@ fn handle_range_lint(
         }
 
         if invalid_count > 0 {
-            print_error_bold(format!(
-                "{}/{} commit(s) failed linting",
-                invalid_count,
-                lint_results.len()
+            print_error_bold(t!(
+                "main.lint.some_failed",
+                invalid = invalid_count,
+                total = lint_results.len()
             ));
             if dry_run {
-                print_info("dry-run mode: errors detected but not failing");
+                print_info(t!("main.lint.dry_run_errors"));
                 goodbye_with_warning();
             } else {
                 goodbye_with_death(3);
             }
         } else {
-            print_success_bold(format!("all {} commits passed!", lint_results.len()));
+            print_success_bold(t!("main.lint.all_passed", count = lint_results.len()));
             goodbye_with_success();
         }
     }
@@ -400,7 +405,7 @@ fn handle_hook(_config: &Config, dry_run: bool) -> Result<()> {
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -408,7 +413,7 @@ fn handle_hook(_config: &Config, dry_run: bool) -> Result<()> {
     let hooks_dir = match git_ops.get_hook_path() {
         Ok(p) => p,
         Err(e) => {
-            print_error_bold(format!("failed to locate hooks directory: {}", e));
+            print_error_bold(t!("main.git.hook_path_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -416,28 +421,28 @@ fn handle_hook(_config: &Config, dry_run: bool) -> Result<()> {
     match hook::install(&hooks_dir, dry_run) {
         Ok(hook::InstallOutcome::Installed { hook_path }) => {
             if dry_run {
-                print_info(format!(
-                    "dry-run: would write commit-msg hook to {}",
-                    hook_path.display()
+                print_info(t!(
+                    "main.hook.dry_run_install",
+                    path = hook_path.display().to_string()
                 ));
             } else {
-                print_success_bold(format!(
-                    "installed commit-msg hook at {}",
-                    hook_path.display()
+                print_success_bold(t!(
+                    "main.hook.installed",
+                    path = hook_path.display().to_string()
                 ));
             }
             goodbye_with_success();
         }
         Ok(hook::InstallOutcome::Updated { hook_path }) => {
             if dry_run {
-                print_info(format!(
-                    "dry-run: would update existing cocoa hook at {}",
-                    hook_path.display()
+                print_info(t!(
+                    "main.hook.dry_run_update",
+                    path = hook_path.display().to_string()
                 ));
             } else {
-                print_success_bold(format!(
-                    "updated commit-msg hook at {}",
-                    hook_path.display()
+                print_success_bold(t!(
+                    "main.hook.updated",
+                    path = hook_path.display().to_string()
                 ));
             }
             goodbye_with_success();
@@ -447,28 +452,28 @@ fn handle_hook(_config: &Config, dry_run: bool) -> Result<()> {
             backup_path,
         }) => {
             if dry_run {
-                print_info(format!(
-                    "dry-run: would back up existing hook to {} and install cocoa hook",
-                    backup_path.display()
+                print_info(t!(
+                    "main.hook.dry_run_replace",
+                    backup = backup_path.display().to_string()
                 ));
             } else {
-                print_warning(format!(
-                    "backed up existing hook to {}",
-                    backup_path.display()
+                print_warning(t!(
+                    "main.hook.replaced_backup",
+                    path = backup_path.display().to_string()
                 ));
-                print_success_bold(format!(
-                    "installed commit-msg hook at {}",
-                    hook_path.display()
+                print_success_bold(t!(
+                    "main.hook.installed",
+                    path = hook_path.display().to_string()
                 ));
             }
             goodbye_with_success();
         }
         Err(hook::HookError::NotAGitRepo) => {
-            print_error_bold("not inside a git repository");
+            print_error_bold(t!("main.hook.not_git_repo"));
             goodbye_with_death(5);
         }
         Err(e) => {
-            print_error_bold(format!("hook installation failed: {}", e));
+            print_error_bold(t!("main.hook.install_failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     }
@@ -485,7 +490,7 @@ fn handle_unhook(_config: &Config, dry_run: bool) -> Result<()> {
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -493,7 +498,7 @@ fn handle_unhook(_config: &Config, dry_run: bool) -> Result<()> {
     let hooks_dir = match git_ops.get_hook_path() {
         Ok(p) => p,
         Err(e) => {
-            print_error_bold(format!("failed to locate hooks directory: {}", e));
+            print_error_bold(t!("main.git.hook_path_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -501,14 +506,14 @@ fn handle_unhook(_config: &Config, dry_run: bool) -> Result<()> {
     match hook::uninstall(&hooks_dir, dry_run) {
         Ok(hook::UninstallOutcome::Removed { hook_path }) => {
             if dry_run {
-                print_info(format!(
-                    "dry-run: would remove commit-msg hook at {}",
-                    hook_path.display()
+                print_info(t!(
+                    "main.unhook.dry_run_remove",
+                    path = hook_path.display().to_string()
                 ));
             } else {
-                print_success_bold(format!(
-                    "removed commit-msg hook at {}",
-                    hook_path.display()
+                print_success_bold(t!(
+                    "main.unhook.removed",
+                    path = hook_path.display().to_string()
                 ));
             }
             goodbye_with_success();
@@ -518,35 +523,33 @@ fn handle_unhook(_config: &Config, dry_run: bool) -> Result<()> {
             backup_path,
         }) => {
             if dry_run {
-                print_info(format!(
-                    "dry-run: would restore {} from backup {}",
-                    hook_path.display(),
-                    backup_path.display()
+                print_info(t!(
+                    "main.unhook.dry_run_restore",
+                    hook = hook_path.display().to_string(),
+                    backup = backup_path.display().to_string()
                 ));
             } else {
-                print_success_bold(format!(
-                    "removed cocoa hook and restored previous hook at {}",
-                    hook_path.display()
+                print_success_bold(t!(
+                    "main.unhook.restored",
+                    path = hook_path.display().to_string()
                 ));
             }
             goodbye_with_success();
         }
         Ok(hook::UninstallOutcome::NotInstalled) => {
-            print_warning("no cocoa-managed commit-msg hook found — nothing to remove");
+            print_warning(t!("main.unhook.not_installed"));
             goodbye_with_warning();
         }
         Err(hook::HookError::NotAGitRepo) => {
-            print_error_bold("not inside a git repository");
+            print_error_bold(t!("main.hook.not_git_repo"));
             goodbye_with_death(5);
         }
         Err(hook::HookError::NotManagedByCocoa) => {
-            print_error_bold(
-                "the existing commit-msg hook is not managed by cocoa; remove it manually",
-            );
+            print_error_bold(t!("main.unhook.not_managed"));
             goodbye_with_death(1);
         }
         Err(e) => {
-            print_error_bold(format!("hook removal failed: {}", e));
+            print_error_bold(t!("main.unhook.remove_failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     }
@@ -563,7 +566,7 @@ fn handle_commit(config: &Config, dry_run: bool) -> Result<()> {
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -571,28 +574,28 @@ fn handle_commit(config: &Config, dry_run: bool) -> Result<()> {
     match interactive::run(config, &git_ops, dry_run) {
         Ok(message) => {
             if dry_run {
-                print_info("dry-run: commit message assembled (not committed):");
+                print_info(t!("main.commit.dry_run_done"));
                 println!("\n{}\n", message);
             } else {
-                print_success_bold("committed!");
+                print_success_bold(t!("main.commit.success"));
             }
             goodbye_with_success();
         }
         Err(interactive::InteractiveError::Aborted) => {
-            print_warning("commit cancelled");
+            print_warning(t!("main.commit.cancelled"));
             goodbye_with_warning();
         }
         Err(interactive::InteractiveError::Lint(msg)) => {
-            print_error_bold("commit message failed validation:");
+            print_error_bold(t!("main.commit.lint_failed"));
             print_error(&msg);
             goodbye_with_death(3);
         }
         Err(interactive::InteractiveError::Commit(msg)) => {
-            print_error_bold(format!("git commit failed: {}", msg));
+            print_error_bold(t!("main.commit.git_failed", error = msg));
             goodbye_with_death(5);
         }
         Err(e) => {
-            print_error_bold(format!("commit failed: {}", e));
+            print_error_bold(t!("main.commit.failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     }
@@ -609,14 +612,14 @@ async fn handle_generate(
 ) -> Result<()> {
     // Check if AI is configured
     if config.ai.is_none() {
-        print_error_bold("you don't have ai configured for me, so i can't use ai");
-        print_info("add an [ai] section to your .cocoa.toml configuration");
-        print_info("see the documentation for configuration examples");
+        print_error_bold(t!("main.generate.no_ai"));
+        print_info(t!("main.generate.no_ai_hint"));
+        print_info(t!("main.generate.no_ai_docs"));
         goodbye_with_death(2);
     }
 
     if verbose {
-        print_info("calling ai to generate commit message...");
+        print_info(t!("main.generate.calling_ai"));
     }
 
     match generate::generate_commit_message(config).await {
@@ -633,9 +636,7 @@ async fn handle_generate(
                 for warning in &sensitive_warnings {
                     print_warning_bold(warning);
                 }
-                print_warning(
-                    "review staged changes carefully — secrets should never be committed",
-                );
+                print_warning(t!("main.generate.secrets_warning"));
             }
 
             if json_output {
@@ -646,11 +647,11 @@ async fn handle_generate(
                 });
                 println!("{}", serde_json::to_string_pretty(&json_result)?);
             } else if !quiet {
-                print_success_bold("generated commit message:");
+                print_success_bold(t!("main.generate.success"));
                 println!("\n{}\n", message);
 
                 // Ask user if they want to commit with this message
-                print_info("would you like to commit with this message? (y/n)");
+                print_info(t!("main.generate.commit_prompt"));
 
                 use std::io::Write;
                 print!("❯ ");
@@ -666,15 +667,18 @@ async fn handle_generate(
                         .output()?;
 
                     if output.status.success() {
-                        print_success_bold("commit successful!");
+                        print_success_bold(t!("main.generate.commit_success"));
                         goodbye_with_success();
                     } else {
                         let stderr = String::from_utf8_lossy(&output.stderr);
-                        print_error_bold(format!("git commit failed: {}", stderr));
+                        print_error_bold(t!(
+                            "main.generate.commit_failed",
+                            error = stderr.to_string()
+                        ));
                         goodbye_with_death(5);
                     }
                 } else {
-                    print_info("commit cancelled. you can use the generated message manually.");
+                    print_info(t!("main.generate.cancelled"));
                     goodbye_with_warning();
                 }
             }
@@ -697,25 +701,25 @@ async fn handle_generate(
             } else {
                 match &e {
                     generate::GenerateError::NoStagedChanges => {
-                        print_error_bold("no staged changes found");
-                        print_info("use `git add <files>` to stage changes first");
-                        print_info("then run `cocoa generate` again");
+                        print_error_bold(t!("main.generate.no_staged"));
+                        print_info(t!("main.generate.no_staged_hint"));
+                        print_info(t!("main.generate.no_staged_hint2"));
                     }
                     generate::GenerateError::AiGeneration(msg) => {
-                        print_error_bold("ai generation failed");
+                        print_error_bold(t!("main.generate.ai_failed"));
                         print_error(msg);
-                        print_info("check your ai configuration and api key");
+                        print_info(t!("main.generate.check_ai"));
                     }
                     generate::GenerateError::GitContext(msg)
                     | generate::GenerateError::StagedChanges(msg)
                     | generate::GenerateError::GitCommand(msg) => {
-                        print_error_bold("git operation failed");
+                        print_error_bold(t!("main.generate.git_failed"));
                         print_error(msg);
                     }
                     generate::GenerateError::Validation(msg) => {
-                        print_error_bold("generated message failed validation");
+                        print_error_bold(t!("main.generate.validation_failed"));
                         print_error(msg);
-                        print_info("this may indicate an issue with ai configuration");
+                        print_info(t!("main.generate.validation_hint"));
                     }
                 }
 
@@ -746,7 +750,7 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -755,11 +759,11 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
     let current_version = match version::detect_current_semver(&git_ops, &v_config.tag_prefix) {
         Ok(Some(v)) => v,
         Ok(None) => {
-            print_info("no version tags found, starting from 0.0.0");
+            print_info(t!("main.bump.no_tags"));
             version::SemVer::parse("0.0.0").expect("0.0.0 is always valid semver")
         }
         Err(e) => {
-            print_error_bold(format!("failed to detect current version: {}", e));
+            print_error_bold(t!("main.bump.detect_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -784,14 +788,11 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
                 version::BumpType::Minor => "minor",
                 version::BumpType::Patch => "patch",
             };
-            print_info(format!("auto-detected bump type: {}", label));
+            print_info(t!("main.bump.auto_detected", bump_type = label));
             detected
         }
         Some(other) => {
-            print_error_bold(format!(
-                "unknown bump type '{}' — use: major, minor, patch, or auto",
-                other
-            ));
+            print_error_bold(t!("main.bump.unknown_type", bump_type = other));
             goodbye_with_death(1);
         }
     };
@@ -805,39 +806,37 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
     let old_str = current_version.to_string();
     let new_str = new_version.to_string();
 
-    print_info(format!("{} → {}", old_str, new_str));
+    print_info(t!("main.bump.version_arrow", old = old_str, new = new_str));
 
     let files: &[String] = v_config.commit_version_files.as_deref().unwrap_or(&[]);
 
     if files.is_empty() {
         if dry_run {
-            print_info("dry-run: no files configured in version.commit_version_files");
+            print_info(t!("main.bump.dry_run_no_files"));
         } else {
-            print_warning(
-                "no files configured in version.commit_version_files — nothing to update",
-            );
+            print_warning(t!("main.bump.no_files"));
         }
         goodbye_with_warning();
         return Ok(());
     }
 
     if dry_run {
-        print_info(format!("dry-run: would update {} file(s):", files.len()));
+        print_info(t!("main.bump.dry_run_would_update", count = files.len()));
         for f in files {
-            print_info(format!("  {}", f));
+            print_info(t!("main.bump.dry_run_file", file = f));
         }
         goodbye_with_success();
     } else {
         match version::update_version_files(files, &old_str, &new_str) {
             Ok(()) => {
-                print_success_bold(format!("bumped {} → {}", old_str, new_str));
+                print_success_bold(t!("main.bump.bumped", old = old_str, new = new_str));
                 for f in files {
-                    print_info(format!("  updated {}", f));
+                    print_info(t!("main.bump.updated_file", file = f));
                 }
                 goodbye_with_success();
             }
             Err(e) => {
-                print_error_bold(format!("failed to update version files: {}", e));
+                print_error_bold(t!("main.bump.update_failed", error = e.to_string()));
                 goodbye_with_death(1);
             }
         }
@@ -859,7 +858,7 @@ fn handle_tag(config: &Config, version_str: Option<&str>, dry_run: bool) -> Resu
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -867,39 +866,39 @@ fn handle_tag(config: &Config, version_str: Option<&str>, dry_run: bool) -> Resu
     let version = match tag::resolve_version(&git_ops, version_str, &v_config) {
         Ok(v) => v,
         Err(tag::TagError::Version(e)) => {
-            print_error_bold(format!("invalid version: {}", e));
+            print_error_bold(t!("main.tag.invalid_version", error = e.to_string()));
             goodbye_with_death(1);
         }
         Err(e) => {
-            print_error_bold(format!("failed to resolve version: {}", e));
+            print_error_bold(t!("main.tag.resolve_failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     };
 
     let tag_name = format!("{}{}", v_config.tag_prefix, version);
-    print_info(format!("preparing tag {}", tag_name));
+    print_info(t!("main.tag.preparing", name = tag_name));
 
     match tag::create_version_tag(&git_ops, &version, &v_config, &cl_config, dry_run) {
         Ok((name, message)) => {
             if dry_run {
-                print_info(format!("dry-run: would create tag '{}'", name));
+                print_info(t!("main.tag.dry_run", name = name));
                 println!("\n{}\n", message);
             } else {
-                print_success_bold(format!("created tag '{}'", name));
+                print_success_bold(t!("main.tag.created", name = name));
             }
             goodbye_with_success();
         }
         Err(tag::TagError::AlreadyExists(name)) => {
-            print_error_bold(format!("tag '{}' already exists", name));
-            print_info("use a different version or delete the existing tag first");
+            print_error_bold(t!("main.tag.already_exists", name = name));
+            print_info(t!("main.tag.already_exists_hint"));
             goodbye_with_death(1);
         }
         Err(tag::TagError::Git(msg)) => {
-            print_error_bold(format!("git error: {}", msg));
+            print_error_bold(t!("main.tag.git_failed", error = msg));
             goodbye_with_death(5);
         }
         Err(e) => {
-            print_error_bold(format!("tagging failed: {}", e));
+            print_error_bold(t!("main.tag.failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     }
@@ -925,7 +924,7 @@ fn handle_release(
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -941,74 +940,76 @@ fn handle_release(
     match release::execute(&git_ops, &v_config, &cl_config, &opts) {
         Ok(outcome) => {
             if dry_run {
-                print_info(format!(
-                    "dry-run: {} → {} ({})",
-                    outcome.previous_version,
-                    outcome.new_version,
-                    match outcome.bump_type {
-                        version::BumpType::Major => "major",
-                        version::BumpType::Minor => "minor",
-                        version::BumpType::Patch => "patch",
-                    }
+                let bump_label = match outcome.bump_type {
+                    version::BumpType::Major => "major",
+                    version::BumpType::Minor => "minor",
+                    version::BumpType::Patch => "patch",
+                };
+                print_info(t!(
+                    "main.release.dry_run_summary",
+                    old = outcome.previous_version,
+                    new = outcome.new_version,
+                    bump_type = bump_label
                 ));
                 if !outcome.updated_files.is_empty() {
-                    print_info("would update version files:");
+                    print_info(t!("main.release.dry_run_update_files"));
                     for f in &outcome.updated_files {
-                        print_info(format!("  {}", f));
+                        print_info(t!("main.release.dry_run_file", file = f));
                     }
                 }
                 if !skip_changelog {
-                    print_info(format!(
-                        "would write changelog to '{}'",
-                        outcome.changelog_path
+                    print_info(t!(
+                        "main.release.dry_run_changelog",
+                        path = outcome.changelog_path
                     ));
                 }
                 if !skip_commit {
-                    print_info(format!(
-                        "would create commit: chore(release): bump version to {}",
-                        outcome.new_version
+                    print_info(t!(
+                        "main.release.dry_run_commit",
+                        version = outcome.new_version
                     ));
                 }
                 if !skip_tag {
-                    print_info(format!("would create tag '{}'", outcome.tag_name));
+                    print_info(t!("main.release.dry_run_tag", name = outcome.tag_name));
                 }
             } else {
-                print_success_bold(format!(
-                    "released {} → {}",
-                    outcome.previous_version, outcome.new_version
+                print_success_bold(t!(
+                    "main.release.success",
+                    old = outcome.previous_version,
+                    new = outcome.new_version
                 ));
                 if !outcome.updated_files.is_empty() {
                     for f in &outcome.updated_files {
-                        print_info(format!("  updated {}", f));
+                        print_info(t!("main.release.updated_file", file = f));
                     }
                 }
                 if !skip_changelog {
-                    print_info(format!("wrote changelog to '{}'", outcome.changelog_path));
+                    print_info(t!(
+                        "main.release.wrote_changelog",
+                        path = outcome.changelog_path
+                    ));
                 }
                 if !skip_tag {
-                    print_info(format!("created tag '{}'", outcome.tag_name));
+                    print_info(t!("main.release.created_tag", name = outcome.tag_name));
                 }
             }
             goodbye_with_success();
         }
         Err(release::ReleaseError::InvalidBumpType(s)) => {
-            print_error_bold(format!(
-                "unknown bump type '{}' — use: major, minor, patch, or auto",
-                s
-            ));
+            print_error_bold(t!("main.release.invalid_bump", bump_type = s));
             goodbye_with_death(1);
         }
         Err(release::ReleaseError::Tag(tag::TagError::AlreadyExists(name))) => {
-            print_error_bold(format!("tag '{}' already exists", name));
-            print_info("the version has already been released; bump commits or use --skip-tag");
+            print_error_bold(t!("main.release.tag_exists", name = name));
+            print_info(t!("main.release.tag_exists_hint"));
             goodbye_with_death(1);
         }
         Err(release::ReleaseError::Git(msg)) => {
-            print_error_bold(format!("git error: {}", msg));
+            print_error_bold(t!("main.release.git_failed", error = msg));
             goodbye_with_death(5);
         }
         Err(e) => {
-            print_error_bold(format!("release failed: {}", e));
+            print_error_bold(t!("main.release.failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     }
@@ -1033,10 +1034,7 @@ fn handle_changelog(
         Some(s) => match OutputFormat::parse(s) {
             Some(f) => f,
             None => {
-                print_error_bold(format!(
-                    "unknown output format '{}' — use: markdown, json, html, rst, asciidoc, or template:<path>",
-                    s
-                ));
+                print_error_bold(t!("main.changelog.unknown_format", format = s));
                 goodbye_with_death(1);
             }
         },
@@ -1046,7 +1044,7 @@ fn handle_changelog(
     let git_ops = match Git2Ops::open() {
         Ok(ops) => ops,
         Err(e) => {
-            print_error_bold(format!("failed to open git repository: {}", e));
+            print_error_bold(t!("main.git.open_failed", error = e.to_string()));
             goodbye_with_death(5);
         }
     };
@@ -1054,17 +1052,17 @@ fn handle_changelog(
     let cl = match changelog::parser::parse_history(&git_ops, range, &cl_config) {
         Ok(c) => c,
         Err(changelog::ChangelogError::Git(msg)) => {
-            print_error_bold(format!("git error: {}", msg));
+            print_error_bold(t!("main.changelog.git_failed", error = msg));
             goodbye_with_death(5);
         }
         Err(e) => {
-            print_error_bold(format!("changelog generation failed: {}", e));
+            print_error_bold(t!("main.changelog.failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     };
 
     if cl.versions.is_empty() {
-        print_warning("no commits found — changelog is empty");
+        print_warning(t!("main.changelog.empty"));
         goodbye_with_warning();
         return Ok(());
     }
@@ -1072,7 +1070,7 @@ fn handle_changelog(
     let rendered = match changelog::renderer::render(&cl, &format, &cl_config) {
         Ok(s) => s,
         Err(e) => {
-            print_error_bold(format!("render failed: {}", e));
+            print_error_bold(t!("main.changelog.render_failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     };
@@ -1080,13 +1078,13 @@ fn handle_changelog(
     let dest = output_path.unwrap_or(&cl_config.output_file);
 
     if dry_run {
-        print_info(format!("dry-run: would write changelog to '{}'", dest));
+        print_info(t!("main.changelog.dry_run", path = dest));
         println!("\n{}", rendered);
         goodbye_with_success();
     } else {
         std::fs::write(dest, &rendered)
             .map_err(|e| anyhow::anyhow!("failed to write '{}': {}", dest, e))?;
-        print_success_bold(format!("wrote changelog to '{}'", dest));
+        print_success_bold(t!("main.changelog.wrote", path = dest));
         goodbye_with_success();
     }
 

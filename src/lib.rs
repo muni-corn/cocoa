@@ -2,6 +2,11 @@
 
 #![allow(dead_code)]
 
+// initialize the library-side translation backend from the bundled locale
+// catalog; this must be at the crate root so `t!` resolves
+// `crate::_rust_i18n_t`
+rust_i18n::i18n!("locales");
+
 pub mod ai;
 pub mod changelog;
 pub mod commit;

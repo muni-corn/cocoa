@@ -397,6 +397,7 @@ mod tests {
 /// Interactive prompt implementations.
 pub(crate) mod prompts {
     use dialoguer::{Confirm, Editor, FuzzySelect, Input, Select, theme::ColorfulTheme};
+    use rust_i18n::t;
 
     use crate::{Config, interactive::InteractiveError};
 
@@ -406,7 +407,7 @@ pub(crate) mod prompts {
         types.sort_unstable();
 
         let idx = Select::with_theme(theme)
-            .with_prompt("select commit type")
+            .with_prompt(t!("interactive.prompt.commit_type").as_ref())
             .items(&types)
             .default(0)
             .interact()
@@ -425,7 +426,7 @@ pub(crate) mod prompts {
         config: &Config,
     ) -> Result<Option<String>, InteractiveError> {
         let add_scope = Confirm::with_theme(theme)
-            .with_prompt("add a scope? (optional)")
+            .with_prompt(t!("interactive.prompt.add_scope").as_ref())
             .default(false)
             .interact()
             .unwrap_or(false);
@@ -438,10 +439,10 @@ pub(crate) mod prompts {
             // build a sorted list with a trailing free-text escape hatch
             let mut scope_list: Vec<String> = scopes.iter().map(|s| s.to_string()).collect();
             scope_list.sort();
-            scope_list.push("(enter custom scope)".to_string());
+            scope_list.push(t!("interactive.prompt.custom_scope").to_string());
 
             let idx = FuzzySelect::with_theme(theme)
-                .with_prompt("select scope (type to filter)")
+                .with_prompt(t!("interactive.prompt.select_scope").as_ref())
                 .items(&scope_list)
                 .default(0)
                 .interact()
@@ -454,7 +455,7 @@ pub(crate) mod prompts {
         }
 
         let scope: String = Input::with_theme(theme)
-            .with_prompt("scope")
+            .with_prompt(t!("interactive.prompt.scope").as_ref())
             .interact_text()
             .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
 
@@ -482,22 +483,24 @@ pub(crate) mod prompts {
             None => format!("{}: ", commit_type),
         };
 
-        let prompt = format!(
-            "subject  [warn >{} / error >{} chars — prefix is {} chars]",
-            warn_len,
-            deny_len,
-            prefix.len()
-        );
+        let prompt = t!(
+            "interactive.prompt.subject",
+            warn = warn_len,
+            deny = deny_len,
+            prefix = prefix.len()
+        )
+        .to_string();
 
         let subject: String = Input::with_theme(theme)
             .with_prompt(&prompt)
             .validate_with(|s: &String| {
                 if s.len() > deny_len {
-                    Err(format!(
-                        "subject is too long ({}/{} chars)",
-                        s.len(),
-                        deny_len
-                    ))
+                    Err(t!(
+                        "interactive.prompt.subject_too_long",
+                        len = s.len(),
+                        max = deny_len
+                    )
+                    .to_string())
                 } else {
                     Ok(())
                 }
@@ -515,7 +518,7 @@ pub(crate) mod prompts {
     /// as no body.
     pub fn body(theme: &ColorfulTheme) -> Result<Option<String>, InteractiveError> {
         let add_body = Confirm::with_theme(theme)
-            .with_prompt("add a commit body? (opens editor)")
+            .with_prompt(t!("interactive.prompt.add_body").as_ref())
             .default(false)
             .interact()
             .unwrap_or(false);
@@ -550,7 +553,7 @@ pub(crate) mod prompts {
     /// short description to place in the `BREAKING CHANGE:` footer.
     pub fn breaking(theme: &ColorfulTheme) -> Result<(bool, Option<String>), InteractiveError> {
         let is_breaking = Confirm::with_theme(theme)
-            .with_prompt("is this a breaking change?")
+            .with_prompt(t!("interactive.prompt.breaking").as_ref())
             .default(false)
             .interact()
             .unwrap_or(false);
@@ -560,7 +563,7 @@ pub(crate) mod prompts {
         }
 
         let description: String = Input::with_theme(theme)
-            .with_prompt("describe the breaking change (goes in BREAKING CHANGE footer)")
+            .with_prompt(t!("interactive.prompt.breaking_description").as_ref())
             .interact_text()
             .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
 
@@ -573,7 +576,7 @@ pub(crate) mod prompts {
     /// a free-text input is collected (e.g., `Closes #123, Refs #456`).
     pub fn issue_refs(theme: &ColorfulTheme) -> Result<Option<String>, InteractiveError> {
         let add_refs = Confirm::with_theme(theme)
-            .with_prompt("add issue references? (e.g., Closes #123)")
+            .with_prompt(t!("interactive.prompt.add_refs").as_ref())
             .default(false)
             .interact()
             .unwrap_or(false);
@@ -583,7 +586,7 @@ pub(crate) mod prompts {
         }
 
         let refs: String = Input::with_theme(theme)
-            .with_prompt("issue reference(s)")
+            .with_prompt(t!("interactive.prompt.issue_refs").as_ref())
             .interact_text()
             .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
 

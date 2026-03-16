@@ -1,10 +1,8 @@
 //! Internationalization (i18n) infrastructure for cocoa.
 //!
-//! Sets up the message catalog backend used by the `t!` macro throughout the
-//! codebase. Locale detection is handled by [`detect_locale`].
-
-// initialize the global translation backend from the bundled locale catalog
-rust_i18n::i18n!("locales");
+//! The translation backend is initialized at the crate root via
+//! `rust_i18n::i18n!("locales")` in `lib.rs`. This module re-exports the
+//! runtime helpers and provides locale detection.
 
 pub use rust_i18n::{locale, set_locale, t};
 

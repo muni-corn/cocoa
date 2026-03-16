@@ -82,8 +82,9 @@ fn write_config(config: &Config, dry_run: bool) -> Result<(), InitError> {
     if path.exists() {
         if is_interactive() {
             use dialoguer::{Confirm, theme::ColorfulTheme};
+            use rust_i18n::t;
             let overwrite = Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt(".cocoa.toml already exists. overwrite?")
+                .with_prompt(t!("init.prompt.overwrite").as_ref())
                 .default(false)
                 .interact()
                 .unwrap_or(false);
@@ -105,6 +106,7 @@ pub(crate) mod prompts {
     use std::collections::HashSet;
 
     use dialoguer::{Confirm, Input, MultiSelect, Select, theme::ColorfulTheme};
+    use rust_i18n::t;
 
     use crate::{
         ai::{AiConfig, Provider, SecretConfig},
@@ -126,7 +128,7 @@ pub(crate) mod prompts {
         // --- commit type selection ---
         let all_checked: Vec<bool> = vec![true; DEFAULT_COMMIT_TYPES.len()];
         let selected = MultiSelect::with_theme(&theme)
-            .with_prompt("select allowed commit types (space to toggle, enter to confirm)")
+            .with_prompt(t!("init.prompt.types").as_ref())
             .items(DEFAULT_COMMIT_TYPES)
             .defaults(&all_checked)
             .interact()
@@ -139,14 +141,14 @@ pub(crate) mod prompts {
 
         // --- optional scope restriction ---
         let restrict_scopes = Confirm::with_theme(&theme)
-            .with_prompt("restrict commits to a fixed set of scopes?")
+            .with_prompt(t!("init.prompt.restrict_scopes").as_ref())
             .default(false)
             .interact()
             .unwrap_or(false);
 
         let scopes = if restrict_scopes {
             let raw: String = Input::with_theme(&theme)
-                .with_prompt("allowed scopes (comma-separated)")
+                .with_prompt(t!("init.prompt.allowed_scopes").as_ref())
                 .interact_text()
                 .map_err(|e| InitError::Prompt(e.to_string()))?;
 
@@ -163,25 +165,25 @@ pub(crate) mod prompts {
 
         // --- rule thresholds ---
         let warn_subject: usize = Input::with_theme(&theme)
-            .with_prompt("subject length warning threshold (chars)")
+            .with_prompt(t!("init.prompt.warn_subject").as_ref())
             .default(50usize)
             .interact_text()
             .unwrap_or(50);
 
         let deny_subject: usize = Input::with_theme(&theme)
-            .with_prompt("subject length error threshold (chars)")
+            .with_prompt(t!("init.prompt.deny_subject").as_ref())
             .default(72usize)
             .interact_text()
             .unwrap_or(72);
 
         let warn_body: usize = Input::with_theme(&theme)
-            .with_prompt("body line length warning threshold (chars)")
+            .with_prompt(t!("init.prompt.warn_body").as_ref())
             .default(250usize)
             .interact_text()
             .unwrap_or(250);
 
         let deny_body: usize = Input::with_theme(&theme)
-            .with_prompt("body line length error threshold (chars)")
+            .with_prompt(t!("init.prompt.deny_body").as_ref())
             .default(500usize)
             .interact_text()
             .unwrap_or(500);
@@ -224,7 +226,7 @@ pub(crate) mod prompts {
         let theme = ColorfulTheme::default();
 
         let configure_ai = Confirm::with_theme(&theme)
-            .with_prompt("configure AI commit message generation?")
+            .with_prompt(t!("init.prompt.configure_ai").as_ref())
             .default(false)
             .interact()
             .unwrap_or(false);
@@ -234,7 +236,7 @@ pub(crate) mod prompts {
         }
 
         let provider_idx = Select::with_theme(&theme)
-            .with_prompt("select AI provider")
+            .with_prompt(t!("init.prompt.ai_provider").as_ref())
             .items(AI_PROVIDERS)
             .default(0)
             .interact()
@@ -246,26 +248,26 @@ pub(crate) mod prompts {
             .map_err(|e: crate::ai::ProviderError| InitError::Prompt(e.to_string()))?;
 
         let model: String = Input::with_theme(&theme)
-            .with_prompt("model name")
+            .with_prompt(t!("init.prompt.model_name").as_ref())
             .interact_text()
             .map_err(|e| InitError::Prompt(e.to_string()))?;
 
         let use_env = Confirm::with_theme(&theme)
-            .with_prompt("load API key from an environment variable?")
+            .with_prompt(t!("init.prompt.use_env_var").as_ref())
             .default(true)
             .interact()
             .unwrap_or(true);
 
         let secret = if use_env {
             let env_var: String = Input::with_theme(&theme)
-                .with_prompt("environment variable name")
+                .with_prompt(t!("init.prompt.env_var_name").as_ref())
                 .default(default_env_var(provider_str).to_string())
                 .interact_text()
                 .map_err(|e| InitError::Prompt(e.to_string()))?;
             SecretConfig::Env { env: env_var }
         } else {
             let file_path: String = Input::with_theme(&theme)
-                .with_prompt("path to API key file")
+                .with_prompt(t!("init.prompt.api_key_file").as_ref())
                 .interact_text()
                 .map_err(|e| InitError::Prompt(e.to_string()))?;
             SecretConfig::File {
