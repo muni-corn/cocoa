@@ -170,6 +170,36 @@ impl TestRepo {
             .expect("failed to set remote");
     }
 
+    /// Create a lightweight tag at HEAD.
+    pub fn create_lightweight_tag(&self, name: &str) {
+        let output = self
+            .create_git_command(&["tag", name])
+            .output()
+            .expect("failed to create lightweight tag");
+
+        if !output.status.success() {
+            panic!(
+                "failed to create lightweight tag: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
+    /// Create an annotated tag at HEAD.
+    pub fn create_annotated_tag(&self, name: &str, message: &str) {
+        let output = self
+            .create_git_command(&["tag", "-a", name, "-m", message])
+            .output()
+            .expect("failed to create annotated tag");
+
+        if !output.status.success() {
+            panic!(
+                "failed to create annotated tag: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
     /// Get staged diff.
     pub fn get_staged_diff(&self) -> String {
         let output = self
