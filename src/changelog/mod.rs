@@ -78,13 +78,16 @@ impl OutputFormat {
     /// Recognized values: `markdown`, `md`, `json`, `html`, `rst`,
     /// `restructuredtext`, `asciidoc`, `adoc`, and `template:<path>`.
     pub fn parse(s: &str) -> Option<Self> {
+        // check template prefix with original case to preserve the file path
+        if let Some(path) = s.strip_prefix("template:") {
+            return Some(Self::Template(path.to_string()));
+        }
         match s.to_lowercase().as_str() {
             "markdown" | "md" => Some(Self::Markdown),
             "json" => Some(Self::Json),
             "html" => Some(Self::Html),
             "rst" | "restructuredtext" => Some(Self::ReStructuredText),
             "asciidoc" | "adoc" => Some(Self::AsciiDoc),
-            s if s.starts_with("template:") => Some(Self::Template(s[9..].to_string())),
             _ => None,
         }
     }
