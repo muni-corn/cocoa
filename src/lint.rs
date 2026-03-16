@@ -1,6 +1,7 @@
 use std::fmt;
 
 use console::style;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -333,7 +334,10 @@ impl<'a> Linter<'a> {
         let deny_patterns = self.rules.deny.get_regex_patterns();
 
         for pattern in &deny_patterns {
-            if !message.contains(pattern) {
+            let matched = Regex::new(pattern)
+                .map(|re| re.is_match(message))
+                .unwrap_or(false);
+            if !matched {
                 violations.push(LintViolation {
                     rule: "regex-pattern".to_string(),
                     severity: Severity::Error,
@@ -345,7 +349,13 @@ impl<'a> Linter<'a> {
         }
 
         for pattern in &warn_patterns {
-            if !deny_patterns.contains(pattern) && !message.contains(pattern) {
+            if deny_patterns.contains(pattern) {
+                continue;
+            }
+            let matched = Regex::new(pattern)
+                .map(|re| re.is_match(message))
+                .unwrap_or(false);
+            if !matched {
                 violations.push(LintViolation {
                     rule: "regex-pattern".to_string(),
                     severity: Severity::Warning,
