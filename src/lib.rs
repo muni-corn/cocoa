@@ -7,6 +7,7 @@ pub mod commit;
 pub mod config;
 pub mod generate;
 pub mod git_ops;
+pub mod init;
 pub mod lint;
 pub(crate) mod style;
 
