@@ -28,6 +28,21 @@ options:
 {options}
 ";
 
+const SUBCOMMAND_HELP_TEMPLATE_WITH_ARGS_AND_EXAMPLES: &str = "\
+{about}
+
+usage:
+  {usage}
+
+arguments:
+{positionals}
+
+options:
+{options}
+
+{after-help}
+";
+
 const SUBCOMMAND_HELP_TEMPLATE_NO_ARGS: &str = "\
 {about}
 
@@ -38,9 +53,28 @@ options:
 {options}
 ";
 
+const SUBCOMMAND_HELP_TEMPLATE_NO_ARGS_AND_EXAMPLES: &str = "\
+{about}
+
+usage:
+  {usage}
+
+options:
+{options}
+
+{after-help}
+";
+
 #[derive(Parser)]
 #[command(name = "cocoa")]
-#[command(about = "the conventional commit assistant")]
+#[command(about = "The conventional commit assistant")]
+#[command(
+    long_about = "cocoa is a conventional commit assistant that helps you write well-formed\n\
+                  commit messages, lint existing ones, generate changelogs, and manage\n\
+                  semantic versioning — all from a single tool.\n\n\
+                  All commands accept --dry-run to preview changes without writing anything,\n\
+                  --json for machine-readable output, and --quiet to suppress non-error output."
+)]
 #[command(version, author)]
 #[command(help_template = HELP_TEMPLATE)]
 #[command(disable_help_subcommand = true)]
@@ -48,109 +82,352 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
 
-    #[arg(long, help = "path to config file")]
+    /// Path to the configuration file.
+    ///
+    /// Overrides automatic discovery. By default cocoa searches for
+    /// .cocoa.toml in the current directory, then $XDG_CONFIG_HOME/cocoa/,
+    /// ~/.config/cocoa/, and /etc/cocoa/.
+    #[arg(long, value_name = "PATH", help = "Path to config file")]
     pub config: Option<String>,
 
-    #[arg(long, help = "enable verbose output")]
+    /// Enable verbose output.
+    ///
+    /// Prints additional diagnostic information such as the commit message
+    /// being linted, the AI prompt being sent, and intermediate git
+    /// operations.
+    #[arg(long, help = "Enable verbose output")]
     pub verbose: bool,
 
-    #[arg(long, help = "suppress non-error output")]
+    /// Suppress non-error output.
+    ///
+    /// Silences informational and success messages. Errors and warnings are
+    /// still printed to stderr. Useful when piping output or running in CI.
+    #[arg(long, help = "Suppress non-error output")]
     pub quiet: bool,
 
-    #[arg(long, help = "disable colored output")]
+    /// Disable colored terminal output.
+    ///
+    /// Forces plain text output with no ANSI escape codes. Useful when piping
+    /// output to a file or running in environments that do not support color.
+    #[arg(long, help = "Disable colored output")]
     pub no_color: bool,
 
-    #[arg(long, help = "output in JSON format")]
+    /// Output results as JSON.
+    ///
+    /// Emits structured JSON instead of human-readable text. The schema
+    /// varies per command — see each subcommand's documentation for details.
+    #[arg(long, help = "Output in JSON format")]
     pub json: bool,
 
-    #[arg(long, help = "show what would be done without executing")]
+    /// Show what would be done without making any changes.
+    ///
+    /// All write operations (file writes, git commits, tag creation, hook
+    /// installation) are skipped. Output describes the actions that would
+    /// have been taken.
+    #[arg(long, help = "Show what would be done without executing")]
     pub dry_run: bool,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    #[command(about = "initialize configuration")]
+    /// Initialize a cocoa configuration file interactively.
+    ///
+    /// Prompts you for commit type preferences, scope rules, line-length
+    /// thresholds, AI provider settings, and changelog configuration, then
+    /// writes a .cocoa.toml file to the current directory.
+    ///
+    /// Use --dry-run to preview the generated file without writing it.
+    #[command(
+        about = "Initialize configuration interactively",
+        after_help = "examples:\n  \
+            cocoa init               # interactive setup, writes .cocoa.toml\n  \
+            cocoa --dry-run init     # preview generated config without writing"
+    )]
     Init,
 
-    #[command(about = "interactive commit creation")]
+    /// Create a conventional commit interactively.
+    ///
+    /// Guides you through selecting a commit type, entering an optional
+    /// scope, writing a subject line with live character counting,
+    /// optionally adding a body, annotating breaking changes, and linking
+    /// issue references. The assembled message is validated with the linter
+    /// before the commit is created.
+    ///
+    /// Use --dry-run to print the assembled message without committing.
+    #[command(
+        about = "Create a commit interactively",
+        after_help = "examples:\n  \
+            cocoa commit             # interactive commit wizard\n  \
+            cocoa --dry-run commit   # preview message without committing"
+    )]
     Commit,
 
-    #[command(about = "generate commit from staged changes")]
+    /// Generate a commit message from staged changes using AI.
+    ///
+    /// Reads the staged diff, sends it to the configured AI provider, and
+    /// proposes a conventional commit message. You are prompted to accept or
+    /// discard the suggestion before any commit is made.
+    ///
+    /// Requires an [ai] section in .cocoa.toml with a provider and API key.
+    /// Use `cocoa init` to configure AI interactively.
+    #[command(
+        about = "Generate a commit message from staged changes using AI",
+        after_help = "examples:\n  \
+            git add -p && cocoa generate   # stage hunks, then generate message\n  \
+            cocoa --json generate          # emit proposed message as JSON"
+    )]
     Generate,
 
-    #[command(about = "lint commit messages")]
+    /// Lint one or more commit messages against conventional commit rules.
+    ///
+    /// INPUT can be:
+    ///   - a raw commit message string (e.g. "feat: add login")
+    ///   - a file path containing a commit message (e.g. .git/COMMIT_EDITMSG)
+    ///   - a git range (e.g. HEAD~5..HEAD) to lint multiple commits at once
+    ///
+    /// Read from stdin with --stdin (used by the commit-msg git hook).
+    ///
+    /// Exit codes: 0 = all valid, 3 = one or more violations found.
+    #[command(
+        about = "Lint commit messages against conventional commit rules",
+        after_help = "examples:\n  \
+            cocoa lint \"feat: add login\"          # lint a message string\n  \
+            cocoa lint HEAD~5..HEAD               # lint last 5 commits\n  \
+            cocoa lint .git/COMMIT_EDITMSG        # lint a message file\n  \
+            echo \"fix: typo\" | cocoa lint --stdin # lint from stdin (git hook)\n  \
+            cocoa --json lint HEAD~3..HEAD        # machine-readable range output"
+    )]
     Lint {
-        #[arg(help = "commit message to lint, or git range (e.g., HEAD~5..HEAD)")]
+        /// Commit message, file path, or git range to lint.
+        ///
+        /// Omit to read from stdin (requires --stdin).
+        #[arg(
+            value_name = "INPUT",
+            help = "Commit message, file path, or git range (e.g. HEAD~5..HEAD)"
+        )]
         input: Option<String>,
 
-        #[arg(long, help = "read commit message from stdin")]
+        /// Read the commit message from standard input.
+        ///
+        /// Intended for use as a commit-msg git hook. Install the hook
+        /// automatically with `cocoa hook`.
+        #[arg(long, help = "Read commit message from stdin")]
         stdin: bool,
     },
 
-    #[command(about = "generate changelog")]
+    /// Generate a changelog from conventional commit history.
+    ///
+    /// Parses commits in the given range (or all commits if omitted),
+    /// groups them by type and version, and renders the result in the
+    /// requested format. Breaking changes are always listed prominently.
+    ///
+    /// Output is written to the file configured in [changelog] (default:
+    /// CHANGELOG.md). Use --dry-run to print to stdout without writing.
+    ///
+    /// Supported formats: markdown (default), json, html, rst, asciidoc,
+    /// and template:<path> for a custom Jinja2-style template file.
+    #[command(
+        about = "Generate a changelog from commit history",
+        after_help = "examples:\n  \
+            cocoa changelog                          # full history → CHANGELOG.md\n  \
+            cocoa changelog v1.0.0..HEAD             # since a specific tag\n  \
+            cocoa changelog --format json            # emit as JSON\n  \
+            cocoa changelog --output CHANGES.md      # write to a custom file\n  \
+            cocoa --dry-run changelog v1.2.0..HEAD   # preview without writing\n  \
+            cocoa changelog --format template:tmpl/changelog.md  # custom template"
+    )]
     Changelog {
-        #[arg(help = "git range for changelog (e.g., v1.0.0..HEAD)")]
+        /// Git range to include in the changelog.
+        ///
+        /// Uses the format FROM..TO (e.g. v1.0.0..HEAD). Omit to include
+        /// the full commit history reachable from HEAD.
+        #[arg(
+            value_name = "RANGE",
+            help = "Git range (e.g. v1.0.0..HEAD); defaults to full history"
+        )]
         range: Option<String>,
 
+        /// Output format.
+        ///
+        /// One of: markdown, json, html, rst, asciidoc, or
+        /// template:<path> to use a custom Jinja2-style template.
         #[arg(
             long,
-            help = "output format: markdown (default), json, html, rst, asciidoc, template:<path>"
+            value_name = "FORMAT",
+            help = "Output format: markdown (default), json, html, rst, asciidoc, template:<path>"
         )]
         format: Option<String>,
 
-        #[arg(long, help = "output file path (overrides config)")]
+        /// Output file path.
+        ///
+        /// Overrides the path set in [changelog] config (default:
+        /// CHANGELOG.md).
+        #[arg(
+            long,
+            value_name = "PATH",
+            help = "Output file path (overrides config)"
+        )]
         output: Option<String>,
     },
 
-    #[command(about = "bump version")]
+    /// Bump the project version based on conventional commits.
+    ///
+    /// Reads the current version from git tags, determines the appropriate
+    /// bump type from commit history (or uses the explicit BUMP_TYPE
+    /// argument), and updates all version strings in files configured under
+    /// [version] commit_version_files.
+    ///
+    /// Use --dry-run to see the proposed new version and affected files
+    /// without making any changes.
+    #[command(
+        about = "Bump the project version",
+        after_help = "examples:\n  \
+            cocoa bump              # auto-detect bump type from commits\n  \
+            cocoa bump minor        # force a minor bump\n  \
+            cocoa bump major        # force a major bump\n  \
+            cocoa --dry-run bump    # preview new version without writing"
+    )]
     Bump {
-        #[arg(help = "bump type: major, minor, patch, or auto")]
+        /// Bump type to apply.
+        ///
+        /// One of: major, minor, patch, or auto (default). When auto is
+        /// used (or the argument is omitted), the bump type is inferred
+        /// from conventional commits since the last version tag: a breaking
+        /// change triggers major, feat triggers minor, and fix triggers
+        /// patch.
+        #[arg(
+            value_name = "BUMP_TYPE",
+            help = "Bump type: major, minor, patch, or auto (default: auto)"
+        )]
         bump_type: Option<String>,
     },
 
-    #[command(about = "install the commit-msg git hook")]
+    /// Install the cocoa commit-msg git hook.
+    ///
+    /// Writes a shell script to .git/hooks/commit-msg that pipes the
+    /// commit message through `cocoa lint --stdin`. If a non-cocoa hook
+    /// already exists it is backed up before being replaced.
+    ///
+    /// The hook prevents commits with invalid messages from being created.
+    /// Use `cocoa unhook` to remove it.
+    #[command(
+        about = "Install the commit-msg git hook",
+        after_help = "examples:\n  \
+            cocoa hook               # install the hook\n  \
+            cocoa --dry-run hook     # show what would be written without installing"
+    )]
     Hook,
 
-    #[command(about = "remove the commit-msg git hook")]
+    /// Remove the cocoa commit-msg git hook.
+    ///
+    /// Deletes the hook installed by `cocoa hook`. If a backup of a
+    /// previous hook exists, it is restored automatically.
+    #[command(
+        about = "Remove the commit-msg git hook",
+        after_help = "examples:\n  \
+            cocoa unhook             # remove the hook\n  \
+            cocoa --dry-run unhook   # show what would be removed without acting"
+    )]
     Unhook,
 
-    #[command(about = "create version tag")]
+    /// Create an annotated git tag for a version.
+    ///
+    /// Resolves the target version (from VERSION or by auto-detecting the
+    /// appropriate bump from commits since the last tag), verifies the tag
+    /// does not already exist, generates the changelog as the tag annotation
+    /// message, and creates the annotated tag. GPG signing is applied when
+    /// sign_tags = true in [version] config.
+    ///
+    /// Use --dry-run to print the tag name and message without creating it.
+    #[command(
+        about = "Create an annotated version tag",
+        after_help = "examples:\n  \
+            cocoa tag                # auto-detect version and tag\n  \
+            cocoa tag 2.1.0          # tag a specific version\n  \
+            cocoa tag v2.1.0         # v-prefix is stripped automatically\n  \
+            cocoa --dry-run tag      # preview tag name and message"
+    )]
     Tag {
+        /// Version to tag.
+        ///
+        /// Accepts plain semver (2.1.0) or with a v-prefix (v2.1.0). When
+        /// omitted, the version is auto-detected by analyzing conventional
+        /// commits since the last tag.
         #[arg(
-            help = "version to tag (e.g. 1.2.3 or v1.2.3); auto-detected from commits if omitted"
+            value_name = "VERSION",
+            help = "Version to tag (e.g. 1.2.3 or v1.2.3); auto-detected if omitted"
         )]
         version: Option<String>,
     },
 
-    #[command(about = "full release (version + changelog + tag)")]
+    /// Run the full release workflow.
+    ///
+    /// Orchestrates the complete release process in order:
+    ///   1. Detect or apply the version bump
+    ///   2. Update version strings in configured files
+    ///   3. Generate and write the changelog (unless --skip-changelog)
+    ///   4. Stage changed files and create a version commit (unless
+    ///      --skip-commit)
+    ///   5. Create an annotated git tag (unless --skip-tag)
+    ///
+    /// Individual steps can be skipped with the corresponding flags.
+    /// Use --dry-run to preview the full plan without making any changes.
+    #[command(
+        about = "Run the full release workflow (bump + changelog + commit + tag)",
+        after_help = "examples:\n  \
+            cocoa release                           # full auto release\n  \
+            cocoa release minor                     # force a minor release\n  \
+            cocoa --dry-run release                 # preview without changes\n  \
+            cocoa release --skip-commit --skip-tag  # update files and changelog only\n  \
+            cocoa release --skip-changelog          # skip changelog generation"
+    )]
     Release {
-        #[arg(help = "bump type: major, minor, patch, or auto (default: auto)")]
+        /// Bump type to apply.
+        ///
+        /// One of: major, minor, patch, or auto (default). Auto infers the
+        /// bump type from conventional commits since the last version tag.
+        #[arg(
+            value_name = "BUMP_TYPE",
+            help = "Bump type: major, minor, patch, or auto (default: auto)"
+        )]
         bump_type: Option<String>,
 
-        #[arg(long, help = "skip changelog generation and writing")]
+        /// Skip changelog generation and writing.
+        #[arg(long, help = "Skip changelog generation and writing")]
         skip_changelog: bool,
 
-        #[arg(long, help = "skip staging files and creating the version commit")]
+        /// Skip staging files and creating the version commit.
+        #[arg(long, help = "Skip staging files and creating the version commit")]
         skip_commit: bool,
 
-        #[arg(long, help = "skip tag creation")]
+        /// Skip tag creation.
+        #[arg(long, help = "Skip tag creation")]
         skip_tag: bool,
     },
 }
 
 impl Cli {
     /// Creates a Command with conditional help templates for subcommands.
+    ///
+    /// Subcommands with positional arguments use a template that includes
+    /// an "arguments:" section; those without use a shorter template.
+    /// Subcommands that define after_help examples get an extended template
+    /// that renders the examples section.
     pub fn command_with_conditional_help() -> clap::Command {
         let mut cmd = Self::command();
 
-        // iterate through subcommands and set appropriate help template
+        // assign appropriate help template based on positionals and after_help
         cmd = cmd.mut_subcommands(|subcmd| {
             let has_positionals = subcmd.get_positionals().next().is_some();
-            let template = if has_positionals {
-                SUBCOMMAND_HELP_TEMPLATE_WITH_ARGS
-            } else {
-                SUBCOMMAND_HELP_TEMPLATE_NO_ARGS
+            let has_after_help = subcmd.get_after_help().is_some();
+
+            let template = match (has_positionals, has_after_help) {
+                (true, true) => SUBCOMMAND_HELP_TEMPLATE_WITH_ARGS_AND_EXAMPLES,
+                (true, false) => SUBCOMMAND_HELP_TEMPLATE_WITH_ARGS,
+                (false, true) => SUBCOMMAND_HELP_TEMPLATE_NO_ARGS_AND_EXAMPLES,
+                (false, false) => SUBCOMMAND_HELP_TEMPLATE_NO_ARGS,
             };
+
             subcmd.help_template(template)
         });
 
