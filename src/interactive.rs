@@ -326,4 +326,25 @@ pub(crate) mod prompts {
             })
             .filter(|s| !s.is_empty()))
     }
+
+    /// Prompts whether the commit is a breaking change and, if so, for a
+    /// short description to place in the `BREAKING CHANGE:` footer.
+    pub fn breaking(theme: &ColorfulTheme) -> Result<(bool, Option<String>), InteractiveError> {
+        let is_breaking = Confirm::with_theme(theme)
+            .with_prompt("is this a breaking change?")
+            .default(false)
+            .interact()
+            .unwrap_or(false);
+
+        if !is_breaking {
+            return Ok((false, None));
+        }
+
+        let description: String = Input::with_theme(theme)
+            .with_prompt("describe the breaking change (goes in BREAKING CHANGE footer)")
+            .interact_text()
+            .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+        Ok((true, Some(description.trim().to_string())))
+    }
 }
