@@ -171,8 +171,41 @@ pub fn run(
     git_ops: &dyn GitOperations,
     dry_run: bool,
 ) -> Result<String, InteractiveError> {
-    let _ = (config, git_ops, dry_run);
-    unimplemented!("interactive commit prompts not yet implemented")
+    use dialoguer::theme::ColorfulTheme;
+    let theme = ColorfulTheme::default();
+
+    let commit_type = prompts::commit_type(&theme, config)?;
+    let scope = prompts::scope(&theme, config)?;
+    let subject = prompts::subject(&theme, config, &commit_type, scope.as_deref())?;
+    let body = prompts::body(&theme)?;
+    let (breaking, breaking_description) = prompts::breaking(&theme)?;
+    let issue_refs = prompts::issue_refs(&theme)?;
+
+    let parts = CommitParts {
+        commit_type,
+        scope,
+        breaking,
+        breaking_description,
+        subject,
+        body,
+        issue_refs,
+    };
+
+    let message = assemble_message(&parts);
+
+    // validate before committing
+    validate_message(config, &message)?;
+
+    if dry_run {
+        println!("{}", message);
+        return Ok(message);
+    }
+
+    git_ops
+        .create_commit(&message)
+        .map_err(|e| InteractiveError::Commit(e.to_string()))?;
+
+    Ok(message)
 }
 
 /// Interactive prompt implementations.
