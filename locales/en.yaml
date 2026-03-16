@@ -1,4 +1,238 @@
 _version: 1
 # English baseline translations for cocoa.
-# Populated in phase 13.4.
-_placeholder: "placeholder"
+# Variable placeholders use %{name} syntax.
+
+# ---------------------------------------------------------------------------
+# lint.rs — violation messages
+# ---------------------------------------------------------------------------
+
+lint.error.invalid_format: "commit message does not follow conventional commits format"
+lint.error.type_required: "commit type is required"
+lint.warn.type_missing: "commit type is missing"
+lint.error.invalid_type: "invalid commit type '%{commit_type}'. allowed types: %{allowed_types}"
+lint.error.scope_required: "commit scope is required"
+lint.warn.scope_missing: "commit scope is missing"
+lint.error.invalid_scope: "invalid scope '%{scope}'. allowed scopes: %{allowed_scopes}"
+lint.error.subject_too_long: "subject line too long (%{len} chars). maximum is %{max} chars"
+lint.warn.subject_long:
+  "subject line is long (%{len} chars). consider keeping it under %{max} chars"
+lint.error.body_too_long: "body too long (%{len} chars). maximum is %{max} chars"
+lint.warn.body_long: "body is long (%{len} chars). consider keeping it under %{max} chars"
+lint.error.body_required: "body is required"
+lint.warn.body_missing: "body is missing"
+lint.error.no_breaking_change_footer: "breaking changes must include a BREAKING CHANGE footer"
+lint.warn.no_breaking_change_footer: "breaking changes should include a BREAKING CHANGE footer"
+lint.error.pattern_mismatch: "message does not match required pattern: %{pattern}"
+lint.warn.pattern_mismatch: "message should match pattern: %{pattern}"
+
+# ---------------------------------------------------------------------------
+# init.rs — interactive setup prompts
+# ---------------------------------------------------------------------------
+
+init.prompt.types: "select allowed commit types (space to toggle, enter to confirm)"
+init.prompt.restrict_scopes: "restrict commits to a fixed set of scopes?"
+init.prompt.allowed_scopes: "allowed scopes (comma-separated)"
+init.prompt.warn_subject: "subject length warning threshold (chars)"
+init.prompt.deny_subject: "subject length error threshold (chars)"
+init.prompt.warn_body: "body line length warning threshold (chars)"
+init.prompt.deny_body: "body line length error threshold (chars)"
+init.prompt.configure_ai: "configure AI commit message generation?"
+init.prompt.ai_provider: "select AI provider"
+init.prompt.model_name: "model name"
+init.prompt.use_env_var: "load API key from an environment variable?"
+init.prompt.env_var_name: "environment variable name"
+init.prompt.api_key_file: "path to API key file"
+init.prompt.overwrite: ".cocoa.toml already exists. overwrite?"
+
+# ---------------------------------------------------------------------------
+# interactive.rs — commit wizard prompts
+# ---------------------------------------------------------------------------
+
+interactive.prompt.commit_type: "select commit type"
+interactive.prompt.add_scope: "add a scope? (optional)"
+interactive.prompt.select_scope: "select scope (type to filter)"
+interactive.prompt.scope: "scope"
+interactive.prompt.custom_scope: "(enter custom scope)"
+interactive.prompt.subject:
+  "subject  [warn >%{warn} / error >%{deny} chars — prefix is %{prefix} chars]"
+interactive.prompt.subject_too_long: "subject is too long (%{len}/%{max} chars)"
+interactive.prompt.add_body: "add a commit body? (opens editor)"
+interactive.prompt.breaking: "is this a breaking change?"
+interactive.prompt.breaking_description:
+  "describe the breaking change (goes in BREAKING CHANGE footer)"
+interactive.prompt.add_refs: "add issue references? (e.g., Closes #123)"
+interactive.prompt.issue_refs: "issue reference(s)"
+
+# ---------------------------------------------------------------------------
+# main.rs — shared git error messages
+# ---------------------------------------------------------------------------
+
+main.git.open_failed: "failed to open git repository: %{error}"
+main.git.hook_path_failed: "failed to locate hooks directory: %{error}"
+
+# ---------------------------------------------------------------------------
+# main.rs — lint command
+# ---------------------------------------------------------------------------
+
+main.lint.welcome: "hi! checking this commit message..."
+main.lint.no_input: "um... i need a commit message to work with!"
+main.lint.no_input_hint: "pass a commit message, a file path, or a git range (e.g., HEAD~5..HEAD)"
+main.lint.stdin_hint: "or read stdin with `--stdin`"
+main.lint.reading_from_file: "reading commit message from file: %{path}"
+main.lint.linting_message: "linting message (%{len} chars):"
+main.lint.linting_range: "linting commits in range '%{from}..%{to}'"
+main.lint.invalid_range: "invalid git range: '%{range}'"
+main.lint.range_commits_failed: "failed to get commits in range '%{range}': %{error}"
+main.lint.found_commits: "found %{count} commits to lint"
+main.lint.no_commits: "no commits found in range"
+main.lint.all_passed: "all %{count} commits passed!"
+main.lint.some_failed: "%{invalid}/%{total} commit(s) failed linting"
+main.lint.dry_run_errors: "dry-run mode: errors detected but not failing"
+main.lint.message_valid: "commit message is valid!"
+main.lint.message_has_errors: "commit message has errors:"
+main.lint.message_has_warnings: "commit message is valid, but there are some warnings:"
+
+# ---------------------------------------------------------------------------
+# main.rs — init command
+# ---------------------------------------------------------------------------
+
+main.init.welcome: "cocoa init"
+main.init.dry_run_done: "dry run complete — no file was written"
+main.init.wrote_config: "wrote .cocoa.toml"
+main.init.cancelled: "init cancelled"
+main.init.file_exists: ".cocoa.toml already exists"
+main.init.file_exists_hint: "delete it or run interactively to overwrite"
+main.init.failed: "init failed: %{error}"
+
+# ---------------------------------------------------------------------------
+# main.rs — commit command
+# ---------------------------------------------------------------------------
+
+main.commit.welcome: "cocoa commit"
+main.commit.dry_run_done: "dry-run: commit message assembled (not committed):"
+main.commit.success: "committed!"
+main.commit.cancelled: "commit cancelled"
+main.commit.lint_failed: "commit message failed validation:"
+main.commit.git_failed: "git commit failed: %{error}"
+main.commit.failed: "commit failed: %{error}"
+
+# ---------------------------------------------------------------------------
+# main.rs — generate command
+# ---------------------------------------------------------------------------
+
+main.generate.welcome: "hi! generating your commit message..."
+main.generate.no_ai: "you don't have ai configured for me, so i can't use ai"
+main.generate.no_ai_hint: "add an [ai] section to your .cocoa.toml configuration"
+main.generate.no_ai_docs: "see the documentation for configuration examples"
+main.generate.calling_ai: "calling ai to generate commit message..."
+main.generate.secrets_warning: "review staged changes carefully — secrets should never be committed"
+main.generate.success: "generated commit message:"
+main.generate.commit_prompt: "would you like to commit with this message? (y/n)"
+main.generate.commit_success: "commit successful!"
+main.generate.commit_failed: "git commit failed: %{error}"
+main.generate.cancelled: "commit cancelled. you can use the generated message manually."
+main.generate.no_staged: "no staged changes found"
+main.generate.no_staged_hint: "use `git add <files>` to stage changes first"
+main.generate.no_staged_hint2: "then run `cocoa generate` again"
+main.generate.ai_failed: "ai generation failed"
+main.generate.git_failed: "git operation failed"
+main.generate.validation_failed: "generated message failed validation"
+main.generate.validation_hint: "this may indicate an issue with ai configuration"
+main.generate.check_ai: "check your ai configuration and api key"
+
+# ---------------------------------------------------------------------------
+# main.rs — hook command
+# ---------------------------------------------------------------------------
+
+main.hook.welcome: "cocoa hook"
+main.hook.installed: "installed commit-msg hook at %{path}"
+main.hook.updated: "updated commit-msg hook at %{path}"
+main.hook.replaced_backup: "backed up existing hook to %{path}"
+main.hook.not_git_repo: "not inside a git repository"
+main.hook.install_failed: "hook installation failed: %{error}"
+main.hook.dry_run_install: "dry-run: would write commit-msg hook to %{path}"
+main.hook.dry_run_update: "dry-run: would update existing cocoa hook at %{path}"
+main.hook.dry_run_replace:
+  "dry-run: would back up existing hook to %{backup} and install cocoa hook"
+
+# ---------------------------------------------------------------------------
+# main.rs — unhook command
+# ---------------------------------------------------------------------------
+
+main.unhook.welcome: "cocoa unhook"
+main.unhook.removed: "removed commit-msg hook at %{path}"
+main.unhook.restored: "removed cocoa hook and restored previous hook at %{path}"
+main.unhook.not_installed: "no cocoa-managed commit-msg hook found — nothing to remove"
+main.unhook.not_managed: "the existing commit-msg hook is not managed by cocoa; remove it manually"
+main.unhook.remove_failed: "hook removal failed: %{error}"
+main.unhook.dry_run_remove: "dry-run: would remove commit-msg hook at %{path}"
+main.unhook.dry_run_restore: "dry-run: would restore %{hook} from backup %{backup}"
+
+# ---------------------------------------------------------------------------
+# main.rs — changelog command
+# ---------------------------------------------------------------------------
+
+main.changelog.welcome: "cocoa changelog"
+main.changelog.unknown_format:
+  "unknown output format '%{format}' — use: markdown, json, html, rst, asciidoc, or template:<path>"
+main.changelog.git_failed: "git error: %{error}"
+main.changelog.failed: "changelog generation failed: %{error}"
+main.changelog.empty: "no commits found — changelog is empty"
+main.changelog.render_failed: "render failed: %{error}"
+main.changelog.dry_run: "dry-run: would write changelog to '%{path}'"
+main.changelog.wrote: "wrote changelog to '%{path}'"
+
+# ---------------------------------------------------------------------------
+# main.rs — bump command
+# ---------------------------------------------------------------------------
+
+main.bump.welcome: "cocoa bump"
+main.bump.no_tags: "no version tags found, starting from 0.0.0"
+main.bump.auto_detected: "auto-detected bump type: %{bump_type}"
+main.bump.unknown_type: "unknown bump type '%{bump_type}' — use: major, minor, patch, or auto"
+main.bump.version_arrow: "%{old} → %{new}"
+main.bump.no_files: "no files configured in version.commit_version_files — nothing to update"
+main.bump.dry_run_no_files: "dry-run: no files configured in version.commit_version_files"
+main.bump.dry_run_would_update: "dry-run: would update %{count} file(s):"
+main.bump.dry_run_file: "  %{file}"
+main.bump.bumped: "bumped %{old} → %{new}"
+main.bump.updated_file: "  updated %{file}"
+main.bump.detect_failed: "failed to detect current version: %{error}"
+main.bump.update_failed: "failed to update version files: %{error}"
+
+# ---------------------------------------------------------------------------
+# main.rs — tag command
+# ---------------------------------------------------------------------------
+
+main.tag.welcome: "cocoa tag"
+main.tag.preparing: "preparing tag %{name}"
+main.tag.invalid_version: "invalid version: %{error}"
+main.tag.resolve_failed: "failed to resolve version: %{error}"
+main.tag.already_exists: "tag '%{name}' already exists"
+main.tag.already_exists_hint: "use a different version or delete the existing tag first"
+main.tag.git_failed: "git error: %{error}"
+main.tag.failed: "tagging failed: %{error}"
+main.tag.created: "created tag '%{name}'"
+main.tag.dry_run: "dry-run: would create tag '%{name}'"
+
+# ---------------------------------------------------------------------------
+# main.rs — release command
+# ---------------------------------------------------------------------------
+
+main.release.welcome: "cocoa release"
+main.release.dry_run_summary: "dry-run: %{old} → %{new} (%{bump_type})"
+main.release.dry_run_update_files: "would update version files:"
+main.release.dry_run_file: "  %{file}"
+main.release.dry_run_changelog: "would write changelog to '%{path}'"
+main.release.dry_run_commit: "would create commit: chore(release): bump version to %{version}"
+main.release.dry_run_tag: "would create tag '%{name}'"
+main.release.success: "released %{old} → %{new}"
+main.release.updated_file: "  updated %{file}"
+main.release.wrote_changelog: "wrote changelog to '%{path}'"
+main.release.created_tag: "created tag '%{name}'"
+main.release.invalid_bump: "unknown bump type '%{bump_type}' — use: major, minor, patch, or auto"
+main.release.tag_exists: "tag '%{name}' already exists"
+main.release.tag_exists_hint:
+  "the version has already been released; bump commits or use --skip-tag"
+main.release.git_failed: "git error: %{error}"
+main.release.failed: "release failed: %{error}"
