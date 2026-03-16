@@ -12,7 +12,9 @@ use anyhow::Result;
 use clap::FromArgMatches;
 use cli::{Cli, Commands};
 use cocoa::{
-    Config, generate,
+    Config,
+    changelog::{self, OutputFormat},
+    generate,
     git_ops::{Git2Ops, GitOperations},
     hook, init, interactive, lint,
 };
@@ -85,9 +87,19 @@ async fn main() -> Result<()> {
             welcome("hi! generating your commit message...");
             handle_generate(&config, cli.json, cli.quiet, cli.verbose, cli.dry_run).await?;
         }
-        Commands::Changelog { range: _ } => {
-            welcome("cocoa");
-            print_error_bold("changelog generation not yet implemented");
+        Commands::Changelog {
+            range,
+            format,
+            output,
+        } => {
+            welcome("cocoa changelog");
+            handle_changelog(
+                &config,
+                range.as_deref(),
+                format.as_deref(),
+                output.as_deref(),
+                cli.dry_run,
+            )?;
         }
         Commands::Bump { bump_type: _ } => {
             welcome("cocoa");
@@ -684,6 +696,83 @@ async fn handle_generate(
                 goodbye_with_death(exit_code);
             }
         }
+    }
+
+    Ok(())
+}
+
+/// Generate a changelog from git history and write or print it.
+///
+/// In dry-run mode the output is printed to stdout instead of being written to
+/// the configured file. When no format is specified, Markdown is used.
+fn handle_changelog(
+    config: &Config,
+    range: Option<&str>,
+    format_str: Option<&str>,
+    output_path: Option<&str>,
+    dry_run: bool,
+) -> Result<()> {
+    let cl_config = config.changelog.clone().unwrap_or_default();
+
+    let format = match format_str {
+        Some(s) => match OutputFormat::parse(s) {
+            Some(f) => f,
+            None => {
+                print_error_bold(format!(
+                    "unknown output format '{}' — use: markdown, json, html, rst, asciidoc, or template:<path>",
+                    s
+                ));
+                goodbye_with_death(1);
+            }
+        },
+        None => OutputFormat::Markdown,
+    };
+
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    let cl = match changelog::parser::parse_history(&git_ops, range, &cl_config) {
+        Ok(c) => c,
+        Err(changelog::ChangelogError::Git(msg)) => {
+            print_error_bold(format!("git error: {}", msg));
+            goodbye_with_death(5);
+        }
+        Err(e) => {
+            print_error_bold(format!("changelog generation failed: {}", e));
+            goodbye_with_death(1);
+        }
+    };
+
+    if cl.versions.is_empty() {
+        print_warning("no commits found — changelog is empty");
+        goodbye_with_warning();
+        return Ok(());
+    }
+
+    let rendered = match changelog::renderer::render(&cl, &format, &cl_config) {
+        Ok(s) => s,
+        Err(e) => {
+            print_error_bold(format!("render failed: {}", e));
+            goodbye_with_death(1);
+        }
+    };
+
+    let dest = output_path.unwrap_or(&cl_config.output_file);
+
+    if dry_run {
+        print_info(format!("dry-run: would write changelog to '{}'", dest));
+        println!("\n{}", rendered);
+        goodbye_with_success();
+    } else {
+        std::fs::write(dest, &rendered)
+            .map_err(|e| anyhow::anyhow!("failed to write '{}': {}", dest, e))?;
+        print_success_bold(format!("wrote changelog to '{}'", dest));
+        goodbye_with_success();
     }
 
     Ok(())

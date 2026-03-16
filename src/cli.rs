@@ -91,6 +91,15 @@ pub enum Commands {
     Changelog {
         #[arg(help = "git range for changelog (e.g., v1.0.0..HEAD)")]
         range: Option<String>,
+
+        #[arg(
+            long,
+            help = "output format: markdown (default), json, html, rst, asciidoc, template:<path>"
+        )]
+        format: Option<String>,
+
+        #[arg(long, help = "output file path (overrides config)")]
+        output: Option<String>,
     },
 
     #[command(about = "bump version")]
