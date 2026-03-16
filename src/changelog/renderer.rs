@@ -15,9 +15,7 @@ pub fn render(
         OutputFormat::Markdown => Ok(render_markdown(changelog)),
         OutputFormat::Json => render_json(changelog),
         OutputFormat::Html => Ok(render_html(changelog)),
-        OutputFormat::ReStructuredText => Err(ChangelogError::Render(
-            "RST format not yet implemented".to_string(),
-        )),
+        OutputFormat::ReStructuredText => Ok(render_rst(changelog)),
         OutputFormat::AsciiDoc => Err(ChangelogError::Render(
             "AsciiDoc format not yet implemented".to_string(),
         )),
@@ -156,6 +154,69 @@ fn html_escape(s: &str) -> String {
         .replace('\'', "&#39;")
 }
 
+// ─── reStructuredText
+// ─────────────────────────────────────────────────────────
+
+/// Render the changelog as reStructuredText.
+pub fn render_rst(changelog: &Changelog) -> String {
+    let mut out = String::new();
+    let title = "Changelog";
+    out.push_str(title);
+    out.push('\n');
+    out.push_str(&"=".repeat(title.len()));
+    out.push_str("\n\n");
+
+    for version in &changelog.versions {
+        let heading = rst_version_heading(version);
+        out.push_str(&heading);
+        out.push('\n');
+        out.push_str(&"-".repeat(heading.len()));
+        out.push_str("\n\n");
+
+        if !version.breaking_changes.is_empty() {
+            let sub = "Breaking Changes";
+            out.push_str(sub);
+            out.push('\n');
+            out.push_str(&"~".repeat(sub.len()));
+            out.push_str("\n\n");
+            for entry in &version.breaking_changes {
+                out.push_str(&rst_entry(entry));
+            }
+            out.push('\n');
+        }
+
+        for section in &version.sections {
+            out.push_str(&section.title);
+            out.push('\n');
+            out.push_str(&"~".repeat(section.title.len()));
+            out.push_str("\n\n");
+            for entry in &section.entries {
+                out.push_str(&rst_entry(entry));
+            }
+            out.push('\n');
+        }
+    }
+
+    out
+}
+
+fn rst_version_heading(version: &ChangelogVersion) -> String {
+    let name = version.version.as_deref().unwrap_or("Unreleased");
+    match &version.date {
+        Some(date) => format!("[{}] - {}", name, date),
+        None => format!("[{}]", name),
+    }
+}
+
+fn rst_entry(entry: &ChangelogEntry) -> String {
+    let scope = entry
+        .scope
+        .as_ref()
+        .map(|s| format!("**{}:** ", s))
+        .unwrap_or_default();
+    format!("* {}{} (``{}``)\n", scope, entry.subject, entry.id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,5 +334,17 @@ mod tests {
         assert_eq!(html_escape("a & b"), "a &amp; b");
         assert_eq!(html_escape("<script>"), "&lt;script&gt;");
         assert_eq!(html_escape("\"quoted\""), "&quot;quoted&quot;");
+    }
+
+    #[test]
+    fn test_render_rst_structure() {
+        let cl = sample_changelog();
+        let out = render_rst(&cl);
+        assert!(out.contains("Changelog"));
+        assert!(out.contains("========="));
+        assert!(out.contains("[v1.0.0] - 2024-01-01"));
+        assert!(out.contains("Features"));
+        assert!(out.contains("* add login"));
+        assert!(out.contains("(``abc12345``)"));
     }
 }
