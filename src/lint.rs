@@ -1,7 +1,6 @@
 use std::fmt;
 
 use console::style;
-// regex removed; patterns evaluated with nom-like simple contains fallback
 use serde::{Deserialize, Serialize};
 
 use crate::{
