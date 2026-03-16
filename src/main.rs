@@ -93,6 +93,12 @@ async fn main() -> Result<()> {
             welcome("cocoa");
             print_error_bold("version bumping not yet implemented");
         }
+        Commands::Hook => {
+            welcome("cocoa hook");
+        }
+        Commands::Unhook => {
+            welcome("cocoa unhook");
+        }
         Commands::Tag => {
             welcome("cocoa");
             print_error_bold("git tagging not yet implemented");

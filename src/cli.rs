@@ -99,6 +99,12 @@ pub enum Commands {
         bump_type: Option<String>,
     },
 
+    #[command(about = "install the commit-msg git hook")]
+    Hook,
+
+    #[command(about = "remove the commit-msg git hook")]
+    Unhook,
+
     #[command(about = "create version tag")]
     Tag,
 
