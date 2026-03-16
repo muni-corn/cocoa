@@ -95,9 +95,11 @@ async fn main() -> Result<()> {
         }
         Commands::Hook => {
             welcome("cocoa hook");
+            handle_hook(&config, cli.dry_run)?;
         }
         Commands::Unhook => {
             welcome("cocoa unhook");
+            handle_unhook(&config, cli.dry_run)?;
         }
         Commands::Tag => {
             welcome("cocoa");
