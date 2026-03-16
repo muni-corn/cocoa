@@ -177,7 +177,7 @@ pub fn run(
 
 /// Interactive prompt implementations.
 pub(crate) mod prompts {
-    use dialoguer::{Select, theme::ColorfulTheme};
+    use dialoguer::{Confirm, FuzzySelect, Input, Select, theme::ColorfulTheme};
 
     use crate::{Config, interactive::InteractiveError};
 
@@ -194,5 +194,52 @@ pub(crate) mod prompts {
             .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
 
         Ok(types[idx].to_string())
+    }
+
+    /// Prompts the user for an optional commit scope.
+    ///
+    /// When the config restricts scopes to a known set, a fuzzy-search
+    /// selector is shown. Otherwise a free-text input is used. The user can
+    /// always skip to leave the scope empty.
+    pub fn scope(
+        theme: &ColorfulTheme,
+        config: &Config,
+    ) -> Result<Option<String>, InteractiveError> {
+        let add_scope = Confirm::with_theme(theme)
+            .with_prompt("add a scope? (optional)")
+            .default(false)
+            .interact()
+            .unwrap_or(false);
+
+        if !add_scope {
+            return Ok(None);
+        }
+
+        if let Some(scopes) = &config.commit.scopes {
+            // build a sorted list with a trailing free-text escape hatch
+            let mut scope_list: Vec<String> = scopes.iter().map(|s| s.to_string()).collect();
+            scope_list.sort();
+            scope_list.push("(enter custom scope)".to_string());
+
+            let idx = FuzzySelect::with_theme(theme)
+                .with_prompt("select scope (type to filter)")
+                .items(&scope_list)
+                .default(0)
+                .interact()
+                .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+            if idx < scope_list.len() - 1 {
+                return Ok(Some(scope_list[idx].clone()));
+            }
+            // fall through to free-text input
+        }
+
+        let scope: String = Input::with_theme(theme)
+            .with_prompt("scope")
+            .interact_text()
+            .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+        let scope = scope.trim().to_string();
+        Ok(if scope.is_empty() { None } else { Some(scope) })
     }
 }
