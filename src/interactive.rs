@@ -347,4 +347,28 @@ pub(crate) mod prompts {
 
         Ok((true, Some(description.trim().to_string())))
     }
+
+    /// Prompts for optional issue reference footer lines.
+    ///
+    /// The user is first asked whether they want to add references; if yes,
+    /// a free-text input is collected (e.g., `Closes #123, Refs #456`).
+    pub fn issue_refs(theme: &ColorfulTheme) -> Result<Option<String>, InteractiveError> {
+        let add_refs = Confirm::with_theme(theme)
+            .with_prompt("add issue references? (e.g., Closes #123)")
+            .default(false)
+            .interact()
+            .unwrap_or(false);
+
+        if !add_refs {
+            return Ok(None);
+        }
+
+        let refs: String = Input::with_theme(theme)
+            .with_prompt("issue reference(s)")
+            .interact_text()
+            .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+        let refs = refs.trim().to_string();
+        Ok(if refs.is_empty() { None } else { Some(refs) })
+    }
 }
