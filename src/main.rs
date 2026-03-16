@@ -16,7 +16,7 @@ use cocoa::{
     changelog::{self, OutputFormat},
     generate,
     git_ops::{Git2Ops, GitOperations},
-    hook, init, interactive, lint, tag, version,
+    hook, init, interactive, lint, release, tag, version,
 };
 use lint::Linter;
 use style::{
@@ -117,9 +117,21 @@ async fn main() -> Result<()> {
             welcome("cocoa tag");
             handle_tag(&config, version.as_deref(), cli.dry_run)?;
         }
-        Commands::Release => {
-            welcome("cocoa");
-            print_error_bold("release management not yet implemented");
+        Commands::Release {
+            bump_type,
+            skip_changelog,
+            skip_commit,
+            skip_tag,
+        } => {
+            welcome("cocoa release");
+            handle_release(
+                &config,
+                bump_type.as_deref(),
+                skip_changelog,
+                skip_commit,
+                skip_tag,
+                cli.dry_run,
+            )?;
         }
     }
 
@@ -866,6 +878,115 @@ fn handle_tag(config: &Config, version_str: Option<&str>, dry_run: bool) -> Resu
         }
         Err(e) => {
             print_error_bold(format!("tagging failed: {}", e));
+            goodbye_with_death(1);
+        }
+    }
+
+    Ok(())
+}
+
+/// Execute the full release workflow: bump version, update files, write
+/// changelog, commit, and tag.
+///
+/// In dry-run mode the plan is shown without making any changes.
+fn handle_release(
+    config: &Config,
+    bump_type: Option<&str>,
+    skip_changelog: bool,
+    skip_commit: bool,
+    skip_tag: bool,
+    dry_run: bool,
+) -> Result<()> {
+    let v_config = config.version.clone().unwrap_or_default();
+    let cl_config = config.changelog.clone().unwrap_or_default();
+
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    let opts = release::ReleaseOptions {
+        bump_type: bump_type.map(|s| s.to_string()),
+        dry_run,
+        skip_changelog,
+        skip_commit,
+        skip_tag,
+    };
+
+    match release::execute(&git_ops, &v_config, &cl_config, &opts) {
+        Ok(outcome) => {
+            if dry_run {
+                print_info(format!(
+                    "dry-run: {} → {} ({})",
+                    outcome.previous_version,
+                    outcome.new_version,
+                    match outcome.bump_type {
+                        version::BumpType::Major => "major",
+                        version::BumpType::Minor => "minor",
+                        version::BumpType::Patch => "patch",
+                    }
+                ));
+                if !outcome.updated_files.is_empty() {
+                    print_info("would update version files:");
+                    for f in &outcome.updated_files {
+                        print_info(format!("  {}", f));
+                    }
+                }
+                if !skip_changelog {
+                    print_info(format!(
+                        "would write changelog to '{}'",
+                        outcome.changelog_path
+                    ));
+                }
+                if !skip_commit {
+                    print_info(format!(
+                        "would create commit: chore(release): bump version to {}",
+                        outcome.new_version
+                    ));
+                }
+                if !skip_tag {
+                    print_info(format!("would create tag '{}'", outcome.tag_name));
+                }
+            } else {
+                print_success_bold(format!(
+                    "released {} → {}",
+                    outcome.previous_version, outcome.new_version
+                ));
+                if !outcome.updated_files.is_empty() {
+                    for f in &outcome.updated_files {
+                        print_info(format!("  updated {}", f));
+                    }
+                }
+                if !skip_changelog {
+                    print_info(format!("wrote changelog to '{}'", outcome.changelog_path));
+                }
+                if !skip_tag {
+                    print_info(format!("created tag '{}'", outcome.tag_name));
+                }
+            }
+            goodbye_with_success();
+        }
+        Err(release::ReleaseError::InvalidBumpType(s)) => {
+            print_error_bold(format!(
+                "unknown bump type '{}' — use: major, minor, patch, or auto",
+                s
+            ));
+            goodbye_with_death(1);
+        }
+        Err(release::ReleaseError::Tag(tag::TagError::AlreadyExists(name))) => {
+            print_error_bold(format!("tag '{}' already exists", name));
+            print_info("the version has already been released; bump commits or use --skip-tag");
+            goodbye_with_death(1);
+        }
+        Err(release::ReleaseError::Git(msg)) => {
+            print_error_bold(format!("git error: {}", msg));
+            goodbye_with_death(5);
+        }
+        Err(e) => {
+            print_error_bold(format!("release failed: {}", e));
             goodbye_with_death(1);
         }
     }

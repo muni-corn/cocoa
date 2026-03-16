@@ -123,7 +123,19 @@ pub enum Commands {
     },
 
     #[command(about = "full release (version + changelog + tag)")]
-    Release,
+    Release {
+        #[arg(help = "bump type: major, minor, patch, or auto (default: auto)")]
+        bump_type: Option<String>,
+
+        #[arg(long, help = "skip changelog generation and writing")]
+        skip_changelog: bool,
+
+        #[arg(long, help = "skip staging files and creating the version commit")]
+        skip_commit: bool,
+
+        #[arg(long, help = "skip tag creation")]
+        skip_tag: bool,
+    },
 }
 
 impl Cli {
