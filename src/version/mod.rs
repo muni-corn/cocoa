@@ -11,7 +11,10 @@ pub use calver::{CalVer, CalVerError};
 pub use semver::{SemVer, SemVerError};
 use thiserror::Error;
 
-use crate::git_ops::{GitOperations, TagInfo};
+use crate::{
+    commit::CommitMessage,
+    git_ops::{CommitInfo, GitOperations, TagInfo},
+};
 
 /// Errors from version management operations.
 #[derive(Debug, Error)]
@@ -85,6 +88,37 @@ pub fn detect_current_semver(
     Ok(versions.into_iter().last())
 }
 
+/// Analyze a list of commits and determine the appropriate bump type.
+///
+/// The rules follow the Conventional Commits spec:
+///
+/// - Any commit with a breaking change → `Major`
+/// - Any `feat` commit → `Minor`
+/// - All other commits → `Patch`
+///
+/// Commits whose messages cannot be parsed as conventional commits are
+/// treated as `Patch`-level changes.
+pub fn detect_bump_type(commits: &[CommitInfo]) -> BumpType {
+    let mut has_feat = false;
+
+    for c in commits {
+        if let Ok(msg) = CommitMessage::parse(&c.message) {
+            if msg.breaking {
+                return BumpType::Major;
+            }
+            if msg.commit_type == "feat" {
+                has_feat = true;
+            }
+        }
+    }
+
+    if has_feat {
+        BumpType::Minor
+    } else {
+        BumpType::Patch
+    }
+}
+
 /// Return the `TagInfo` for the highest-versioned semver tag.
 ///
 /// Scans all tags, strips `prefix`, parses each as semver, and returns the
@@ -114,7 +148,60 @@ pub fn detect_latest_tag(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::git_ops::MockGitOps;
+    use crate::git_ops::{CommitInfo, MockGitOps};
+
+    fn make_commit(message: &str) -> CommitInfo {
+        CommitInfo {
+            id: "abc123".to_string(),
+            message: message.to_string(),
+            author: "test".to_string(),
+            timestamp: 0,
+        }
+    }
+
+    #[test]
+    fn test_detect_bump_type_breaking_change() {
+        let commits = vec![make_commit("feat!: remove deprecated API")];
+        assert_eq!(detect_bump_type(&commits), BumpType::Major);
+    }
+
+    #[test]
+    fn test_detect_bump_type_breaking_wins_over_feat() {
+        let commits = vec![
+            make_commit("feat: add feature"),
+            make_commit("fix!: breaking fix"),
+        ];
+        assert_eq!(detect_bump_type(&commits), BumpType::Major);
+    }
+
+    #[test]
+    fn test_detect_bump_type_feat_gives_minor() {
+        let commits = vec![
+            make_commit("fix: patch bug"),
+            make_commit("feat: add thing"),
+        ];
+        assert_eq!(detect_bump_type(&commits), BumpType::Minor);
+    }
+
+    #[test]
+    fn test_detect_bump_type_only_fixes_gives_patch() {
+        let commits = vec![
+            make_commit("fix: fix bug"),
+            make_commit("chore: update deps"),
+        ];
+        assert_eq!(detect_bump_type(&commits), BumpType::Patch);
+    }
+
+    #[test]
+    fn test_detect_bump_type_empty_gives_patch() {
+        assert_eq!(detect_bump_type(&[]), BumpType::Patch);
+    }
+
+    #[test]
+    fn test_detect_bump_type_unparseable_treated_as_patch() {
+        let commits = vec![make_commit("WIP not conventional")];
+        assert_eq!(detect_bump_type(&commits), BumpType::Patch);
+    }
 
     #[test]
     fn test_detect_current_semver_no_tags() {
