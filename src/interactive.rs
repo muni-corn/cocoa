@@ -176,4 +176,23 @@ pub fn run(
 }
 
 /// Interactive prompt implementations.
-pub(crate) mod prompts {}
+pub(crate) mod prompts {
+    use dialoguer::{Select, theme::ColorfulTheme};
+
+    use crate::{Config, interactive::InteractiveError};
+
+    /// Prompts the user to select a commit type from configured types.
+    pub fn commit_type(theme: &ColorfulTheme, config: &Config) -> Result<String, InteractiveError> {
+        let mut types: Vec<&str> = config.commit.types.iter().map(|s| s.as_str()).collect();
+        types.sort_unstable();
+
+        let idx = Select::with_theme(theme)
+            .with_prompt("select commit type")
+            .items(&types)
+            .default(0)
+            .interact()
+            .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+        Ok(types[idx].to_string())
+    }
+}
