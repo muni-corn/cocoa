@@ -8,6 +8,7 @@ use genai::{
 };
 
 use super::{AiConfig, ProviderError};
+use crate::security;
 
 /// Generic AI client for generating commit messages.
 pub struct Client {
@@ -66,7 +67,10 @@ impl Client {
             .client
             .exec_chat(model_name, chat_request, Some(&chat_options))
             .await
-            .map_err(|e| ProviderError::Api(format!("genai error: {e}")))?;
+            // redact the error string before surfacing it; the underlying HTTP
+            // response body from the provider could in rare cases echo back
+            // authentication details or other sensitive content
+            .map_err(|e| ProviderError::Api(security::redact(&format!("genai error: {e}"))))?;
 
         let content = response.texts().join("");
 

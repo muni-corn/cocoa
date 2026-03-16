@@ -56,17 +56,28 @@ impl Default for SecretConfig {
 }
 
 impl SecretConfig {
-    /// resolve the api key from environment variable or file
+    /// Resolves the API key from the configured source.
+    ///
+    /// # Security
+    ///
+    /// Error messages are deliberately limited to metadata (the env-var name or
+    /// the file path plus the OS error), never the key value itself. Callers
+    /// must not log or display the returned `String` in any error path.
     pub fn resolve_api_key(&self) -> Result<String, ProviderError> {
         match self {
             SecretConfig::Env { env } => {
+                // include only the variable name, not the value, in the error
                 std::env::var(env).map_err(|_| ProviderError::ApiKeyNotFound(env.clone()))
             }
-            SecretConfig::File { file } => std::fs::read_to_string(file)
-                .map(|s| s.trim().to_string())
-                .map_err(|e| {
-                    ProviderError::ApiKeyNotFound(format!("file {}: {}", file.display(), e))
-                }),
+            SecretConfig::File { file } => {
+                // the error path runs only when reading fails, so it can never
+                // expose the file contents (i.e. the key value)
+                std::fs::read_to_string(file)
+                    .map(|s| s.trim().to_string())
+                    .map_err(|e| {
+                        ProviderError::ApiKeyNotFound(format!("file {}: {}", file.display(), e))
+                    })
+            }
         }
     }
 }
