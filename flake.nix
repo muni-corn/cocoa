@@ -1,8 +1,13 @@
 {
-  description = "cocoa, the conventional commit assistant";
+  description = "A Rust project";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:cachix/devenv-nixpkgs/rolling";
+
+    crate2nix = {
+      url = "github:nix-community/crate2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     devenv = {
       url = "github:cachix/devenv";
@@ -14,14 +19,9 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
 
-    musicaloft-style = {
-      url = "git+https://git.musicaloft.com/municorn/musicaloft-style";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    rust-flake = {
-      url = "github:juspay/rust-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+    musicaloft-shell = {
+      url = "github:musicaloft/musicaloft-shell/devenv";
+      flake = false;
     };
 
     rust-overlay = {
@@ -32,11 +32,6 @@
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    devenv-root = {
-      url = ./.devenv/root;
-      flake = false;
     };
   };
 
@@ -50,66 +45,18 @@
         "aarch64-darwin"
       ];
 
-      imports = [
-        inputs.devenv.flakeModule
-        inputs.rust-flake.flakeModules.default
-        inputs.rust-flake.flakeModules.nixpkgs
-
-        # sets up code formatting and commit linting
-        inputs.musicaloft-style.flakeModule
-      ];
+      imports = [ inputs.devenv.flakeModule ];
 
       perSystem =
+        { config, ... }:
         {
-          config,
-          pkgs,
-          ...
-        }:
-        let
-          pname = "cocoa";
-
-          buildInputs = with pkgs; [
-            libressl
-            libgit2
+          devenv.shells.default.imports = [
+            "${inputs.musicaloft-shell}/devenv.nix"
+            ./devenv.nix
           ];
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-          ];
-        in
-        {
-          # rust setup
-          devenv.shells.default = {
-            languages.rust = {
-              enable = true;
-              channel = "nightly";
-              mold.enable = true;
-            };
 
-            packages =
-              with pkgs;
-              [
-                bacon
-                cargo-outdated
-                cargo-tarpaulin
-              ]
-              ++ buildInputs
-              ++ nativeBuildInputs;
-
-            scripts.tarp.exec = ''cargo tarpaulin --engine llvm "$@"'';
-          };
-
-          # setup rust packages
-          rust-project = {
-            # use the same rust toolchain from the dev shell for consistency
-            toolchain = config.devenv.shells.default.languages.rust.toolchainPackage;
-
-            # specify dependencies
-            defaults.perCrate.crane.args = {
-              inherit nativeBuildInputs buildInputs;
-            };
-          };
-
-          packages.default = config.rust-project.crates.${pname}.crane.outputs.packages.${pname};
+          # package build
+          packages = config.devenv.shells.default.outputs;
         };
     };
 }
