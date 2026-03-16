@@ -394,6 +394,172 @@ impl GitOperations for Git2Ops {
 
         Ok(files)
     }
+
+    fn get_commits_in_range(&self, from: &str, to: &str) -> Result<Vec<CommitInfo>, GenerateError> {
+        let mut revwalk = self
+            .repo
+            .revwalk()
+            .map_err(|e| GenerateError::GitContext(format!("failed to create revwalk: {}", e)))?;
+
+        let to_obj = self
+            .repo
+            .revparse_single(to)
+            .map_err(|e| GenerateError::GitContext(format!("failed to resolve '{}': {}", to, e)))?;
+
+        revwalk.push(to_obj.id()).map_err(|e| {
+            GenerateError::GitContext(format!("failed to push revision to walk: {}", e))
+        })?;
+
+        if !from.is_empty() {
+            let from_obj = self.repo.revparse_single(from).map_err(|e| {
+                GenerateError::GitContext(format!("failed to resolve '{}': {}", from, e))
+            })?;
+            revwalk.hide(from_obj.id()).map_err(|e| {
+                GenerateError::GitContext(format!("failed to hide revision: {}", e))
+            })?;
+        }
+
+        revwalk
+            .set_sorting(git2::Sort::TIME)
+            .map_err(|e| GenerateError::GitContext(format!("failed to set sort order: {}", e)))?;
+
+        let commits = revwalk
+            .filter_map(|oid_result| {
+                let oid = oid_result.ok()?;
+                let commit = self.repo.find_commit(oid).ok()?;
+                let message = commit.summary().unwrap_or("").to_string();
+                let author = commit.author().name().unwrap_or("").to_string();
+                let timestamp = commit.time().seconds();
+                Some(CommitInfo {
+                    id: oid.to_string(),
+                    message,
+                    author,
+                    timestamp,
+                })
+            })
+            .collect();
+
+        Ok(commits)
+    }
+
+    fn get_tags(&self) -> Result<Vec<TagInfo>, GenerateError> {
+        let tag_names = self
+            .repo
+            .tag_names(None)
+            .map_err(|e| GenerateError::GitContext(format!("failed to list tags: {}", e)))?;
+
+        let mut tags = Vec::new();
+        for opt_name in tag_names.iter() {
+            let name = match opt_name {
+                Some(n) => n,
+                // skip tags with non-UTF-8 names
+                None => continue,
+            };
+
+            let refname = format!("refs/tags/{}", name);
+            let obj = match self.repo.revparse_single(&refname) {
+                Ok(o) => o,
+                Err(_) => continue,
+            };
+
+            let (message, target) = match obj.into_tag() {
+                Ok(tag) => {
+                    // annotated tag: extract message and the object it points to
+                    let msg = tag.message().map(|s| s.to_string());
+                    let target_id = tag.target_id().to_string();
+                    (msg, target_id)
+                }
+                Err(obj) => {
+                    // lightweight tag: the ref points directly to the target object
+                    (None, obj.id().to_string())
+                }
+            };
+
+            tags.push(TagInfo {
+                name: name.to_string(),
+                message,
+                target,
+            });
+        }
+
+        Ok(tags)
+    }
+
+    fn create_tag(&self, name: &str, message: &str, sign: bool) -> Result<(), GenerateError> {
+        if sign {
+            // GPG signing via libgit2 requires a custom signing callback; defer to a future
+            // phase
+            return Err(GenerateError::GitCommand(
+                "GPG-signed tags are not yet supported by Git2Ops".to_string(),
+            ));
+        }
+
+        let head_commit = self
+            .repo
+            .head()
+            .and_then(|h| h.peel_to_commit())
+            .map_err(|e| {
+                GenerateError::GitContext(format!("failed to resolve HEAD commit: {}", e))
+            })?;
+
+        let sig = self
+            .repo
+            .signature()
+            .map_err(|e| GenerateError::GitContext(format!("failed to build signature: {}", e)))?;
+
+        self.repo
+            .tag(name, head_commit.as_object(), &sig, message, false)
+            .map_err(|e| {
+                GenerateError::GitCommand(format!("failed to create tag '{}': {}", name, e))
+            })?;
+
+        Ok(())
+    }
+
+    fn create_commit(&self, message: &str) -> Result<(), GenerateError> {
+        let sig = self
+            .repo
+            .signature()
+            .map_err(|e| GenerateError::GitContext(format!("failed to build signature: {}", e)))?;
+
+        let mut index = self
+            .repo
+            .index()
+            .map_err(|e| GenerateError::GitContext(format!("failed to get index: {}", e)))?;
+
+        let tree_id = index
+            .write_tree()
+            .map_err(|e| GenerateError::GitContext(format!("failed to write tree: {}", e)))?;
+
+        let tree = self
+            .repo
+            .find_tree(tree_id)
+            .map_err(|e| GenerateError::GitContext(format!("failed to find tree: {}", e)))?;
+
+        let parents = match self.repo.head().and_then(|h| h.peel_to_commit()) {
+            Ok(parent) => vec![parent],
+            // no parent for the initial commit
+            Err(_) => vec![],
+        };
+        let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+
+        self.repo
+            .commit(Some("HEAD"), &sig, &sig, message, &tree, &parent_refs)
+            .map_err(|e| GenerateError::GitCommand(format!("failed to create commit: {}", e)))?;
+
+        Ok(())
+    }
+
+    fn get_hook_path(&self) -> Result<PathBuf, GenerateError> {
+        // repo.path() returns the .git directory
+        Ok(self.repo.path().join("hooks"))
+    }
+
+    fn get_repo_root(&self) -> Result<PathBuf, GenerateError> {
+        self.repo.workdir().map(|p| p.to_path_buf()).ok_or_else(|| {
+            GenerateError::GitContext("repository has no working directory (bare repo)".to_string())
+        })
+    }
 }
 
 /// Mock git operations for testing.
