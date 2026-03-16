@@ -39,6 +39,18 @@ impl From<GenerateError> for TagError {
     }
 }
 
+/// Verify a tag name does not already exist in the repository.
+///
+/// Returns `TagError::AlreadyExists` when a tag with the given name is found,
+/// allowing callers to abort before attempting a duplicate write.
+pub fn verify_tag_unique<G: GitOperations>(ops: &G, tag_name: &str) -> Result<(), TagError> {
+    let tags = ops.get_tags().map_err(|e| TagError::Git(e.to_string()))?;
+    if tags.iter().any(|t| t.name == tag_name) {
+        return Err(TagError::AlreadyExists(tag_name.to_string()));
+    }
+    Ok(())
+}
+
 /// Determine the next version to tag.
 ///
 /// If `version_str` is provided it is parsed directly (with the configured
@@ -123,6 +135,8 @@ pub fn create_version_tag<G: GitOperations>(
 ) -> Result<(String, String), TagError> {
     let tag_name = format!("{}{}", v_config.tag_prefix, version);
     let sign = v_config.sign_tags;
+
+    verify_tag_unique(ops, &tag_name)?;
 
     let message = build_tag_message(ops, version, v_config, cl_config)?;
 
