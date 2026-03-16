@@ -11,7 +11,7 @@ use std::{
 use anyhow::Result;
 use clap::FromArgMatches;
 use cli::{Cli, Commands};
-use cocoa::{Config, generate, lint};
+use cocoa::{Config, generate, init, lint};
 use lint::Linter;
 use style::{
     goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
@@ -48,9 +48,30 @@ async fn main() -> Result<()> {
             )?;
         }
         Commands::Init => {
-            welcome("cocoa");
-            print_error_bold("init is not implemented yet");
-            // TODO: Implement init command
+            welcome("cocoa init");
+            match init::init(cli.dry_run) {
+                Ok(()) => {
+                    if cli.dry_run {
+                        print_info("dry run complete — no file was written");
+                    } else {
+                        print_success_bold("wrote .cocoa.toml");
+                    }
+                    goodbye_with_success();
+                }
+                Err(init::InitError::Aborted) => {
+                    print_warning("init cancelled");
+                    goodbye_with_warning();
+                }
+                Err(init::InitError::FileExists) => {
+                    print_error_bold(".cocoa.toml already exists");
+                    print_info("delete it or run interactively to overwrite");
+                    goodbye_with_death(1);
+                }
+                Err(e) => {
+                    print_error_bold(format!("init failed: {}", e));
+                    goodbye_with_death(1);
+                }
+            }
         }
         Commands::Commit => {
             welcome("cocoa");
