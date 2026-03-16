@@ -379,6 +379,7 @@ mod tests {
         Config {
             ai: None,
             changelog: None,
+            version: None,
             commit: CommitConfig {
                 types: HashSet::from(["feat".to_string(), "fix".to_string()]),
                 scopes: Some(HashSet::from(["api".to_string(), "ui".to_string()])),

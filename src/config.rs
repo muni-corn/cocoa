@@ -31,6 +31,7 @@ pub struct Config {
     pub commit: CommitConfig,
     pub ai: Option<AiConfig>,
     pub changelog: Option<ChangelogConfig>,
+    pub version: Option<VersionConfig>,
 }
 
 /// Configuration for changelog generation.
@@ -79,6 +80,56 @@ fn default_changelog_output_file() -> String {
 
 fn default_date_format() -> String {
     "%Y-%m-%d".to_string()
+}
+
+/// Versioning strategy.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VersionStrategy {
+    /// Semantic versioning (MAJOR.MINOR.PATCH).
+    Semver,
+    /// Calendar versioning based on dates.
+    Calver,
+}
+
+/// Configuration for version management.
+///
+/// Maps to the `[version]` section in `.cocoa.toml`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VersionConfig {
+    /// Versioning strategy to use.
+    #[serde(default = "default_version_strategy")]
+    pub strategy: VersionStrategy,
+
+    /// Prefix prepended to version tags (e.g. `"v"` produces `v1.2.3`).
+    #[serde(default = "default_tag_prefix")]
+    pub tag_prefix: String,
+
+    /// Whether to GPG-sign version tags.
+    #[serde(default)]
+    pub sign_tags: bool,
+
+    /// Files to search and update when bumping the version.
+    pub commit_version_files: Option<Vec<String>>,
+}
+
+impl Default for VersionConfig {
+    fn default() -> Self {
+        Self {
+            strategy: default_version_strategy(),
+            tag_prefix: default_tag_prefix(),
+            sign_tags: false,
+            commit_version_files: None,
+        }
+    }
+}
+
+fn default_version_strategy() -> VersionStrategy {
+    VersionStrategy::Semver
+}
+
+fn default_tag_prefix() -> String {
+    "v".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
