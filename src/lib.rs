@@ -13,6 +13,7 @@ pub mod init;
 pub mod interactive;
 pub mod lint;
 pub(crate) mod style;
+pub mod tag;
 pub mod version;
 
 // re-export commonly used types
