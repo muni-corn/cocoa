@@ -20,7 +20,9 @@ use cocoa::{
     changelog::{self, OutputFormat},
     generate,
     git_ops::{Git2Ops, GitOperations},
-    hook, init, interactive, lint, release, tag, version,
+    hook,
+    i18n::{detect_locale, set_locale},
+    init, interactive, lint, release, tag, version,
 };
 use lint::Linter;
 use rust_i18n::t;
@@ -31,6 +33,10 @@ use style::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // detect and apply system locale before any output is produced
+    let locale = detect_locale();
+    set_locale(&locale);
+
     let matches = Cli::command_with_conditional_help().get_matches();
     let cli = Cli::from_arg_matches(&matches)
         .map_err(|e| e.exit())
