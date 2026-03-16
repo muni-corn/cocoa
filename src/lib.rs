@@ -12,6 +12,7 @@ pub mod hook;
 pub mod init;
 pub mod interactive;
 pub mod lint;
+pub mod release;
 pub(crate) mod style;
 pub mod tag;
 pub mod version;
