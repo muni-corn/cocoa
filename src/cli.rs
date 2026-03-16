@@ -62,6 +62,9 @@ pub struct Cli {
 
     #[arg(long, help = "output in JSON format")]
     pub json: bool,
+
+    #[arg(long, help = "show what would be done without executing")]
+    pub dry_run: bool,
 }
 
 #[derive(Subcommand)]
@@ -125,8 +128,9 @@ impl Cli {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use clap::CommandFactory;
+
+    use super::*;
 
     #[test]
     fn test_cli_can_parse() {

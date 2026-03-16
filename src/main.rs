@@ -35,7 +35,15 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Lint { input, stdin } => {
             welcome("hi! checking this commit message...");
-            handle_lint(&config, input, stdin, cli.json, cli.quiet, cli.verbose)?;
+            handle_lint(
+                &config,
+                input,
+                stdin,
+                cli.json,
+                cli.quiet,
+                cli.verbose,
+                cli.dry_run,
+            )?;
         }
         Commands::Init => {
             welcome("cocoa");
@@ -48,7 +56,7 @@ async fn main() -> Result<()> {
         }
         Commands::Generate => {
             welcome("hi! generating your commit message...");
-            handle_generate(&config, cli.json, cli.quiet, cli.verbose).await?;
+            handle_generate(&config, cli.json, cli.quiet, cli.verbose, cli.dry_run).await?;
         }
         Commands::Changelog { range: _ } => {
             welcome("cocoa");
@@ -78,6 +86,7 @@ fn handle_lint(
     json_output: bool,
     quiet: bool,
     verbose: bool,
+    _dry_run: bool,
 ) -> Result<()> {
     let linter = Linter::new(config);
 
@@ -165,6 +174,7 @@ async fn handle_generate(
     json_output: bool,
     quiet: bool,
     verbose: bool,
+    _dry_run: bool,
 ) -> Result<()> {
     // Check if AI is configured
     if config.ai.is_none() {
