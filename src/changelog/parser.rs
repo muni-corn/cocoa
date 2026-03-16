@@ -104,7 +104,10 @@ fn build_entries(
 /// Assemble a `ChangelogVersion` from a list of raw entries.
 ///
 /// Groups entries by commit type into sections, extracts breaking changes,
-/// and sorts everything deterministically.
+/// and sorts everything deterministically: sections follow a fixed type-order
+/// (feat → fix → perf → …) and entries within each section are sorted
+/// newest-first with SHA as a tiebreaker, so identical input always produces
+/// identical output.
 fn build_version(
     version: Option<String>,
     date: Option<String>,
