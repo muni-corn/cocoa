@@ -177,7 +177,7 @@ pub fn run(
 
 /// Interactive prompt implementations.
 pub(crate) mod prompts {
-    use dialoguer::{Confirm, FuzzySelect, Input, Select, theme::ColorfulTheme};
+    use dialoguer::{Confirm, Editor, FuzzySelect, Input, Select, theme::ColorfulTheme};
 
     use crate::{Config, interactive::InteractiveError};
 
@@ -287,5 +287,43 @@ pub(crate) mod prompts {
             .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
 
         Ok(subject.trim().to_string())
+    }
+
+    /// Prompts for an optional multi-line commit body via the system editor.
+    ///
+    /// The user is first asked whether they want a body; if yes, the
+    /// `$EDITOR` (or a fallback) is opened. Returning an empty file is treated
+    /// as no body.
+    pub fn body(theme: &ColorfulTheme) -> Result<Option<String>, InteractiveError> {
+        let add_body = Confirm::with_theme(theme)
+            .with_prompt("add a commit body? (opens editor)")
+            .default(false)
+            .interact()
+            .unwrap_or(false);
+
+        if !add_body {
+            return Ok(None);
+        }
+
+        let body = Editor::new()
+            .require_save(true)
+            .edit(
+                "# Enter commit body above. Lines starting with '#' are ignored.\n\
+                 # Save and close the editor to continue. Leave empty to skip.",
+            )
+            .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+        Ok(body
+            .map(|s| {
+                // strip comment lines (like git does)
+                let cleaned: String = s
+                    .lines()
+                    .filter(|l| !l.trim_start().starts_with('#'))
+                    .map(|l| l.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                cleaned.trim().to_string()
+            })
+            .filter(|s| !s.is_empty()))
     }
 }
