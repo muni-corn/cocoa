@@ -115,7 +115,12 @@ pub enum Commands {
     Unhook,
 
     #[command(about = "create version tag")]
-    Tag,
+    Tag {
+        #[arg(
+            help = "version to tag (e.g. 1.2.3 or v1.2.3); auto-detected from commits if omitted"
+        )]
+        version: Option<String>,
+    },
 
     #[command(about = "full release (version + changelog + tag)")]
     Release,

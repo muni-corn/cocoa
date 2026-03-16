@@ -16,7 +16,7 @@ use cocoa::{
     changelog::{self, OutputFormat},
     generate,
     git_ops::{Git2Ops, GitOperations},
-    hook, init, interactive, lint, version,
+    hook, init, interactive, lint, tag, version,
 };
 use lint::Linter;
 use style::{
@@ -113,9 +113,9 @@ async fn main() -> Result<()> {
             welcome("cocoa unhook");
             handle_unhook(&config, cli.dry_run)?;
         }
-        Commands::Tag => {
-            welcome("cocoa");
-            print_error_bold("git tagging not yet implemented");
+        Commands::Tag { version } => {
+            welcome("cocoa tag");
+            handle_tag(&config, version.as_deref(), cli.dry_run)?;
         }
         Commands::Release => {
             welcome("cocoa");
@@ -806,6 +806,67 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
                 print_error_bold(format!("failed to update version files: {}", e));
                 goodbye_with_death(1);
             }
+        }
+    }
+
+    Ok(())
+}
+
+/// Create an annotated version tag with the changelog as its message.
+///
+/// Resolves the target version (from the argument or by auto-detecting the
+/// appropriate bump from commits since the last tag), verifies uniqueness, and
+/// creates the tag. In dry-run mode the tag name and message are printed
+/// without writing to git.
+fn handle_tag(config: &Config, version_str: Option<&str>, dry_run: bool) -> Result<()> {
+    let v_config = config.version.clone().unwrap_or_default();
+    let cl_config = config.changelog.clone().unwrap_or_default();
+
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    let version = match tag::resolve_version(&git_ops, version_str, &v_config) {
+        Ok(v) => v,
+        Err(tag::TagError::Version(e)) => {
+            print_error_bold(format!("invalid version: {}", e));
+            goodbye_with_death(1);
+        }
+        Err(e) => {
+            print_error_bold(format!("failed to resolve version: {}", e));
+            goodbye_with_death(1);
+        }
+    };
+
+    let tag_name = format!("{}{}", v_config.tag_prefix, version);
+    print_info(format!("preparing tag {}", tag_name));
+
+    match tag::create_version_tag(&git_ops, &version, &v_config, &cl_config, dry_run) {
+        Ok((name, message)) => {
+            if dry_run {
+                print_info(format!("dry-run: would create tag '{}'", name));
+                println!("\n{}\n", message);
+            } else {
+                print_success_bold(format!("created tag '{}'", name));
+            }
+            goodbye_with_success();
+        }
+        Err(tag::TagError::AlreadyExists(name)) => {
+            print_error_bold(format!("tag '{}' already exists", name));
+            print_info("use a different version or delete the existing tag first");
+            goodbye_with_death(1);
+        }
+        Err(tag::TagError::Git(msg)) => {
+            print_error_bold(format!("git error: {}", msg));
+            goodbye_with_death(5);
+        }
+        Err(e) => {
+            print_error_bold(format!("tagging failed: {}", e));
+            goodbye_with_death(1);
         }
     }
 
