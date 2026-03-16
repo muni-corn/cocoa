@@ -7,6 +7,8 @@
 pub mod calver;
 pub mod semver;
 
+use std::fs;
+
 pub use calver::{CalVer, CalVerError};
 pub use semver::{SemVer, SemVerError};
 use thiserror::Error;
@@ -145,8 +147,64 @@ pub fn detect_latest_tag(
     Ok(versioned.into_iter().last().map(|(_, t)| t))
 }
 
+/// Update the version string in each of the given files atomically.
+///
+/// Reads every file first, replaces all occurrences of `old_version` with
+/// `new_version`, then writes them all. If any write fails the already-written
+/// files are restored to their original content, so the set of files is either
+/// fully updated or left completely unchanged.
+///
+/// Returns `VersionError::NotFound` if `old_version` does not appear in any
+/// of the target files.
+pub fn update_version_files(
+    files: &[String],
+    old_version: &str,
+    new_version: &str,
+) -> Result<(), VersionError> {
+    // phase 1: read every file and compute the updated content
+    let mut updates: Vec<(String, String, String)> = Vec::new(); // (path, original, updated)
+
+    for path in files {
+        let original = fs::read_to_string(path).map_err(|e| VersionError::File {
+            path: path.clone(),
+            source: e,
+        })?;
+
+        if !original.contains(old_version) {
+            return Err(VersionError::NotFound {
+                version: old_version.to_string(),
+                path: path.clone(),
+            });
+        }
+
+        let updated = original.replace(old_version, new_version);
+        updates.push((path.clone(), original, updated));
+    }
+
+    // phase 2: write atomically — roll back on the first failure
+    let mut written: Vec<(String, String)> = Vec::new(); // (path, original) for rollback
+
+    for (path, original, updated) in &updates {
+        if let Err(e) = fs::write(path, updated) {
+            // restore files that were already written
+            for (p, orig) in &written {
+                let _ = fs::write(p, orig);
+            }
+            return Err(VersionError::File {
+                path: path.clone(),
+                source: e,
+            });
+        }
+        written.push((path.clone(), original.clone()));
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
     use crate::git_ops::{CommitInfo, MockGitOps};
 
@@ -312,5 +370,70 @@ mod tests {
     fn test_detect_latest_tag_no_tags() {
         let ops = MockGitOps::default();
         assert!(detect_latest_tag(&ops, "v").unwrap().is_none());
+    }
+
+    // ── update_version_files ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_update_version_files_single_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Cargo.toml");
+        fs::write(&path, "version = \"1.0.0\"\n").unwrap();
+
+        let files = vec![path.to_string_lossy().into_owned()];
+        update_version_files(&files, "1.0.0", "2.0.0").unwrap();
+
+        let contents = fs::read_to_string(&path).unwrap();
+        assert_eq!(contents, "version = \"2.0.0\"\n");
+    }
+
+    #[test]
+    fn test_update_version_files_multiple_occurrences() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("file.txt");
+        fs::write(&path, "version 1.0.0 and also 1.0.0\n").unwrap();
+
+        let files = vec![path.to_string_lossy().into_owned()];
+        update_version_files(&files, "1.0.0", "1.1.0").unwrap();
+
+        let contents = fs::read_to_string(&path).unwrap();
+        assert_eq!(contents, "version 1.1.0 and also 1.1.0\n");
+    }
+
+    #[test]
+    fn test_update_version_files_multiple_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = dir.path().join("a.toml");
+        let b = dir.path().join("b.json");
+        fs::write(&a, "version = \"0.1.0\"\n").unwrap();
+        fs::write(&b, "{\"version\":\"0.1.0\"}\n").unwrap();
+
+        let files = vec![
+            a.to_string_lossy().into_owned(),
+            b.to_string_lossy().into_owned(),
+        ];
+        update_version_files(&files, "0.1.0", "0.2.0").unwrap();
+
+        assert!(fs::read_to_string(&a).unwrap().contains("0.2.0"));
+        assert!(fs::read_to_string(&b).unwrap().contains("0.2.0"));
+    }
+
+    #[test]
+    fn test_update_version_files_not_found_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("file.txt");
+        fs::write(&path, "some content\n").unwrap();
+
+        let files = vec![path.to_string_lossy().into_owned()];
+        let err = update_version_files(&files, "9.9.9", "10.0.0").unwrap_err();
+
+        assert!(matches!(err, VersionError::NotFound { .. }));
+    }
+
+    #[test]
+    fn test_update_version_files_missing_file_returns_error() {
+        let files = vec!["/nonexistent/path/file.txt".to_string()];
+        let err = update_version_files(&files, "1.0.0", "2.0.0").unwrap_err();
+        assert!(matches!(err, VersionError::File { .. }));
     }
 }
