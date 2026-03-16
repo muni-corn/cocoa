@@ -2,6 +2,7 @@ use std::{collections::HashSet, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use toml::Value as TomlValue;
 
 use crate::{ai::config::AiConfig, style::print_error_bold};
 
@@ -134,6 +135,28 @@ impl Default for CommitRules {
     }
 }
 
+/// Deep-merges two TOML values, with `override_val` taking precedence over
+/// `base`.
+///
+/// Tables are merged recursively. All other value types (arrays, strings,
+/// integers, etc.) are replaced entirely by the override value.
+fn merge_toml_values(base: TomlValue, override_val: TomlValue) -> TomlValue {
+    match (base, override_val) {
+        (TomlValue::Table(mut base_map), TomlValue::Table(override_map)) => {
+            for (key, val) in override_map {
+                let merged_val = match base_map.remove(&key) {
+                    Some(base_val) => merge_toml_values(base_val, val),
+                    None => val,
+                };
+                base_map.insert(key, merged_val);
+            }
+            TomlValue::Table(base_map)
+        }
+        // for all other types, the override value wins
+        (_, override_val) => override_val,
+    }
+}
+
 impl Config {
     /// Discovers config file paths in priority order, from lowest to highest.
     ///
@@ -162,6 +185,41 @@ impl Config {
         paths.push(PathBuf::from(".cocoa.toml"));
 
         paths
+    }
+
+    /// Loads and deep-merges config from the given paths in order.
+    ///
+    /// Paths are processed from lowest to highest priority, so later
+    /// paths override earlier ones at the key level. Arrays and scalar
+    /// values are replaced entirely (not appended).
+    ///
+    /// Returns `Config::default()` if none of the paths exist.
+    pub fn load_merged(paths: &[PathBuf]) -> Result<Self, ConfigError> {
+        let mut merged: Option<TomlValue> = None;
+
+        for path in paths {
+            if !path.exists() {
+                continue;
+            }
+
+            let content = fs::read_to_string(path)?;
+            let value: TomlValue = toml::from_str(&content)?;
+
+            merged = Some(match merged {
+                None => value,
+                Some(base) => merge_toml_values(base, value),
+            });
+        }
+
+        match merged {
+            None => Ok(Self::default()),
+            Some(value) => {
+                let config: Config =
+                    serde::Deserialize::deserialize(value).map_err(ConfigError::Parse)?;
+                config.validate()?;
+                Ok(config)
+            }
+        }
     }
 
     pub fn load<P: AsRef<std::path::Path>>(path: P) -> Result<Self, ConfigError> {
