@@ -16,7 +16,7 @@ use cocoa::{
     changelog::{self, OutputFormat},
     generate,
     git_ops::{Git2Ops, GitOperations},
-    hook, init, interactive, lint,
+    hook, init, interactive, lint, version,
 };
 use lint::Linter;
 use style::{
@@ -101,9 +101,9 @@ async fn main() -> Result<()> {
                 cli.dry_run,
             )?;
         }
-        Commands::Bump { bump_type: _ } => {
-            welcome("cocoa");
-            print_error_bold("version bumping not yet implemented");
+        Commands::Bump { bump_type } => {
+            welcome("cocoa bump");
+            handle_bump(&config, bump_type.as_deref(), cli.dry_run)?;
         }
         Commands::Hook => {
             welcome("cocoa hook");
@@ -694,6 +694,117 @@ async fn handle_generate(
                     generate::GenerateError::GitCommand(_) => 5,
                 };
                 goodbye_with_death(exit_code);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Bump the project version and update configured version files.
+///
+/// Accepts an explicit bump type (major, minor, patch) or "auto" to detect
+/// the appropriate bump from commits since the last version tag. In dry-run
+/// mode the new version is displayed but no files are written.
+fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> Result<()> {
+    let v_config = config.version.clone().unwrap_or_default();
+
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    // detect the current version from git tags; default to 0.0.0 if none exist
+    let current_version = match version::detect_current_semver(&git_ops, &v_config.tag_prefix) {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            print_info("no version tags found, starting from 0.0.0");
+            version::SemVer::parse("0.0.0").expect("0.0.0 is always valid semver")
+        }
+        Err(e) => {
+            print_error_bold(format!("failed to detect current version: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    // resolve the bump type from the argument or auto-detect from commits
+    let bump_type = match bump_type_str {
+        Some("major") => version::BumpType::Major,
+        Some("minor") => version::BumpType::Minor,
+        Some("patch") => version::BumpType::Patch,
+        Some("auto") | None => {
+            // collect commits since the last version tag for analysis
+            let commits = match version::detect_latest_tag(&git_ops, &v_config.tag_prefix) {
+                Ok(Some(tag)) => git_ops
+                    .get_commits_in_range(&tag.target, "HEAD")
+                    .unwrap_or_default(),
+                // no tags yet — scan all commits reachable from HEAD
+                Ok(None) | Err(_) => git_ops.get_commits_in_range("", "HEAD").unwrap_or_default(),
+            };
+            let detected = version::detect_bump_type(&commits);
+            let label = match detected {
+                version::BumpType::Major => "major",
+                version::BumpType::Minor => "minor",
+                version::BumpType::Patch => "patch",
+            };
+            print_info(format!("auto-detected bump type: {}", label));
+            detected
+        }
+        Some(other) => {
+            print_error_bold(format!(
+                "unknown bump type '{}' — use: major, minor, patch, or auto",
+                other
+            ));
+            goodbye_with_death(1);
+        }
+    };
+
+    let new_version = match bump_type {
+        version::BumpType::Major => current_version.bump_major(),
+        version::BumpType::Minor => current_version.bump_minor(),
+        version::BumpType::Patch => current_version.bump_patch(),
+    };
+
+    let old_str = current_version.to_string();
+    let new_str = new_version.to_string();
+
+    print_info(format!("{} → {}", old_str, new_str));
+
+    let files: &[String] = v_config.commit_version_files.as_deref().unwrap_or(&[]);
+
+    if files.is_empty() {
+        if dry_run {
+            print_info("dry-run: no files configured in version.commit_version_files");
+        } else {
+            print_warning(
+                "no files configured in version.commit_version_files — nothing to update",
+            );
+        }
+        goodbye_with_warning();
+        return Ok(());
+    }
+
+    if dry_run {
+        print_info(format!("dry-run: would update {} file(s):", files.len()));
+        for f in files {
+            print_info(format!("  {}", f));
+        }
+        goodbye_with_success();
+    } else {
+        match version::update_version_files(files, &old_str, &new_str) {
+            Ok(()) => {
+                print_success_bold(format!("bumped {} → {}", old_str, new_str));
+                for f in files {
+                    print_info(format!("  updated {}", f));
+                }
+                goodbye_with_success();
+            }
+            Err(e) => {
+                print_error_bold(format!("failed to update version files: {}", e));
+                goodbye_with_death(1);
             }
         }
     }
