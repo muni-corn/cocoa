@@ -446,6 +446,84 @@ fn handle_hook(_config: &Config, dry_run: bool) -> Result<()> {
     Ok(())
 }
 
+/// Removes the cocoa `commit-msg` git hook, restoring a backup if present.
+///
+/// Resolves the hooks directory from the current git repository and delegates
+/// to [`hook::uninstall`]. Reports the outcome to the user and exits with an
+/// appropriate code.
+fn handle_unhook(_config: &Config, dry_run: bool) -> Result<()> {
+    let git_ops = match Git2Ops::open() {
+        Ok(ops) => ops,
+        Err(e) => {
+            print_error_bold(format!("failed to open git repository: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    let hooks_dir = match git_ops.get_hook_path() {
+        Ok(p) => p,
+        Err(e) => {
+            print_error_bold(format!("failed to locate hooks directory: {}", e));
+            goodbye_with_death(5);
+        }
+    };
+
+    match hook::uninstall(&hooks_dir, dry_run) {
+        Ok(hook::UninstallOutcome::Removed { hook_path }) => {
+            if dry_run {
+                print_info(format!(
+                    "dry-run: would remove commit-msg hook at {}",
+                    hook_path.display()
+                ));
+            } else {
+                print_success_bold(format!(
+                    "removed commit-msg hook at {}",
+                    hook_path.display()
+                ));
+            }
+            goodbye_with_success();
+        }
+        Ok(hook::UninstallOutcome::Restored {
+            hook_path,
+            backup_path,
+        }) => {
+            if dry_run {
+                print_info(format!(
+                    "dry-run: would restore {} from backup {}",
+                    hook_path.display(),
+                    backup_path.display()
+                ));
+            } else {
+                print_success_bold(format!(
+                    "removed cocoa hook and restored previous hook at {}",
+                    hook_path.display()
+                ));
+            }
+            goodbye_with_success();
+        }
+        Ok(hook::UninstallOutcome::NotInstalled) => {
+            print_warning("no cocoa-managed commit-msg hook found — nothing to remove");
+            goodbye_with_warning();
+        }
+        Err(hook::HookError::NotAGitRepo) => {
+            print_error_bold("not inside a git repository");
+            goodbye_with_death(5);
+        }
+        Err(hook::HookError::NotManagedByCocoa) => {
+            print_error_bold(
+                "the existing commit-msg hook is not managed by cocoa; remove it manually",
+            );
+            goodbye_with_death(1);
+        }
+        Err(e) => {
+            print_error_bold(format!("hook removal failed: {}", e));
+            goodbye_with_death(1);
+        }
+    }
+
+    Ok(())
+}
+
 async fn handle_generate(
     config: &Config,
     json_output: bool,
