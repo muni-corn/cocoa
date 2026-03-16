@@ -208,6 +208,192 @@ pub fn run(
     Ok(message)
 }
 
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+    use crate::{
+        Config,
+        config::{CommitConfig, CommitRules, RuleLevel},
+    };
+
+    fn default_config() -> Config {
+        Config::default()
+    }
+
+    fn config_with_deny_len(subject_deny: usize) -> Config {
+        Config {
+            commit: CommitConfig {
+                rules: CommitRules {
+                    deny: RuleLevel {
+                        subject_length: Some(subject_deny),
+                        ..RuleLevel::default()
+                    },
+                    ..CommitRules::default()
+                },
+                ..CommitConfig::default()
+            },
+            ..Config::default()
+        }
+    }
+
+    // --- CommitParts::to_message tests ---
+
+    #[test]
+    fn test_simple_message() {
+        let parts = CommitParts {
+            commit_type: "feat".into(),
+            scope: None,
+            breaking: false,
+            breaking_description: None,
+            subject: "add login page".into(),
+            body: None,
+            issue_refs: None,
+        };
+        assert_eq!(parts.to_message(), "feat: add login page");
+    }
+
+    #[test]
+    fn test_message_with_scope() {
+        let parts = CommitParts {
+            commit_type: "fix".into(),
+            scope: Some("api".into()),
+            breaking: false,
+            breaking_description: None,
+            subject: "handle null response".into(),
+            body: None,
+            issue_refs: None,
+        };
+        assert_eq!(parts.to_message(), "fix(api): handle null response");
+    }
+
+    #[test]
+    fn test_message_with_breaking_change() {
+        let parts = CommitParts {
+            commit_type: "feat".into(),
+            scope: Some("auth".into()),
+            breaking: true,
+            breaking_description: Some("tokens now expire after 1h".into()),
+            subject: "rotate session tokens".into(),
+            body: None,
+            issue_refs: None,
+        };
+        let msg = parts.to_message();
+        assert!(msg.starts_with("feat(auth)!: rotate session tokens"));
+        assert!(msg.contains("BREAKING CHANGE: tokens now expire after 1h"));
+    }
+
+    #[test]
+    fn test_message_with_body() {
+        let parts = CommitParts {
+            commit_type: "refactor".into(),
+            scope: None,
+            breaking: false,
+            breaking_description: None,
+            subject: "extract helper functions".into(),
+            body: Some("Moves shared utilities to a dedicated module.".into()),
+            issue_refs: None,
+        };
+        let msg = parts.to_message();
+        assert_eq!(
+            msg,
+            "refactor: extract helper functions\n\nMoves shared utilities to a dedicated module."
+        );
+    }
+
+    #[test]
+    fn test_message_with_issue_refs() {
+        let parts = CommitParts {
+            commit_type: "fix".into(),
+            scope: None,
+            breaking: false,
+            breaking_description: None,
+            subject: "prevent crash on empty input".into(),
+            body: None,
+            issue_refs: Some("Closes #99".into()),
+        };
+        let msg = parts.to_message();
+        assert_eq!(msg, "fix: prevent crash on empty input\n\nCloses #99");
+    }
+
+    #[test]
+    fn test_message_full() {
+        let parts = CommitParts {
+            commit_type: "feat".into(),
+            scope: Some("payments".into()),
+            breaking: true,
+            breaking_description: Some("old payment API removed".into()),
+            subject: "migrate to stripe v3".into(),
+            body: Some("Replaces the legacy payment module.".into()),
+            issue_refs: Some("Closes #200".into()),
+        };
+        let msg = parts.to_message();
+        let expected = "feat(payments)!: migrate to stripe v3\n\n\
+                        Replaces the legacy payment module.\n\n\
+                        BREAKING CHANGE: old payment API removed\n\
+                        Closes #200";
+        assert_eq!(msg, expected);
+    }
+
+    #[test]
+    fn test_breaking_flag_without_description() {
+        // breaking: true but no description — header gets `!` but no footer
+        let parts = CommitParts {
+            commit_type: "chore".into(),
+            scope: None,
+            breaking: true,
+            breaking_description: None,
+            subject: "drop Node 14 support".into(),
+            body: None,
+            issue_refs: None,
+        };
+        let msg = parts.to_message();
+        assert!(msg.starts_with("chore!: drop Node 14 support"));
+        assert!(!msg.contains("BREAKING CHANGE"));
+    }
+
+    #[test]
+    fn test_empty_body_ignored() {
+        let parts = CommitParts {
+            commit_type: "docs".into(),
+            scope: None,
+            breaking: false,
+            breaking_description: None,
+            subject: "update readme".into(),
+            body: Some("   ".into()), // whitespace-only
+            issue_refs: None,
+        };
+        assert_eq!(parts.to_message(), "docs: update readme");
+    }
+
+    // --- validate_message tests ---
+
+    #[test]
+    fn test_validate_valid_message() {
+        let config = default_config();
+        assert!(validate_message(&config, "feat: add something").is_ok());
+    }
+
+    #[test]
+    fn test_validate_invalid_type() {
+        let mut config = default_config();
+        // narrow the allowed types to just "feat"
+        config.commit.types = HashSet::from(["feat".to_string()]);
+        let result = validate_message(&config, "unknowntype: something");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("validation"));
+    }
+
+    #[test]
+    fn test_validate_subject_too_long() {
+        let config = config_with_deny_len(10);
+        let result = validate_message(&config, "feat: this subject is way too long to pass");
+        assert!(result.is_err());
+    }
+}
+
 /// Interactive prompt implementations.
 pub(crate) mod prompts {
     use dialoguer::{Confirm, Editor, FuzzySelect, Input, Select, theme::ColorfulTheme};
