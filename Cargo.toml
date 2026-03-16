@@ -28,6 +28,7 @@ tokio = { version = "1", features = ["full"] }
 git2 = "0.20.2"
 chrono = "0.4"
 minijinja = "2.18.0"
+semver = "1.0.27"
 
 [dev-dependencies]
 assert_cmd = "2.1.1"
