@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Lint { input, stdin } => {
             welcome("hi! checking this commit message...");
-            handle_lint(&config, input, stdin, cli.json, cli.quiet)?;
+            handle_lint(&config, input, stdin, cli.json, cli.quiet, cli.verbose)?;
         }
         Commands::Init => {
             welcome("cocoa");
@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
         }
         Commands::Generate => {
             welcome("hi! generating your commit message...");
-            handle_generate(&config, cli.json, cli.quiet).await?;
+            handle_generate(&config, cli.json, cli.quiet, cli.verbose).await?;
         }
         Commands::Changelog { range: _ } => {
             welcome("cocoa");
@@ -73,6 +73,7 @@ fn handle_lint(
     stdin: bool,
     json_output: bool,
     quiet: bool,
+    verbose: bool,
 ) -> Result<()> {
     let linter = Linter::new(config);
 
@@ -96,6 +97,13 @@ fn handle_lint(
         print_info("or read stdin in with `--stdin`");
         goodbye_with_death(1);
     };
+
+    if verbose {
+        print_info(format!("linting message ({} chars):", message.len()));
+        for line in message.lines() {
+            print_info(format!("  {}", line));
+        }
+    }
 
     let result = linter.lint(&message);
 
@@ -148,13 +156,22 @@ fn handle_lint(
     Ok(())
 }
 
-async fn handle_generate(config: &Config, json_output: bool, quiet: bool) -> Result<()> {
+async fn handle_generate(
+    config: &Config,
+    json_output: bool,
+    quiet: bool,
+    verbose: bool,
+) -> Result<()> {
     // Check if AI is configured
     if config.ai.is_none() {
         print_error_bold("you don't have ai configured for me, so i can't use ai");
         print_info("add an [ai] section to your .cocoa.toml configuration");
         print_info("see the documentation for configuration examples");
         goodbye_with_death(2);
+    }
+
+    if verbose {
+        print_info("calling ai to generate commit message...");
     }
 
     match generate::generate_commit_message(config).await {
