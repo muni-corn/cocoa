@@ -13,9 +13,7 @@ pub fn render(
 ) -> Result<String, ChangelogError> {
     match format {
         OutputFormat::Markdown => Ok(render_markdown(changelog)),
-        OutputFormat::Json => Err(ChangelogError::Render(
-            "JSON format not yet implemented".to_string(),
-        )),
+        OutputFormat::Json => render_json(changelog),
         OutputFormat::Html => Err(ChangelogError::Render(
             "HTML format not yet implemented".to_string(),
         )),
@@ -77,6 +75,13 @@ fn markdown_entry(entry: &ChangelogEntry) -> String {
         .map(|s| format!("**{}:** ", s))
         .unwrap_or_default();
     format!("- {}{} (`{}`)\n", scope, entry.subject, entry.id)
+}
+
+// ─── JSON ─────────────────────────────────────────────────────────────────────
+
+/// Serialize the changelog to pretty-printed JSON.
+pub fn render_json(changelog: &Changelog) -> Result<String, ChangelogError> {
+    serde_json::to_string_pretty(changelog).map_err(|e| ChangelogError::Render(e.to_string()))
 }
 
 #[cfg(test)]
