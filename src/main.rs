@@ -4,7 +4,6 @@
 // as the library so all keys are available in both lib and bin code)
 rust_i18n::i18n!("locales");
 
-mod cli;
 mod style;
 
 use std::{
@@ -14,10 +13,10 @@ use std::{
 
 use anyhow::Result;
 use clap::FromArgMatches;
-use cli::{Cli, Commands};
 use cocoa::{
     Config,
     changelog::{self, OutputFormat},
+    cli::{Cli, Commands},
     generate,
     git_ops::{Git2Ops, GitOperations},
     hook,

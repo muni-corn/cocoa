@@ -9,6 +9,7 @@ rust_i18n::i18n!("locales");
 
 pub mod ai;
 pub mod changelog;
+pub mod cli;
 pub mod commit;
 pub mod config;
 pub mod generate;
