@@ -333,7 +333,6 @@ impl<'a> Linter<'a> {
         let deny_patterns = self.rules.deny.get_regex_patterns();
 
         for pattern in &deny_patterns {
-            // with nom, we don't support full regex; simple contains as placeholder
             if !message.contains(pattern) {
                 violations.push(LintViolation {
                     rule: "regex-pattern".to_string(),
