@@ -242,4 +242,50 @@ pub(crate) mod prompts {
         let scope = scope.trim().to_string();
         Ok(if scope.is_empty() { None } else { Some(scope) })
     }
+
+    /// Prompts for the short subject line, enforcing configured length limits.
+    ///
+    /// A character counter is shown live via the prompt label. The configured
+    /// deny threshold is enforced as a hard validation error; the warn
+    /// threshold is shown as a hint in the prompt text.
+    pub fn subject(
+        theme: &ColorfulTheme,
+        config: &Config,
+        commit_type: &str,
+        scope: Option<&str>,
+    ) -> Result<String, InteractiveError> {
+        let warn_len = config.commit.rules.warn.subject_length.unwrap_or(50);
+        let deny_len = config.commit.rules.deny.subject_length.unwrap_or(72);
+
+        // show a preview of the header prefix so the user can see the total length
+        let prefix = match scope {
+            Some(s) => format!("{}({}): ", commit_type, s),
+            None => format!("{}: ", commit_type),
+        };
+
+        let prompt = format!(
+            "subject  [warn >{} / error >{} chars — prefix is {} chars]",
+            warn_len,
+            deny_len,
+            prefix.len()
+        );
+
+        let subject: String = Input::with_theme(theme)
+            .with_prompt(&prompt)
+            .validate_with(|s: &String| {
+                if s.len() > deny_len {
+                    Err(format!(
+                        "subject is too long ({}/{} chars)",
+                        s.len(),
+                        deny_len
+                    ))
+                } else {
+                    Ok(())
+                }
+            })
+            .interact_text()
+            .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
+
+        Ok(subject.trim().to_string())
+    }
 }
