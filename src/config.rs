@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs, path::Path};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -13,36 +13,50 @@ pub enum ConfigError {
     #[error("failed to parse config file: {0}")]
     Parse(#[from] toml::de::Error),
 
+    #[error("failed to serialize config for merging: {0}")]
+    Serialize(#[from] toml::ser::Error),
+
     #[error("configuration validation error: {0}")]
     Validation(String),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default)]
     pub commit: CommitConfig,
     pub ai: Option<AiConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CommitConfig {
+    #[serde(default = "default_commit_types")]
     pub types: HashSet<String>,
     pub scopes: Option<HashSet<String>>,
+    #[serde(default)]
     pub rules: CommitRules,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CommitRules {
+    #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_true")]
     pub ignore_fixup_commits: bool,
+    #[serde(default = "default_true")]
     pub ignore_amend_commits: bool,
+    #[serde(default = "default_true")]
     pub ignore_squash_commits: bool,
+    #[serde(default = "default_true")]
     pub ignore_merge_commits: bool,
+    #[serde(default = "default_true")]
     pub ignore_revert_commits: bool,
+    #[serde(default = "default_warn_rule_level")]
     pub warn: RuleLevel,
+    #[serde(default = "default_deny_rule_level")]
     pub deny: RuleLevel,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct RuleLevel {
     pub subject_length: Option<usize>,
     pub body_length: Option<usize>,
@@ -53,59 +67,111 @@ pub struct RuleLevel {
     pub regex_patterns: Option<Vec<String>>,
 }
 
-impl Default for Config {
+// --- serde default helpers ---
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_commit_types() -> HashSet<String> {
+    [
+        "build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style",
+        "test",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
+fn default_warn_rule_level() -> RuleLevel {
+    RuleLevel {
+        subject_length: Some(50),
+        body_length: Some(250),
+        no_scope: Some(true),
+        no_body: Some(false),
+        no_type: Some(true),
+        no_breaking_change_footer: Some(true),
+        regex_patterns: Some(vec![]),
+    }
+}
+
+fn default_deny_rule_level() -> RuleLevel {
+    RuleLevel {
+        subject_length: Some(72),
+        body_length: Some(500),
+        no_scope: Some(false),
+        no_body: Some(false),
+        no_type: Some(true),
+        no_breaking_change_footer: Some(false),
+        regex_patterns: Some(vec![]),
+    }
+}
+
+// --- Default impls ---
+
+impl Default for CommitConfig {
     fn default() -> Self {
         Self {
-            ai: None,
-            commit: CommitConfig {
-                types: HashSet::from(
-                    [
-                        "build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor",
-                        "revert", "style", "test",
-                    ]
-                    .map(String::from),
-                ),
-                scopes: None,
-                rules: CommitRules {
-                    enabled: true,
-                    ignore_fixup_commits: true,
-                    ignore_amend_commits: true,
-                    ignore_squash_commits: true,
-                    ignore_merge_commits: true,
-                    ignore_revert_commits: true,
-                    warn: RuleLevel {
-                        subject_length: Some(50),
-                        body_length: Some(250),
-                        no_scope: Some(true),
-                        no_body: Some(false),
-                        no_type: Some(true),
-                        no_breaking_change_footer: Some(true),
-                        regex_patterns: Some(vec![]),
-                    },
-                    deny: RuleLevel {
-                        subject_length: Some(72),
-                        body_length: Some(500),
-                        no_scope: Some(false),
-                        no_body: Some(false),
-                        no_type: Some(true),
-                        no_breaking_change_footer: Some(false),
-                        regex_patterns: Some(vec![]),
-                    },
-                },
-            },
+            types: default_commit_types(),
+            scopes: None,
+            rules: CommitRules::default(),
+        }
+    }
+}
+
+impl Default for CommitRules {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            ignore_fixup_commits: true,
+            ignore_amend_commits: true,
+            ignore_squash_commits: true,
+            ignore_merge_commits: true,
+            ignore_revert_commits: true,
+            warn: default_warn_rule_level(),
+            deny: default_deny_rule_level(),
         }
     }
 }
 
 impl Config {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
+    /// Discovers config file paths in priority order, from lowest to highest.
+    ///
+    /// The order is:
+    /// 1. `/etc/cocoa/cocoa.toml` (system, lowest priority)
+    /// 2. `$XDG_CONFIG_HOME/cocoa/cocoa.toml` or `~/.config/cocoa/cocoa.toml`
+    ///    (user)
+    /// 3. `.cocoa.toml` in the current directory (repository, highest priority)
+    pub fn discover() -> Vec<PathBuf> {
+        let mut paths: Vec<PathBuf> = Vec::new();
+
+        // system config (lowest priority)
+        paths.push(PathBuf::from("/etc/cocoa/cocoa.toml"));
+
+        // user config via XDG or ~/.config fallback
+        let user_config = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+            .map(|base| base.join("cocoa").join("cocoa.toml"));
+
+        if let Some(user_path) = user_config {
+            paths.push(user_path);
+        }
+
+        // repository config (highest priority)
+        paths.push(PathBuf::from(".cocoa.toml"));
+
+        paths
+    }
+
+    pub fn load<P: AsRef<std::path::Path>>(path: P) -> Result<Self, ConfigError> {
         let content = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
         config.validate()?;
         Ok(config)
     }
 
-    pub fn load_or_default<P: AsRef<Path>>(path: P) -> Self {
+    pub fn load_or_default<P: AsRef<std::path::Path>>(path: P) -> Self {
         match Self::load(path) {
             Ok(config) => config,
             Err(ConfigError::Validation(msg)) => {
@@ -134,7 +200,7 @@ impl Config {
 
 impl CommitRules {
     pub fn validate(&self) -> Result<(), ConfigError> {
-        // Check if deny values are less than or equal to warn values
+        // check if deny values are less than or equal to warn values
         if let (Some(warn_subject), Some(deny_subject)) =
             (self.warn.subject_length, self.deny.subject_length)
             && deny_subject <= warn_subject
@@ -299,5 +365,65 @@ subject_length = 50
         } else {
             panic!("Expected ValidationError");
         }
+    }
+
+    #[test]
+    fn test_discover_returns_paths_in_priority_order() {
+        let paths = Config::discover();
+
+        // should have at least 2 paths (system + repo), 3 if HOME is set
+        assert!(paths.len() >= 2);
+
+        // first path should be system config
+        assert_eq!(paths[0], PathBuf::from("/etc/cocoa/cocoa.toml"));
+
+        // last path should be repo config
+        assert_eq!(paths[paths.len() - 1], PathBuf::from(".cocoa.toml"));
+    }
+
+    #[test]
+    fn test_discover_uses_xdg_config_home() {
+        // temporarily override XDG_CONFIG_HOME
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", "/tmp/test-xdg");
+        }
+
+        let paths = Config::discover();
+
+        let user_path = paths
+            .iter()
+            .find(|p| p.to_string_lossy().contains("test-xdg"));
+        assert!(
+            user_path.is_some(),
+            "should include XDG_CONFIG_HOME-based path"
+        );
+
+        // clean up
+        unsafe {
+            std::env::remove_var("XDG_CONFIG_HOME");
+        }
+    }
+
+    #[test]
+    fn test_partial_config_uses_defaults() {
+        let mut file = NamedTempFile::new().unwrap();
+        // minimal config - only specify a few fields
+        writeln!(
+            file,
+            r#"
+[commit]
+types = ["feat", "fix"]
+"#
+        )
+        .unwrap();
+
+        let config = Config::load(file.path()).unwrap();
+        // explicitly set field is used
+        assert_eq!(config.commit.types.len(), 2);
+        assert!(config.commit.types.contains("feat"));
+        // rules should use defaults
+        assert!(config.commit.rules.enabled);
+        assert_eq!(config.commit.rules.warn.subject_length, Some(50));
+        assert_eq!(config.commit.rules.deny.subject_length, Some(72));
     }
 }
