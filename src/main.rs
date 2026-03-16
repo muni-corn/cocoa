@@ -25,6 +25,10 @@ async fn main() -> Result<()> {
         .map_err(|e| e.exit())
         .unwrap();
 
+    if cli.no_color {
+        console::set_colors_enabled(false);
+    }
+
     let config_path = cli.config.as_deref().unwrap_or(".cocoa.toml");
     let config = Config::load_or_default(config_path);
 
