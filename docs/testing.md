@@ -5,6 +5,7 @@ this document outlines the comprehensive testing strategy implemented for cocoa.
 ## test summary
 
 **total tests: 76 passing** (93 test functions defined)
+
 - **unit tests:** 53 tests across 10 modules
 - **integration tests (config):** 8 tests for config loading
 - **integration tests (git):** 6 tests for git operations (11 defined)
@@ -12,7 +13,7 @@ this document outlines the comprehensive testing strategy implemented for cocoa.
 
 76 tests passing ✓
 
-*note: some git integration tests may timeout in certain environments due to real git operations*
+_note: some git integration tests may timeout in certain environments due to real git operations_
 
 ## test categories
 
@@ -21,6 +22,7 @@ this document outlines the comprehensive testing strategy implemented for cocoa.
 unit tests cover individual functions and modules in isolation using mocks where needed.
 
 #### modules tested:
+
 - **src/commit.rs** (10 tests)
   - commit message parsing
   - conventional commit format validation
@@ -82,6 +84,7 @@ unit tests cover individual functions and modules in isolation using mocks where
 integration tests use real git repositories and file system to test operations end-to-end.
 
 #### config loading tests: `tests/config_integration_test.rs` (8 tests) ✨ new
+
 - test_load_config_from_file
 - test_load_config_with_custom_rules
 - test_load_config_with_scopes
@@ -92,6 +95,7 @@ integration tests use real git repositories and file system to test operations e
 - test_config_rules_are_enabled_by_default
 
 #### git operations tests: `tests/git_integration_test.rs` (6 tests passing, 11 defined)
+
 - test_analyze_staged_changes_with_real_repo
 - test_analyze_staged_changes_no_changes
 - test_extract_git_context_with_real_repo
@@ -99,13 +103,15 @@ integration tests use real git repositories and file system to test operations e
 - test_analyze_mixed_file_changes
 - test_git_context_with_repository_url
 
-**note:** these tests create temporary git repositories and verify real git command execution. some may timeout in ci environments.
+**note:** these tests create temporary git repositories and verify real git command execution. some
+may timeout in ci environments.
 
 ### 3. e2e tests (9 tests)
 
 e2e tests execute the cocoa cli binary and verify complete workflows using assert_cmd.
 
 #### test file: `tests/e2e_lint_test.rs`
+
 - test_lint_valid_commit_via_stdin
 - test_lint_invalid_commit_via_stdin
 - test_lint_with_scope
@@ -121,6 +127,7 @@ e2e tests execute the cocoa cli binary and verify complete workflows using asser
 ### test helpers (`tests/helpers/`)
 
 #### TestRepo helper (`tests/helpers/git_repo.rs`)
+
 provides utilities for creating and manipulating temporary git repositories for testing:
 
 ```rust
@@ -132,6 +139,7 @@ repo.checkout("feature");
 ```
 
 **methods:**
+
 - `new()` - create new temp git repo with config
 - `create_file()` - create file with content
 - `stage_file()` - stage existing file
@@ -163,16 +171,19 @@ pub trait GitOperations {
 ```
 
 **implementations:**
+
 - `RealGitOps` - executes actual git commands
 - `MockGitOps` - configurable mock for unit tests (test-only)
 
 ### test fixtures (`tests/fixtures/`)
 
 #### configs (`tests/fixtures/configs/`)
+
 - `minimal.toml` - minimal valid configuration
 - `with_custom_rules.toml` - config with custom lint rules
 
 #### commit messages (`tests/fixtures/commit_messages/`)
+
 - `valid.txt` - valid conventional commit
 - `invalid.txt` - invalid commit message
 - `with_breaking.txt` - commit with breaking change
@@ -180,36 +191,43 @@ pub trait GitOperations {
 ## running tests
 
 ### run all tests
+
 ```bash
 cargo test
 ```
 
 ### run only unit tests
+
 ```bash
 cargo test --lib
 ```
 
 ### run specific integration test
+
 ```bash
 cargo test --test git_integration_test
 ```
 
 ### run specific e2e test
+
 ```bash
 cargo test --test e2e_lint_test
 ```
 
 ### run single test by name
+
 ```bash
 cargo test test_lint_valid_commit_via_stdin
 ```
 
 ### run with output
+
 ```bash
 cargo test -- --nocapture
 ```
 
 ### run with single thread (for debugging)
+
 ```bash
 cargo test -- --test-threads=1
 ```
@@ -217,6 +235,7 @@ cargo test -- --test-threads=1
 ## test coverage goals
 
 current coverage estimates:
+
 - **generate.rs:** ~85% (core logic fully tested with mocks)
 - **lint.rs:** ~90% (comprehensive rule testing)
 - **commit.rs:** ~95% (parser heavily tested)
@@ -231,11 +250,13 @@ overall estimated coverage: ~80%
 the following tests were added:
 
 ### unit tests added ✅
+
 - [x] src/cli.rs - command-line argument parsing (7 tests)
 - [x] src/style.rs - output formatting functions (6 tests)
 - [x] src/ai/client.rs - prompt generation logic (6 additional tests)
 
 ### integration tests added ✅
+
 - [x] config loading from various file locations (8 tests)
 - [x] git operations with real repositories (6 passing tests)
 
@@ -244,10 +265,12 @@ the following tests were added:
 the following tests could be added in the future:
 
 ### integration tests to add
+
 - [ ] ai commit generation with mock ai responses
 - [ ] full commit workflow (generate → lint → commit)
 
 ### e2e tests to add
+
 - [ ] cocoa generate command (requires ai configuration)
 - [ ] cocoa commit command (not yet implemented)
 - [ ] cocoa with custom config file
@@ -267,13 +290,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      
+
       - name: run unit tests
         run: cargo test --lib
-      
+
       - name: run integration tests
         run: cargo test --test '*'
-      
+
       - name: run e2e tests
         run: cargo test --test 'e2e_*'
 ```
@@ -281,17 +304,20 @@ jobs:
 ## test maintenance
 
 ### when adding new features:
+
 1. write unit tests first (tdd approach when possible)
 2. add integration tests for git-related features
 3. add e2e tests for new cli commands
 4. update this document with new test counts
 
 ### when refactoring:
+
 1. ensure all existing tests still pass
 2. update tests if behavior intentionally changed
 3. add tests for new edge cases discovered
 
 ### when fixing bugs:
+
 1. write a failing test that reproduces the bug
 2. fix the bug
 3. verify the test now passes
@@ -300,6 +326,7 @@ jobs:
 ## dependencies
 
 test dependencies (in Cargo.toml):
+
 ```toml
 [dev-dependencies]
 assert_cmd = "2.1.1"    # cli testing

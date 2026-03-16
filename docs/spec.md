@@ -2,13 +2,13 @@
 
 ## 1. introduction
 
-This document specifies the requirements and behavior of cocoa (conventional
-commit assistant), a comprehensive toolset for managing conventional commits,
-commit message linting, changelog generation, and version management.
+This document specifies the requirements and behavior of cocoa (conventional commit assistant), a
+comprehensive toolset for managing conventional commits, commit message linting, changelog
+generation, and version management.
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
-"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
-interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT",
+"RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in
+[RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
 **version:** 0.1.0\
 **status:** draft\
@@ -29,15 +29,14 @@ interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
 - The configuration file SHALL be named `.cocoa.toml`
 - The configuration file SHOULD be located in the repository root
-- The configuration file MAY also be found in
-  `$XDG_CONFIG_HOME/cocoa/cocoa.toml` or `~/.config/cocoa/cocoa.toml` or
-  `/etc/cocoa/cocoa.toml`.
+- The configuration file MAY also be found in `$XDG_CONFIG_HOME/cocoa/cocoa.toml` or
+  `~/.config/cocoa/cocoa.toml` or `/etc/cocoa/cocoa.toml`.
 - The system SHALL support cascading configuration (repository → user → system)
 - The configuration format MUST be valid TOML v1.0.0
 - The system SHALL provide sensible defaults when no configuration is present
 - Invalid configuration MUST result in a clear error message
-- If a `deny` commit rule value is less than or equal to its `warn` counterpart,
-  the system MUST warn the user whenever the config is loaded
+- If a `deny` commit rule value is less than or equal to its `warn` counterpart, the system MUST
+  warn the user whenever the config is loaded
 
 ### 3.2 configuration schema
 
@@ -133,10 +132,10 @@ commit_version_files = ["package.json", "Cargo.toml", "pyproject.toml"]
 
 ### 4.1 ai-powered generation
 
-- The system SHALL support multiple AI providers (OpenAI, Anthropic, local
-  models with Ollama, OpenRouter)
-- The system SHALL analyze staged changes, branch name, and recent commit
-  messages to generate appropriate commit messages
+- The system SHALL support multiple AI providers (OpenAI, Anthropic, local models with Ollama,
+  OpenRouter)
+- The system SHALL analyze staged changes, branch name, and recent commit messages to generate
+  appropriate commit messages
 - Generated messages SHALL conform to:
   - the Conventional Commits specification v1.0.0
   - the user's defined commit rules
@@ -171,10 +170,8 @@ The linter SHALL validate:
 
 When checking commit messages, the system MUST:
 
-- display a prominent warning to the user when a configured `warn` rule is
-  violated
-- display a prominent error to the user when a configured `deny` rule is
-  violated
+- display a prominent warning to the user when a configured `warn` rule is violated
+- display a prominent error to the user when a configured `deny` rule is violated
 - exit with an error code if the commit message is denied
 
 ### 5.2 git hook integration
@@ -183,8 +180,7 @@ When checking commit messages, the system MUST:
 - The hook installation MUST be idempotent
 - The system SHALL provide automatic hook installation via `cocoa hook`
 - The system SHALL provide automatic hook uninstallation via `cocoa unhook`
-- Hooks MUST exit with appropriate status codes (0 for success, non-zero for
-  failure)
+- Hooks MUST exit with appropriate status codes (0 for success, non-zero for failure)
 
 ### 5.3 ci/cd integration
 
@@ -297,8 +293,7 @@ The system MUST use consistent exit codes:
 - The system MUST support Git 2.25.0 or later
 - The system SHOULD run on Linux, macOS, and Windows
 - The system MUST support UTF-8 encoded commit messages
-- The system SHOULD be compatible with major git hosting platforms (GitHub,
-  GitLab, Bitbucket)
+- The system SHOULD be compatible with major git hosting platforms (GitHub, GitLab, Bitbucket)
 
 ## 11. error handling
 
@@ -339,8 +334,8 @@ The system MUST use consistent exit codes:
 
 ## 16. glossary
 
-- **Conventional Commits**: a specification for adding person- and
-  machine-readable meaning to commit messages
+- **Conventional Commits**: a specification for adding person- and machine-readable meaning to
+  commit messages
 - **Semantic Versioning**: a versioning scheme using MAJOR.MINOR.PATCH format
 - **Calendar Versioning**: a versioning scheme based on calendar dates
 - **breaking change**: a change that breaks backward compatibility
