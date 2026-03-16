@@ -149,3 +149,165 @@ pub fn create_version_tag<G: GitOperations>(
 
     Ok((tag_name, message))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{ChangelogConfig, VersionConfig},
+        git_ops::{CommitInfo, MockGitOps, TagInfo},
+    };
+
+    fn v_config() -> VersionConfig {
+        VersionConfig::default()
+    }
+
+    fn cl_config() -> ChangelogConfig {
+        ChangelogConfig::default()
+    }
+
+    fn make_tag(name: &str) -> TagInfo {
+        TagInfo {
+            name: name.to_string(),
+            message: Some(format!("release {}", name)),
+            target: "abc123".to_string(),
+        }
+    }
+
+    fn make_commit(id: &str, message: &str) -> CommitInfo {
+        CommitInfo {
+            id: id.to_string(),
+            summary: message.to_string(),
+            author: "Test User".to_string(),
+            timestamp: 1_000_000,
+        }
+    }
+
+    // ── verify_tag_unique ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_verify_tag_unique_no_tags() {
+        let ops = MockGitOps::default();
+        assert!(verify_tag_unique(&ops, "v1.0.0").is_ok());
+    }
+
+    #[test]
+    fn test_verify_tag_unique_different_tags() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.9.0")]),
+            ..Default::default()
+        };
+        assert!(verify_tag_unique(&ops, "v1.0.0").is_ok());
+    }
+
+    #[test]
+    fn test_verify_tag_unique_conflict() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v1.0.0")]),
+            ..Default::default()
+        };
+        let err = verify_tag_unique(&ops, "v1.0.0").unwrap_err();
+        assert!(matches!(err, TagError::AlreadyExists(name) if name == "v1.0.0"));
+    }
+
+    // ── resolve_version ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_resolve_version_explicit_bare() {
+        let ops = MockGitOps::default();
+        let v = resolve_version(&ops, Some("2.3.4"), &v_config()).unwrap();
+        assert_eq!(v.to_string(), "2.3.4");
+    }
+
+    #[test]
+    fn test_resolve_version_explicit_with_prefix() {
+        let ops = MockGitOps::default();
+        // user passes "v2.3.4" — the "v" prefix should be stripped
+        let v = resolve_version(&ops, Some("v2.3.4"), &v_config()).unwrap();
+        assert_eq!(v.to_string(), "2.3.4");
+    }
+
+    #[test]
+    fn test_resolve_version_invalid_string() {
+        let ops = MockGitOps::default();
+        assert!(resolve_version(&ops, Some("not-a-version"), &v_config()).is_err());
+    }
+
+    #[test]
+    fn test_resolve_version_auto_no_tags_feat_commit() {
+        let ops = MockGitOps {
+            tags: Ok(vec![]),
+            commits_in_range: Ok(vec![make_commit("a1", "feat: add thing")]),
+            ..Default::default()
+        };
+        // starts from 0.0.0; feat commit → minor bump → 0.1.0
+        let v = resolve_version(&ops, None, &v_config()).unwrap();
+        assert_eq!(v.to_string(), "0.1.0");
+    }
+
+    #[test]
+    fn test_resolve_version_auto_existing_tag_patch_commit() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v1.2.3")]),
+            commits_in_range: Ok(vec![make_commit("a1", "fix: patch bug")]),
+            ..Default::default()
+        };
+        let v = resolve_version(&ops, None, &v_config()).unwrap();
+        assert_eq!(v.to_string(), "1.2.4");
+    }
+
+    #[test]
+    fn test_resolve_version_auto_breaking_change() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v1.2.3")]),
+            commits_in_range: Ok(vec![make_commit("a1", "feat!: breaking api change")]),
+            ..Default::default()
+        };
+        let v = resolve_version(&ops, None, &v_config()).unwrap();
+        assert_eq!(v.to_string(), "2.0.0");
+    }
+
+    // ── create_version_tag dry-run ────────────────────────────────────────────
+
+    #[test]
+    fn test_create_version_tag_dry_run_returns_name_and_message() {
+        let ops = MockGitOps {
+            tags: Ok(vec![]),
+            commits_in_range: Ok(vec![make_commit("a1", "feat: new thing")]),
+            ..Default::default()
+        };
+        let version = SemVer::parse("1.0.0").unwrap();
+        let (name, message) =
+            create_version_tag(&ops, &version, &v_config(), &cl_config(), true).unwrap();
+        assert_eq!(name, "v1.0.0");
+        // message should be non-empty
+        assert!(!message.is_empty());
+    }
+
+    #[test]
+    fn test_create_version_tag_dry_run_duplicate_fails() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v1.0.0")]),
+            ..Default::default()
+        };
+        let version = SemVer::parse("1.0.0").unwrap();
+        let err = create_version_tag(&ops, &version, &v_config(), &cl_config(), true).unwrap_err();
+        assert!(matches!(err, TagError::AlreadyExists(_)));
+    }
+
+    #[test]
+    fn test_create_version_tag_no_commits_uses_fallback_message() {
+        let ops = MockGitOps {
+            tags: Ok(vec![]),
+            commits_in_range: Ok(vec![]),
+            ..Default::default()
+        };
+        let version = SemVer::parse("1.0.0").unwrap();
+        let (name, message) =
+            create_version_tag(&ops, &version, &v_config(), &cl_config(), true).unwrap();
+        assert_eq!(name, "v1.0.0");
+        // no notable commits — falls back to plain release message
+        assert!(message.contains("Release"));
+        assert!(message.contains("1.0.0"));
+    }
+}
