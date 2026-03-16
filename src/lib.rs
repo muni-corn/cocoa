@@ -1,5 +1,7 @@
 //! cocoa: the conventional commit assistant <3
 
+#![allow(dead_code)]
+
 pub mod ai;
 pub mod commit;
 pub mod config;
