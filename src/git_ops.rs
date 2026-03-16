@@ -1,8 +1,32 @@
 //! Git operations abstraction for testability.
 
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 use crate::generate::GenerateError;
+
+/// Information about a git commit.
+#[derive(Debug, Clone)]
+pub struct CommitInfo {
+    /// Full SHA of the commit.
+    pub id: String,
+    /// First line of the commit message (subject).
+    pub message: String,
+    /// Author name.
+    pub author: String,
+    /// Unix timestamp of the commit.
+    pub timestamp: i64,
+}
+
+/// Information about a git tag.
+#[derive(Debug, Clone)]
+pub struct TagInfo {
+    /// Tag name (without the `refs/tags/` prefix).
+    pub name: String,
+    /// Annotation message for annotated tags; `None` for lightweight tags.
+    pub message: Option<String>,
+    /// SHA of the object the tag points to.
+    pub target: String,
+}
 
 /// Trait for git operations, allows mocking in tests.
 pub trait GitOperations {
@@ -13,6 +37,45 @@ pub trait GitOperations {
     fn is_rebase_in_progress(&self) -> bool;
     fn get_staged_diff(&self) -> Result<String, GenerateError>;
     fn get_staged_files_by_status(&self, status: &str) -> Result<Vec<String>, GenerateError>;
+
+    /// Return commits reachable from `to` but not from `from`.
+    ///
+    /// Pass an empty string for `from` to get all commits up to `to`.
+    fn get_commits_in_range(
+        &self,
+        _from: &str,
+        _to: &str,
+    ) -> Result<Vec<CommitInfo>, GenerateError> {
+        unimplemented!("get_commits_in_range not yet implemented for this backend")
+    }
+
+    /// Return all tags in the repository.
+    fn get_tags(&self) -> Result<Vec<TagInfo>, GenerateError> {
+        unimplemented!("get_tags not yet implemented for this backend")
+    }
+
+    /// Create an annotated tag at HEAD.
+    ///
+    /// Set `sign` to `true` to GPG-sign the tag (requires a configured signing
+    /// key).
+    fn create_tag(&self, _name: &str, _message: &str, _sign: bool) -> Result<(), GenerateError> {
+        unimplemented!("create_tag not yet implemented for this backend")
+    }
+
+    /// Create a commit from the current index with the given message.
+    fn create_commit(&self, _message: &str) -> Result<(), GenerateError> {
+        unimplemented!("create_commit not yet implemented for this backend")
+    }
+
+    /// Return the path to the repository's hooks directory.
+    fn get_hook_path(&self) -> Result<PathBuf, GenerateError> {
+        unimplemented!("get_hook_path not yet implemented for this backend")
+    }
+
+    /// Return the root of the working tree.
+    fn get_repo_root(&self) -> Result<PathBuf, GenerateError> {
+        unimplemented!("get_repo_root not yet implemented for this backend")
+    }
 }
 
 /// Real git operations using actual git commands.
