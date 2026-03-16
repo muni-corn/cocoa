@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::{
     ai::client::{Client as AiClient, CommitContext},
     config::Config,
-    git_ops::{GitOperations, RealGitOps},
+    git_ops::{Git2Ops, GitOperations},
     lint::Linter,
 };
 
@@ -39,7 +39,8 @@ pub struct StagedChanges {
 }
 
 pub async fn generate_commit_message(config: &Config) -> Result<String, GenerateError> {
-    generate_commit_message_with_git(config, &RealGitOps).await
+    let git_ops = Git2Ops::open()?;
+    generate_commit_message_with_git(config, &git_ops).await
 }
 
 pub async fn generate_commit_message_with_git<G: GitOperations>(
@@ -73,7 +74,8 @@ pub async fn generate_commit_message_with_git<G: GitOperations>(
 }
 
 pub fn extract_git_context() -> Result<CommitContext, GenerateError> {
-    extract_git_context_with_git(&RealGitOps)
+    let git_ops = Git2Ops::open()?;
+    extract_git_context_with_git(&git_ops)
 }
 
 pub fn extract_git_context_with_git<G: GitOperations>(
@@ -95,7 +97,8 @@ pub fn extract_git_context_with_git<G: GitOperations>(
 }
 
 pub fn analyze_staged_changes() -> Result<StagedChanges, GenerateError> {
-    analyze_staged_changes_with_git(&RealGitOps)
+    let git_ops = Git2Ops::open()?;
+    analyze_staged_changes_with_git(&git_ops)
 }
 
 pub fn analyze_staged_changes_with_git<G: GitOperations>(
