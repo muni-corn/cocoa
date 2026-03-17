@@ -16,12 +16,12 @@ use clap::FromArgMatches;
 use cocoa::{
     Config,
     changelog::{self, OutputFormat},
-    cli::{Cli, Commands},
+    cli::{Cli, Commands, MigrateSourceArg},
     generate,
     git_ops::{Git2Ops, GitOperations},
     hook,
     i18n::{detect_locale, set_locale},
-    init, interactive, lint, release, tag, version,
+    init, interactive, lint, migrate, release, tag, version,
 };
 use lint::Linter;
 use rust_i18n::t;
@@ -142,6 +142,10 @@ async fn main() -> Result<()> {
                 skip_tag,
                 cli.dry_run,
             )?;
+        }
+        Commands::Migrate { from, undo } => {
+            welcome(t!("main.migrate.welcome"));
+            handle_migrate(from, undo, cli.dry_run)?;
         }
     }
 
@@ -1015,6 +1019,67 @@ fn handle_release(
         }
         Err(e) => {
             print_error_bold(t!("main.release.failed", error = e.to_string()));
+            goodbye_with_death(1);
+        }
+    }
+
+    Ok(())
+}
+
+/// Migrate a third-party tool's configuration to `.cocoa.toml`.
+///
+/// Detects or uses the specified source, parses the config, and writes
+/// `.cocoa.toml`. In dry-run mode the converted TOML is printed but not
+/// written.
+fn handle_migrate(from: Option<MigrateSourceArg>, _undo: bool, dry_run: bool) -> Result<()> {
+    // convert the CLI enum to the library enum
+    let source = from.map(|s| match s {
+        MigrateSourceArg::Commitlint => migrate::MigrateSource::Commitlint,
+        MigrateSourceArg::ConventionalChangelog => migrate::MigrateSource::ConventionalChangelog,
+        MigrateSourceArg::SemanticRelease => migrate::MigrateSource::SemanticRelease,
+    });
+
+    match migrate::migrate(source, dry_run) {
+        Ok(result) => {
+            if dry_run {
+                print_info(t!(
+                    "main.migrate.dry_run",
+                    source = result.source.to_string(),
+                    file = result.source_file.display().to_string()
+                ));
+                // print the converted config as TOML
+                match toml::to_string_pretty(&result.config) {
+                    Ok(toml_str) => println!("\n{}", toml_str),
+                    Err(e) => {
+                        print_error_bold(t!(
+                            "main.migrate.serialize_failed",
+                            error = e.to_string()
+                        ));
+                        goodbye_with_death(1);
+                    }
+                }
+            } else {
+                print_success_bold(t!(
+                    "main.migrate.success",
+                    source = result.source.to_string(),
+                    file = result.source_file.display().to_string(),
+                    output = result.output_file.display().to_string()
+                ));
+            }
+            goodbye_with_success();
+        }
+        Err(migrate::MigrateError::NoSourceFound) => {
+            print_error_bold(t!("main.migrate.no_source"));
+            print_info(t!("main.migrate.no_source_hint"));
+            goodbye_with_death(1);
+        }
+        Err(migrate::MigrateError::Parse(msg)) => {
+            print_error_bold(t!("main.migrate.parse_failed"));
+            print_error(&msg);
+            goodbye_with_death(1);
+        }
+        Err(e) => {
+            print_error_bold(t!("main.migrate.failed", error = e.to_string()));
             goodbye_with_death(1);
         }
     }

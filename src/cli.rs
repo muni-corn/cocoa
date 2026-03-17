@@ -1,4 +1,4 @@
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 
 const HELP_TEMPLATE: &str = "\
 {name} {version}
@@ -360,6 +360,47 @@ pub enum Commands {
         version: Option<String>,
     },
 
+    /// Migrate another tool's configuration to `.cocoa.toml`.
+    ///
+    /// Reads the configuration file produced by a supported tool (commitlint,
+    /// conventional-changelog, or semantic-release), converts it to a
+    /// `.cocoa.toml` file, and writes it to the current directory.
+    ///
+    /// Any existing `.cocoa.toml` is backed up to `.cocoa.toml.bak` before
+    /// being replaced. Run with `--undo` to restore the backup.
+    ///
+    /// Use --dry-run to preview the converted config without writing anything.
+    #[command(
+        about = "Migrate another tool's config to .cocoa.toml",
+        after_help = "examples:\n  \
+            cocoa migrate                              # auto-detect source tool\n  \
+            cocoa migrate --from commitlint            # migrate from commitlint\n  \
+            cocoa migrate --from semantic-release      # migrate from semantic-release\n  \
+            cocoa --dry-run migrate                    # preview without writing\n  \
+            cocoa migrate --undo                       # restore previous .cocoa.toml"
+    )]
+    Migrate {
+        /// Source tool to migrate from.
+        ///
+        /// One of: commitlint, conventional-changelog, semantic-release.
+        /// When omitted, the source is auto-detected by looking for known
+        /// configuration files in the current directory.
+        #[arg(
+            long,
+            value_enum,
+            value_name = "TOOL",
+            help = "Source tool to migrate from (auto-detected if omitted)"
+        )]
+        from: Option<MigrateSourceArg>,
+
+        /// Restore the previous `.cocoa.toml` from the backup.
+        ///
+        /// Renames `.cocoa.toml.bak` back to `.cocoa.toml`. Use this to
+        /// undo a migration.
+        #[arg(long, help = "Undo migration by restoring .cocoa.toml.bak")]
+        undo: bool,
+    },
+
     /// Run the full release workflow.
     ///
     /// Orchestrates the complete release process in order:
@@ -404,6 +445,19 @@ pub enum Commands {
         #[arg(long, help = "Skip tag creation")]
         skip_tag: bool,
     },
+}
+
+/// The third-party tool to migrate from, as supplied on the command line.
+#[derive(Debug, Clone, PartialEq, ValueEnum)]
+pub enum MigrateSourceArg {
+    /// Migrate from a commitlint configuration file.
+    Commitlint,
+    /// Migrate from a conventional-changelog configuration file.
+    #[value(name = "conventional-changelog")]
+    ConventionalChangelog,
+    /// Migrate from a semantic-release configuration file.
+    #[value(name = "semantic-release")]
+    SemanticRelease,
 }
 
 impl Cli {

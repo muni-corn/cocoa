@@ -19,6 +19,7 @@ pub mod i18n;
 pub mod init;
 pub mod interactive;
 pub mod lint;
+pub mod migrate;
 pub mod release;
 pub mod security;
 pub(crate) mod style;

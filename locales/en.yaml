@@ -236,3 +236,22 @@ main.release.tag_exists_hint:
   "the version has already been released; bump commits or use --skip-tag"
 main.release.git_failed: "git error: %{error}"
 main.release.failed: "release failed: %{error}"
+
+# ---------------------------------------------------------------------------
+# main.rs — migrate command
+# ---------------------------------------------------------------------------
+
+main.migrate.welcome: "cocoa migrate"
+main.migrate.success: "migrated %{source} config from '%{file}' to '%{output}'"
+main.migrate.backed_up: "previous .cocoa.toml backed up to '%{path}'"
+main.migrate.dry_run: "dry-run: would migrate %{source} config from '%{file}'"
+main.migrate.no_source: "no supported configuration file found in the current directory"
+main.migrate.no_source_hint: "supported tools: commitlint, conventional-changelog,
+  semantic-release\n\
+  use --from <tool> to specify the source explicitly"
+main.migrate.parse_failed: "failed to parse source configuration:"
+main.migrate.failed: "migration failed: %{error}"
+main.migrate.serialize_failed: "failed to serialize converted config: %{error}"
+main.migrate.rolled_back: "restored previous config at '%{path}'"
+main.migrate.no_backup: "no backup found at '.cocoa.toml.bak' — run `cocoa migrate` first"
+main.migrate.rollback_failed: "rollback failed: %{error}"
