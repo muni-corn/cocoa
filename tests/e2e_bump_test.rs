@@ -267,3 +267,31 @@ fn test_bump_dry_run_lists_target_files() {
         .success()
         .stdout(predicates::str::contains("Cargo.toml"));
 }
+
+// ─── JSON output ─────────────────────────────────────────────────────────────
+
+#[test]
+fn test_bump_json_dry_run_output() {
+    let repo = TestRepo::new();
+    repo.create_commit("Cargo.toml", "version = \"1.0.0\"\n", "feat: initial");
+    repo.create_annotated_tag("v1.0.0", "release");
+    repo.create_commit("x.txt", "x", "feat: new feature");
+
+    write_version_config(&repo, &["Cargo.toml"]);
+
+    let output = cocoa(&repo)
+        .args(["--json", "--dry-run", "bump", "minor"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("output should be valid JSON");
+
+    assert_eq!(json["old_version"], "1.0.0");
+    assert_eq!(json["new_version"], "1.1.0");
+    assert_eq!(json["bump_type"], "minor");
+    assert_eq!(json["dry_run"], true);
+}

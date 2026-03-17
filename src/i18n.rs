@@ -77,7 +77,12 @@ fn normalize_locale(locale: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    // serialise tests that read and mutate locale env vars
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_normalize_strips_region_and_encoding() {
@@ -113,6 +118,7 @@ mod tests {
 
     #[test]
     fn test_detect_locale_uses_cocoa_locale_first() {
+        let _guard = ENV_LOCK.lock().unwrap();
         unsafe {
             std::env::set_var("COCOA_LOCALE", "ja_JP.UTF-8");
         }
@@ -125,6 +131,7 @@ mod tests {
 
     #[test]
     fn test_detect_locale_falls_back_to_lang() {
+        let _guard = ENV_LOCK.lock().unwrap();
         // ensure COCOA_LOCALE and LC_ALL are not set so LANG is used
         unsafe {
             std::env::remove_var("COCOA_LOCALE");
@@ -143,6 +150,7 @@ mod tests {
 
     #[test]
     fn test_detect_locale_returns_en_for_c_locale() {
+        let _guard = ENV_LOCK.lock().unwrap();
         unsafe {
             std::env::remove_var("COCOA_LOCALE");
             std::env::set_var("LC_ALL", "C");
@@ -159,6 +167,7 @@ mod tests {
 
     #[test]
     fn test_detect_locale_returns_en_when_no_vars_set() {
+        let _guard = ENV_LOCK.lock().unwrap();
         unsafe {
             std::env::remove_var("COCOA_LOCALE");
             std::env::remove_var("LC_ALL");

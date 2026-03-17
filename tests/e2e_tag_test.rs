@@ -161,3 +161,26 @@ fn test_tag_duplicate_without_dry_run_fails() {
         .failure()
         .stdout(predicates::str::contains("already exists"));
 }
+
+// ─── JSON output ─────────────────────────────────────────────────────────────
+
+#[test]
+fn test_tag_json_dry_run_output() {
+    let repo = TestRepo::new();
+    repo.create_commit("file.txt", "v1", "feat: add thing");
+
+    let output = cocoa(&repo)
+        .args(["--json", "--dry-run", "tag", "1.0.0"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("output should be valid JSON");
+
+    assert_eq!(json["tag_name"], "v1.0.0");
+    assert_eq!(json["version"], "1.0.0");
+    assert_eq!(json["dry_run"], true);
+}

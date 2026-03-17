@@ -100,18 +100,23 @@ async fn main() -> Result<()> {
             format,
             output,
         } => {
-            welcome(t!("main.changelog.welcome"));
+            if !cli.json {
+                welcome(t!("main.changelog.welcome"));
+            }
             handle_changelog(
                 &config,
                 range.as_deref(),
                 format.as_deref(),
                 output.as_deref(),
+                cli.json,
                 cli.dry_run,
             )?;
         }
         Commands::Bump { bump_type } => {
-            welcome(t!("main.bump.welcome"));
-            handle_bump(&config, bump_type.as_deref(), cli.dry_run)?;
+            if !cli.json {
+                welcome(t!("main.bump.welcome"));
+            }
+            handle_bump(&config, bump_type.as_deref(), cli.json, cli.dry_run)?;
         }
         Commands::Hook => {
             welcome(t!("main.hook.welcome"));
@@ -122,8 +127,10 @@ async fn main() -> Result<()> {
             handle_unhook(&config, cli.dry_run)?;
         }
         Commands::Tag { version } => {
-            welcome(t!("main.tag.welcome"));
-            handle_tag(&config, version.as_deref(), cli.dry_run)?;
+            if !cli.json {
+                welcome(t!("main.tag.welcome"));
+            }
+            handle_tag(&config, version.as_deref(), cli.json, cli.dry_run)?;
         }
         Commands::Release {
             bump_type,
@@ -131,13 +138,16 @@ async fn main() -> Result<()> {
             skip_commit,
             skip_tag,
         } => {
-            welcome(t!("main.release.welcome"));
+            if !cli.json {
+                welcome(t!("main.release.welcome"));
+            }
             handle_release(
                 &config,
                 bump_type.as_deref(),
                 skip_changelog,
                 skip_commit,
                 skip_tag,
+                cli.json,
                 cli.dry_run,
             )?;
         }
@@ -751,7 +761,12 @@ async fn handle_generate(
 /// Accepts an explicit bump type (major, minor, patch) or "auto" to detect
 /// the appropriate bump from commits since the last version tag. In dry-run
 /// mode the new version is displayed but no files are written.
-fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> Result<()> {
+fn handle_bump(
+    config: &Config,
+    bump_type_str: Option<&str>,
+    json_output: bool,
+    dry_run: bool,
+) -> Result<()> {
     let v_config = config.version.clone().unwrap_or_default();
 
     let git_ops = match Git2Ops::open() {
@@ -813,36 +828,84 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
     let old_str = current_version.to_string();
     let new_str = new_version.to_string();
 
-    print_info(t!("main.bump.version_arrow", old = old_str, new = new_str));
+    let bump_label = match bump_type {
+        version::BumpType::Major => "major",
+        version::BumpType::Minor => "minor",
+        version::BumpType::Patch => "patch",
+    };
+
+    if !json_output {
+        print_info(t!("main.bump.version_arrow", old = old_str, new = new_str));
+    }
 
     let files: &[String] = v_config.commit_version_files.as_deref().unwrap_or(&[]);
 
     if files.is_empty() {
-        if dry_run {
+        if json_output {
+            let out = serde_json::json!({
+                "old_version": old_str,
+                "new_version": new_str,
+                "bump_type": bump_label,
+                "dry_run": dry_run,
+                "files": serde_json::Value::Array(vec![]),
+            });
+            println!("{}", serde_json::to_string_pretty(&out)?);
+        } else if dry_run {
             print_info(t!("main.bump.dry_run_no_files"));
+            goodbye_with_warning();
         } else {
             print_warning(t!("main.bump.no_files"));
+            goodbye_with_warning();
         }
-        goodbye_with_warning();
         return Ok(());
     }
 
     if dry_run {
-        print_info(t!("main.bump.dry_run_would_update", count = files.len()));
-        for f in files {
-            print_info(t!("main.bump.dry_run_file", file = f));
+        if json_output {
+            let out = serde_json::json!({
+                "old_version": old_str,
+                "new_version": new_str,
+                "bump_type": bump_label,
+                "dry_run": true,
+                "files": files,
+            });
+            println!("{}", serde_json::to_string_pretty(&out)?);
+        } else {
+            print_info(t!("main.bump.dry_run_would_update", count = files.len()));
+            for f in files {
+                print_info(t!("main.bump.dry_run_file", file = f));
+            }
+            goodbye_with_success();
         }
-        goodbye_with_success();
     } else {
         match version::update_version_files(files, &old_str, &new_str) {
             Ok(()) => {
-                print_success_bold(t!("main.bump.bumped", old = old_str, new = new_str));
-                for f in files {
-                    print_info(t!("main.bump.updated_file", file = f));
+                if json_output {
+                    let out = serde_json::json!({
+                        "old_version": old_str,
+                        "new_version": new_str,
+                        "bump_type": bump_label,
+                        "dry_run": false,
+                        "files": files,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&out)?);
+                } else {
+                    print_success_bold(t!("main.bump.bumped", old = old_str, new = new_str));
+                    for f in files {
+                        print_info(t!("main.bump.updated_file", file = f));
+                    }
+                    goodbye_with_success();
                 }
-                goodbye_with_success();
             }
             Err(e) => {
+                if json_output {
+                    let out = serde_json::json!({
+                        "success": false,
+                        "error": e.to_string()
+                    });
+                    println!("{}", serde_json::to_string_pretty(&out)?);
+                    process::exit(1);
+                }
                 print_error_bold(t!("main.bump.update_failed", error = e.to_string()));
                 goodbye_with_death(1);
             }
@@ -858,7 +921,12 @@ fn handle_bump(config: &Config, bump_type_str: Option<&str>, dry_run: bool) -> R
 /// appropriate bump from commits since the last tag), verifies uniqueness, and
 /// creates the tag. In dry-run mode the tag name and message are printed
 /// without writing to git.
-fn handle_tag(config: &Config, version_str: Option<&str>, dry_run: bool) -> Result<()> {
+fn handle_tag(
+    config: &Config,
+    version_str: Option<&str>,
+    json_output: bool,
+    dry_run: bool,
+) -> Result<()> {
     let v_config = config.version.clone().unwrap_or_default();
     let cl_config = config.changelog.clone().unwrap_or_default();
 
@@ -882,29 +950,58 @@ fn handle_tag(config: &Config, version_str: Option<&str>, dry_run: bool) -> Resu
         }
     };
 
-    let tag_name = format!("{}{}", v_config.tag_prefix, version);
-    print_info(t!("main.tag.preparing", name = tag_name));
+    if !json_output {
+        let tag_name = format!("{}{}", v_config.tag_prefix, version);
+        print_info(t!("main.tag.preparing", name = tag_name));
+    }
 
     match tag::create_version_tag(&git_ops, &version, &v_config, &cl_config, dry_run) {
         Ok((name, message)) => {
-            if dry_run {
+            if json_output {
+                let out = serde_json::json!({
+                    "tag_name": name,
+                    "version": version.to_string(),
+                    "dry_run": dry_run,
+                    "message": message,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else if dry_run {
                 print_info(t!("main.tag.dry_run", name = name));
                 println!("\n{}\n", message);
+                goodbye_with_success();
             } else {
                 print_success_bold(t!("main.tag.created", name = name));
+                goodbye_with_success();
             }
-            goodbye_with_success();
         }
         Err(tag::TagError::AlreadyExists(name)) => {
+            if json_output {
+                let out = serde_json::json!({
+                    "success": false,
+                    "error": format!("tag '{}' already exists", name)
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+                process::exit(1);
+            }
             print_error_bold(t!("main.tag.already_exists", name = name));
             print_info(t!("main.tag.already_exists_hint"));
             goodbye_with_death(1);
         }
         Err(tag::TagError::Git(msg)) => {
+            if json_output {
+                let out = serde_json::json!({ "success": false, "error": msg });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+                process::exit(5);
+            }
             print_error_bold(t!("main.tag.git_failed", error = msg));
             goodbye_with_death(5);
         }
         Err(e) => {
+            if json_output {
+                let out = serde_json::json!({ "success": false, "error": e.to_string() });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+                process::exit(1);
+            }
             print_error_bold(t!("main.tag.failed", error = e.to_string()));
             goodbye_with_death(1);
         }
@@ -923,6 +1020,7 @@ fn handle_release(
     skip_changelog: bool,
     skip_commit: bool,
     skip_tag: bool,
+    json_output: bool,
     dry_run: bool,
 ) -> Result<()> {
     let v_config = config.version.clone().unwrap_or_default();
@@ -946,12 +1044,24 @@ fn handle_release(
 
     match release::execute(&git_ops, &v_config, &cl_config, &opts) {
         Ok(outcome) => {
-            if dry_run {
-                let bump_label = match outcome.bump_type {
-                    version::BumpType::Major => "major",
-                    version::BumpType::Minor => "minor",
-                    version::BumpType::Patch => "patch",
-                };
+            let bump_label = match outcome.bump_type {
+                version::BumpType::Major => "major",
+                version::BumpType::Minor => "minor",
+                version::BumpType::Patch => "patch",
+            };
+            if json_output {
+                let out = serde_json::json!({
+                    "success": true,
+                    "previous_version": outcome.previous_version,
+                    "new_version": outcome.new_version,
+                    "tag_name": outcome.tag_name,
+                    "bump_type": bump_label,
+                    "dry_run": dry_run,
+                    "updated_files": outcome.updated_files,
+                    "changelog_path": outcome.changelog_path,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else if dry_run {
                 print_info(t!(
                     "main.release.dry_run_summary",
                     old = outcome.previous_version,
@@ -1002,22 +1112,35 @@ fn handle_release(
             }
             goodbye_with_success();
         }
-        Err(release::ReleaseError::InvalidBumpType(s)) => {
-            print_error_bold(t!("main.release.invalid_bump", bump_type = s));
-            goodbye_with_death(1);
-        }
-        Err(release::ReleaseError::Tag(tag::TagError::AlreadyExists(name))) => {
-            print_error_bold(t!("main.release.tag_exists", name = name));
-            print_info(t!("main.release.tag_exists_hint"));
-            goodbye_with_death(1);
-        }
-        Err(release::ReleaseError::Git(msg)) => {
-            print_error_bold(t!("main.release.git_failed", error = msg));
-            goodbye_with_death(5);
-        }
         Err(e) => {
-            print_error_bold(t!("main.release.failed", error = e.to_string()));
-            goodbye_with_death(1);
+            if json_output {
+                let (exit_code, error_msg) = match &e {
+                    release::ReleaseError::Git(msg) => (5, msg.clone()),
+                    _ => (1, e.to_string()),
+                };
+                let out = serde_json::json!({ "success": false, "error": error_msg });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+                process::exit(exit_code);
+            }
+            match e {
+                release::ReleaseError::InvalidBumpType(s) => {
+                    print_error_bold(t!("main.release.invalid_bump", bump_type = s));
+                    goodbye_with_death(1);
+                }
+                release::ReleaseError::Tag(tag::TagError::AlreadyExists(name)) => {
+                    print_error_bold(t!("main.release.tag_exists", name = name));
+                    print_info(t!("main.release.tag_exists_hint"));
+                    goodbye_with_death(1);
+                }
+                release::ReleaseError::Git(msg) => {
+                    print_error_bold(t!("main.release.git_failed", error = msg));
+                    goodbye_with_death(5);
+                }
+                _ => {
+                    print_error_bold(t!("main.release.failed", error = e.to_string()));
+                    goodbye_with_death(1);
+                }
+            }
         }
     }
 
@@ -1122,6 +1245,7 @@ fn handle_changelog(
     range: Option<&str>,
     format_str: Option<&str>,
     output_path: Option<&str>,
+    json_output: bool,
     dry_run: bool,
 ) -> Result<()> {
     let cl_config = config.changelog.clone().unwrap_or_default();
@@ -1173,7 +1297,16 @@ fn handle_changelog(
 
     let dest = output_path.unwrap_or(&cl_config.output_file);
 
-    if dry_run {
+    if json_output {
+        // wrap the rendered content in a JSON envelope for machine consumption
+        let out = serde_json::json!({
+            "content": rendered,
+            "format": format_str.unwrap_or("markdown"),
+            "path": dest,
+            "dry_run": dry_run,
+        });
+        println!("{}", serde_json::to_string_pretty(&out)?);
+    } else if dry_run {
         print_info(t!("main.changelog.dry_run", path = dest));
         println!("\n{}", rendered);
         goodbye_with_success();

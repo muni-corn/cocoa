@@ -122,12 +122,18 @@ pub struct CommitContext {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use genai::adapter::AdapterKind;
 
     use super::*;
     use crate::ai::{Provider, config::SecretConfig};
 
+    // serialise tests that mutate env vars to prevent parallel-test race conditions
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
     fn test_config() -> AiConfig {
+        // caller is responsible for holding ENV_LOCK while calling this
         unsafe {
             std::env::set_var("TEST_API_KEY", "test-key");
         }
@@ -145,18 +151,21 @@ mod tests {
 
     #[test]
     fn test_client_new() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let config = test_config();
         let result = Client::new(config);
-        assert!(result.is_ok());
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
             std::env::remove_var("OPENAI_API_KEY");
         }
+
+        assert!(result.is_ok());
     }
 
     #[test]
     fn test_client_new_invalid_key() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let config = AiConfig {
             secret: SecretConfig::Env {
                 env: "NONEXISTENT_KEY".to_string(),
@@ -165,18 +174,17 @@ mod tests {
         };
 
         let result = Client::new(config);
-        assert!(result.is_err());
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
         }
+
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_get_model_name_openai() {
-        unsafe {
-            std::env::set_var("TEST_API_KEY", "test-key");
-        }
+        let _guard = ENV_LOCK.lock().unwrap();
 
         let config = AiConfig {
             provider: Some(Provider(AdapterKind::OpenAI)),
@@ -194,9 +202,7 @@ mod tests {
 
     #[test]
     fn test_get_model_name_anthropic() {
-        unsafe {
-            std::env::set_var("TEST_API_KEY", "test-key");
-        }
+        let _guard = ENV_LOCK.lock().unwrap();
 
         let config = AiConfig {
             provider: Some(Provider(AdapterKind::Anthropic)),
@@ -214,9 +220,7 @@ mod tests {
 
     #[test]
     fn test_build_prompt_with_context() {
-        unsafe {
-            std::env::set_var("TEST_API_KEY", "test-key");
-        }
+        let _guard = ENV_LOCK.lock().unwrap();
 
         let client = Client::new(test_config()).unwrap();
         let context = CommitContext {
@@ -229,35 +233,33 @@ mod tests {
 
         let prompt = client.build_prompt("test diff", &context);
 
-        assert!(prompt.contains("test diff"));
-        assert!(prompt.contains("feature/test"));
-        assert!(prompt.contains("feat: previous commit"));
-        assert!(prompt.contains("conventional commits"));
-
         unsafe {
             std::env::remove_var("TEST_API_KEY");
             std::env::remove_var("OPENAI_API_KEY");
         }
+
+        assert!(prompt.contains("test diff"));
+        assert!(prompt.contains("feature/test"));
+        assert!(prompt.contains("feat: previous commit"));
+        assert!(prompt.contains("conventional commits"));
     }
 
     #[test]
     fn test_build_prompt_without_branch() {
-        unsafe {
-            std::env::set_var("TEST_API_KEY", "test-key");
-        }
+        let _guard = ENV_LOCK.lock().unwrap();
 
         let client = Client::new(test_config()).unwrap();
         let context = CommitContext::default();
 
         let prompt = client.build_prompt("test diff", &context);
 
-        assert!(prompt.contains("test diff"));
-        assert!(!prompt.contains("branch name:"));
-
         unsafe {
             std::env::remove_var("TEST_API_KEY");
             std::env::remove_var("OPENAI_API_KEY");
         }
+
+        assert!(prompt.contains("test diff"));
+        assert!(!prompt.contains("branch name:"));
     }
 
     #[test]

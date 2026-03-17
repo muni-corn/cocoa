@@ -234,3 +234,32 @@ fn test_changelog_template_format() {
         .success()
         .stdout(predicates::str::contains("VERSIONS:"));
 }
+
+// ─── JSON output ─────────────────────────────────────────────────────────────
+
+#[test]
+fn test_changelog_json_dry_run_output() {
+    let repo = TestRepo::new();
+    repo.create_commit("a.txt", "a", "feat: add a feature");
+
+    let output = cocoa(&repo)
+        .args(["--json", "--dry-run", "changelog"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("output should be valid JSON");
+
+    assert!(
+        json["content"].as_str().is_some(),
+        "should have content field"
+    );
+    assert_eq!(json["format"], "markdown");
+    assert_eq!(json["dry_run"], true);
+    // changelog content should contain conventional commit sections
+    let content = json["content"].as_str().unwrap();
+    assert!(content.contains("Changelog") || content.contains("feat"));
+}

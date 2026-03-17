@@ -92,7 +92,12 @@ fn default_max_tokens() -> u32 {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    // serialise tests that mutate env vars to prevent parallel-test race conditions
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_ai_config_default() {
@@ -105,6 +110,7 @@ mod tests {
 
     #[test]
     fn test_secret_config_env_resolve() {
+        let _guard = ENV_LOCK.lock().unwrap();
         unsafe {
             std::env::set_var("TEST_API_KEY", "test-key-123");
         }
@@ -113,11 +119,13 @@ mod tests {
             env: "TEST_API_KEY".to_string(),
         };
 
-        assert_eq!(config.resolve_api_key().unwrap(), "test-key-123");
+        let result = config.resolve_api_key();
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
         }
+
+        assert_eq!(result.unwrap(), "test-key-123");
     }
 
     #[test]
