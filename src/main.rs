@@ -1028,10 +1028,32 @@ fn handle_release(
 
 /// Migrate a third-party tool's configuration to `.cocoa.toml`.
 ///
-/// Detects or uses the specified source, parses the config, and writes
-/// `.cocoa.toml`. In dry-run mode the converted TOML is printed but not
-/// written.
-fn handle_migrate(from: Option<MigrateSourceArg>, _undo: bool, dry_run: bool) -> Result<()> {
+/// Detects or uses the specified source, parses the config, writes
+/// `.cocoa.toml`, and backs up any existing config. In dry-run mode the
+/// converted TOML is printed but not written. The `--undo` flag restores
+/// `.cocoa.toml` from its backup.
+fn handle_migrate(from: Option<MigrateSourceArg>, undo: bool, dry_run: bool) -> Result<()> {
+    if undo {
+        match migrate::rollback() {
+            Ok(path) => {
+                print_success_bold(t!(
+                    "main.migrate.rolled_back",
+                    path = path.display().to_string()
+                ));
+                goodbye_with_success();
+            }
+            Err(migrate::MigrateError::NoBackupFound) => {
+                print_error_bold(t!("main.migrate.no_backup"));
+                goodbye_with_death(1);
+            }
+            Err(e) => {
+                print_error_bold(t!("main.migrate.rollback_failed", error = e.to_string()));
+                goodbye_with_death(1);
+            }
+        }
+        return Ok(());
+    }
+
     // convert the CLI enum to the library enum
     let source = from.map(|s| match s {
         MigrateSourceArg::Commitlint => migrate::MigrateSource::Commitlint,
@@ -1065,6 +1087,12 @@ fn handle_migrate(from: Option<MigrateSourceArg>, _undo: bool, dry_run: bool) ->
                     file = result.source_file.display().to_string(),
                     output = result.output_file.display().to_string()
                 ));
+                if let Some(backup) = result.backup_file {
+                    print_info(t!(
+                        "main.migrate.backed_up",
+                        path = backup.display().to_string()
+                    ));
+                }
             }
             goodbye_with_success();
         }

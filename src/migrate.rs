@@ -5,6 +5,9 @@
 //! - commitlint (`.commitlintrc.*`, `commitlint.config.*`)
 //! - conventional-changelog (`.changelog.config.*`, `changelog.config.*`)
 //! - semantic-release (`.releaserc.*`, `release.config.*`)
+//!
+//! Any existing `.cocoa.toml` is backed up to `.cocoa.toml.bak` before
+//! writing. Use [`rollback`] to restore a backup.
 
 use std::path::PathBuf;
 
@@ -16,10 +19,11 @@ pub mod commitlint;
 pub mod conventional_changelog;
 pub mod semantic_release;
 
-// output file name
+// output and backup file names
 const COCOA_CONFIG_FILE: &str = ".cocoa.toml";
+const COCOA_BACKUP_FILE: &str = ".cocoa.toml.bak";
 
-/// Errors that can occur during migration.
+/// Errors that can occur during migration or rollback.
 #[derive(Debug, Error)]
 pub enum MigrateError {
     /// No supported configuration file was detected in the current directory.
@@ -41,6 +45,14 @@ pub enum MigrateError {
     /// The converted configuration could not be written.
     #[error("failed to write configuration: {0}")]
     Write(String),
+
+    /// Creating the backup of an existing `.cocoa.toml` failed.
+    #[error("failed to create backup: {0}")]
+    Backup(String),
+
+    /// No `.cocoa.toml.bak` file was found — nothing to roll back to.
+    #[error("no backup found at '.cocoa.toml.bak' — run `cocoa migrate` first")]
+    NoBackupFound,
 }
 
 /// The third-party tool whose configuration is being migrated.
@@ -132,10 +144,11 @@ pub fn find_source_file(source: &MigrateSource) -> Option<PathBuf> {
 /// 1. Locates the source configuration file (auto-detected if `source` is
 ///    `None`).
 /// 2. Parses and converts it to a [`Config`].
-/// 3. Writes the new `.cocoa.toml`.
+/// 3. Backs up any existing `.cocoa.toml` to `.cocoa.toml.bak`.
+/// 4. Writes the new `.cocoa.toml`.
 ///
-/// In dry-run mode no files are written; the converted config is returned for
-/// display purposes only.
+/// In dry-run mode no files are written or moved; the converted config is
+/// returned for display purposes only.
 pub fn migrate(
     source: Option<MigrateSource>,
     dry_run: bool,
@@ -155,6 +168,7 @@ pub fn migrate(
     };
 
     let output_file = PathBuf::from(COCOA_CONFIG_FILE);
+    let backup_path = PathBuf::from(COCOA_BACKUP_FILE);
 
     if dry_run {
         return Ok(MigrateResult {
@@ -165,6 +179,21 @@ pub fn migrate(
             config,
         });
     }
+
+    // back up any existing .cocoa.toml before overwriting
+    let backup_file = if output_file.exists() {
+        std::fs::copy(&output_file, &backup_path).map_err(|e| {
+            MigrateError::Backup(format!(
+                "could not copy '{}' to '{}': {}",
+                output_file.display(),
+                backup_path.display(),
+                e
+            ))
+        })?;
+        Some(backup_path)
+    } else {
+        None
+    };
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| MigrateError::Write(format!("failed to serialize config: {}", e)))?;
@@ -181,7 +210,31 @@ pub fn migrate(
         source,
         source_file,
         output_file,
-        backup_file: None,
+        backup_file,
         config,
     })
+}
+
+/// Restore the previous `.cocoa.toml` from its backup (`.cocoa.toml.bak`).
+///
+/// Returns the path of the restored file. Errors with
+/// [`MigrateError::NoBackupFound`] if no backup exists.
+pub fn rollback() -> Result<PathBuf, MigrateError> {
+    let backup = PathBuf::from(COCOA_BACKUP_FILE);
+    let target = PathBuf::from(COCOA_CONFIG_FILE);
+
+    if !backup.exists() {
+        return Err(MigrateError::NoBackupFound);
+    }
+
+    std::fs::rename(&backup, &target).map_err(|e| {
+        MigrateError::Write(format!(
+            "failed to restore '{}' from '{}': {}",
+            target.display(),
+            backup.display(),
+            e
+        ))
+    })?;
+
+    Ok(target)
 }
