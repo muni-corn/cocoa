@@ -334,4 +334,48 @@ diff --git a/test.rs b/test.rs
         let result = analyze_staged_changes_with_git(&mock);
         assert!(matches!(result, Err(GenerateError::NoStagedChanges)));
     }
+
+    // --- validate_generated_message ---
+
+    #[test]
+    fn test_validate_generated_message_valid() {
+        let config = Config::default();
+        let result = validate_generated_message("feat: add new thing", &config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_generated_message_invalid_type() {
+        let config = Config::default();
+        let result = validate_generated_message("badtype: do something", &config);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("validation"));
+    }
+
+    // --- GenerateError display ---
+
+    #[test]
+    fn test_generate_error_no_staged_changes_display() {
+        let err = GenerateError::NoStagedChanges;
+        assert!(err.to_string().contains("no staged changes"));
+    }
+
+    #[test]
+    fn test_generate_error_git_context_display() {
+        let err = GenerateError::GitContext("repo not found".to_string());
+        assert!(err.to_string().contains("repo not found"));
+    }
+
+    #[test]
+    fn test_generate_error_ai_generation_display() {
+        let err = GenerateError::AiGeneration("timeout".to_string());
+        assert!(err.to_string().contains("timeout"));
+    }
+
+    #[test]
+    fn test_generate_error_validation_display() {
+        let err = GenerateError::Validation("type-enum: invalid type".to_string());
+        assert!(err.to_string().contains("type-enum"));
+    }
 }

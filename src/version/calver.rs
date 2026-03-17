@@ -363,4 +363,41 @@ mod tests {
         assert_eq!(bumped.micro, 4);
         assert_eq!(bumped.year, today.year());
     }
+
+    #[test]
+    fn test_today_returns_current_date() {
+        let today = Utc::now().date_naive();
+        let v = CalVer::today("YYYY.0M.0D");
+        assert_eq!(v.year, today.year());
+        assert_eq!(v.month, today.month());
+        assert_eq!(v.day, today.day());
+        assert_eq!(v.micro, 0);
+    }
+
+    #[test]
+    fn test_render_zero_padded_year() {
+        let v = CalVer {
+            format: "0Y.0M".to_string(),
+            year: 2024,
+            month: 3,
+            day: 1,
+            micro: 0,
+        };
+        assert_eq!(v.render(), "24.03");
+    }
+
+    #[test]
+    fn test_parse_0y_short_year() {
+        let v = CalVer::parse("24.03", "0Y.0M").unwrap();
+        // 24 → 2024
+        assert_eq!(v.year, 2024);
+        assert_eq!(v.month, 3);
+    }
+
+    #[test]
+    fn test_parse_no_match_returns_error() {
+        let err = CalVer::parse("abc", "YYYY").unwrap_err();
+        assert!(matches!(err, CalVerError::Parse { .. }));
+        assert!(err.to_string().contains("abc"));
+    }
 }

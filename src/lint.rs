@@ -517,4 +517,337 @@ mod tests {
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
     }
+
+    // --- no-type warn/deny ---
+
+    #[test]
+    fn test_no_type_warning_when_warn_enabled() {
+        let mut config = create_test_config();
+        // warn fires, but deny does not
+        config.commit.rules.warn.no_type = Some(true);
+        config.commit.rules.deny.no_type = Some(false);
+        let linter = Linter::new(&config);
+        // messages without a colon produce an empty commit_type
+        let result = linter.lint("just a plain description with no type");
+        // warning means still valid
+        assert!(result.is_valid);
+        assert_eq!(result.violations.len(), 1);
+        assert_eq!(result.violations[0].rule, "no-type");
+        assert_eq!(result.violations[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_no_type_deny_fires_error() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.no_type = Some(false);
+        config.commit.rules.deny.no_type = Some(true);
+        let linter = Linter::new(&config);
+        let result = linter.lint("just a plain description with no type");
+        assert!(!result.is_valid);
+        assert_eq!(result.violations[0].rule, "no-type");
+        assert_eq!(result.violations[0].severity, Severity::Error);
+    }
+
+    // --- no-scope warn/deny ---
+
+    #[test]
+    fn test_no_scope_warning_when_warn_enabled() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.no_scope = Some(true);
+        config.commit.rules.deny.no_scope = Some(false);
+        let linter = Linter::new(&config);
+        // no scope in message → warning
+        let result = linter.lint("feat: add thing");
+        assert!(result.is_valid);
+        let scope_warn = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "no-scope")
+            .unwrap();
+        assert_eq!(scope_warn.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_no_scope_deny_fires_error() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.no_scope = Some(false);
+        config.commit.rules.deny.no_scope = Some(true);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: add thing");
+        assert!(!result.is_valid);
+        let scope_err = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "no-scope")
+            .unwrap();
+        assert_eq!(scope_err.severity, Severity::Error);
+    }
+
+    #[test]
+    fn test_valid_scope_with_no_allowed_scopes_configured() {
+        let mut config = create_test_config();
+        // clear the allowed scopes so any scope is accepted
+        config.commit.scopes = None;
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat(anything): add thing");
+        assert!(result.is_valid);
+        assert!(result.violations.is_empty());
+    }
+
+    // --- body length warn/deny ---
+
+    #[test]
+    fn test_body_too_long_warning() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.body_length = Some(10);
+        config.commit.rules.deny.body_length = Some(200);
+        let linter = Linter::new(&config);
+        let long_body = "a".repeat(20);
+        let message = format!("feat: subject\n\n{}", long_body);
+        let result = linter.lint(&message);
+        assert!(result.is_valid); // warning only
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "body-max-length")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_body_too_long_error() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.body_length = Some(10);
+        config.commit.rules.deny.body_length = Some(50);
+        let linter = Linter::new(&config);
+        let very_long_body = "a".repeat(100);
+        let message = format!("feat: subject\n\n{}", very_long_body);
+        let result = linter.lint(&message);
+        assert!(!result.is_valid);
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "body-max-length")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Error);
+    }
+
+    // --- required body warn/deny ---
+
+    #[test]
+    fn test_no_body_warning() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.no_body = Some(true);
+        config.commit.rules.deny.no_body = Some(false);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: add thing");
+        assert!(result.is_valid);
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "no-body")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_no_body_deny() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.no_body = Some(false);
+        config.commit.rules.deny.no_body = Some(true);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: add thing");
+        assert!(!result.is_valid);
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "no-body")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Error);
+    }
+
+    // --- breaking change footer warn path ---
+
+    #[test]
+    fn test_breaking_change_footer_warn() {
+        let mut config = create_test_config();
+        config.commit.rules.warn.no_breaking_change_footer = Some(true);
+        config.commit.rules.deny.no_breaking_change_footer = Some(false);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat!: breaking without footer");
+        assert!(result.is_valid); // warning → still valid
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "no-breaking-change-footer")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Warning);
+    }
+
+    // --- custom patterns ---
+
+    #[test]
+    fn test_custom_deny_pattern_not_matched() {
+        let mut config = create_test_config();
+        // require every commit message to contain "JIRA-"
+        config.commit.rules.deny.regex_patterns = Some(vec!["JIRA-\\d+".to_string()]);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: add thing without jira ref");
+        assert!(!result.is_valid);
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "regex-pattern")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Error);
+    }
+
+    #[test]
+    fn test_custom_deny_pattern_matched_passes() {
+        let mut config = create_test_config();
+        config.commit.rules.deny.regex_patterns = Some(vec!["JIRA-\\d+".to_string()]);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: add thing JIRA-42");
+        // the pattern IS matched, so no violation
+        assert!(result.violations.iter().all(|v| v.rule != "regex-pattern"));
+    }
+
+    #[test]
+    fn test_custom_warn_pattern_not_matched() {
+        let mut config = create_test_config();
+        config.commit.rules.deny.regex_patterns = Some(vec![]);
+        config.commit.rules.warn.regex_patterns = Some(vec!["JIRA-\\d+".to_string()]);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: add thing without jira ref");
+        assert!(result.is_valid); // warning only
+        let v = result
+            .violations
+            .iter()
+            .find(|v| v.rule == "regex-pattern")
+            .unwrap();
+        assert_eq!(v.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_custom_pattern_in_both_deny_and_warn_not_duplicated() {
+        // when the same pattern is in both deny and warn, only the deny-level
+        // violation should fire; the warn iteration should skip it
+        let mut config = create_test_config();
+        let pattern = "JIRA-\\d+".to_string();
+        config.commit.rules.deny.regex_patterns = Some(vec![pattern.clone()]);
+        config.commit.rules.warn.regex_patterns = Some(vec![pattern]);
+        let linter = Linter::new(&config);
+        let result = linter.lint("feat: no jira ref here");
+        let pattern_violations: Vec<_> = result
+            .violations
+            .iter()
+            .filter(|v| v.rule == "regex-pattern")
+            .collect();
+        // only one violation for the pattern (from deny), not two
+        assert_eq!(pattern_violations.len(), 1);
+        assert_eq!(pattern_violations[0].severity, Severity::Error);
+    }
+
+    // --- ignore paths ---
+
+    #[test]
+    fn test_ignore_squash_commit() {
+        let config = create_test_config();
+        let linter = Linter::new(&config);
+        // commit type "squash" triggers is_squash()
+        let result = linter.lint("squash: fix typo");
+        assert!(result.is_valid);
+        assert!(result.violations.is_empty());
+    }
+
+    #[test]
+    fn test_ignore_merge_commit() {
+        let config = create_test_config();
+        let linter = Linter::new(&config);
+        // no colon → commit_type is empty; subject starts with "Merge"
+        let result = linter.lint("Merge branch 'main' into feature");
+        assert!(result.is_valid);
+        assert!(result.violations.is_empty());
+    }
+
+    #[test]
+    fn test_ignore_revert_commit() {
+        let config = create_test_config();
+        let linter = Linter::new(&config);
+        // no colon → commit_type is empty; subject starts with "Revert"
+        let result = linter.lint("Revert some previous change");
+        assert!(result.is_valid);
+        assert!(result.violations.is_empty());
+    }
+
+    // --- format error path ---
+
+    #[test]
+    fn test_unparseable_message_returns_format_error() {
+        let config = create_test_config();
+        let linter = Linter::new(&config);
+        // "feat(bad: something" has a colon but unclosed scope paren → parse fails
+        let result = linter.lint("feat(bad: something");
+        assert!(!result.is_valid);
+        assert_eq!(result.violations.len(), 1);
+        assert_eq!(result.violations[0].rule, "format");
+        assert_eq!(result.violations[0].severity, Severity::Error);
+    }
+
+    // --- ignore amend ---
+
+    #[test]
+    fn test_ignore_amend_commit() {
+        let config = create_test_config();
+        let linter = Linter::new(&config);
+        // amend commits use the "amend!" git prefix; no colon → empty type,
+        // subject starts with "amend!" but is_fixup/squash/merge/revert all
+        // return false, so this goes through normal linting
+        // (note: ignore_amend_commits is set but CommitMessage has no is_amend)
+        // this just verifies the parser handles it without panicking
+        let result = linter.lint("amend: fix previous commit");
+        // "amend" type is not in allowed types → violation expected
+        assert!(!result.is_valid);
+    }
+
+    // --- severity display ---
+
+    #[test]
+    fn test_lint_violation_display_error() {
+        let v = LintViolation {
+            rule: "test".to_string(),
+            severity: Severity::Error,
+            message: "something wrong".to_string(),
+            line: None,
+            column: None,
+        };
+        let s = v.to_string();
+        assert!(s.contains("something wrong"));
+    }
+
+    #[test]
+    fn test_lint_violation_display_warning() {
+        let v = LintViolation {
+            rule: "test".to_string(),
+            severity: Severity::Warning,
+            message: "heads up".to_string(),
+            line: None,
+            column: None,
+        };
+        let s = v.to_string();
+        assert!(s.contains("heads up"));
+    }
+
+    #[test]
+    fn test_lint_violation_display_info() {
+        let v = LintViolation {
+            rule: "test".to_string(),
+            severity: Severity::Info,
+            message: "fyi".to_string(),
+            line: None,
+            column: None,
+        };
+        let s = v.to_string();
+        assert!(s.contains("fyi"));
+    }
 }

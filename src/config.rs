@@ -608,4 +608,176 @@ types = ["feat", "fix"]
         assert_eq!(config.commit.rules.warn.subject_length, Some(50));
         assert_eq!(config.commit.rules.deny.subject_length, Some(72));
     }
+
+    // --- load_merged ---
+
+    #[test]
+    fn test_load_merged_empty_paths_returns_default() {
+        let config = Config::load_merged(&[]).unwrap();
+        // should be the same as default
+        assert!(config.commit.rules.enabled);
+        assert_eq!(config.commit.rules.warn.subject_length, Some(50));
+    }
+
+    #[test]
+    fn test_load_merged_single_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"
+[commit]
+types = ["feat", "fix", "docs"]
+"#
+        )
+        .unwrap();
+
+        let config = Config::load_merged(&[file.path().to_path_buf()]).unwrap();
+        assert_eq!(config.commit.types.len(), 3);
+        assert!(config.commit.types.contains("docs"));
+    }
+
+    #[test]
+    fn test_load_merged_later_file_overrides_earlier() {
+        let mut base = NamedTempFile::new().unwrap();
+        writeln!(
+            base,
+            r#"
+[commit]
+types = ["feat"]
+[commit.rules.warn]
+subject_length = 40
+"#
+        )
+        .unwrap();
+
+        let mut override_file = NamedTempFile::new().unwrap();
+        writeln!(
+            override_file,
+            r#"
+[commit.rules.warn]
+subject_length = 60
+"#
+        )
+        .unwrap();
+
+        let config = Config::load_merged(&[
+            base.path().to_path_buf(),
+            override_file.path().to_path_buf(),
+        ])
+        .unwrap();
+
+        // later file wins for warn.subject_length
+        assert_eq!(config.commit.rules.warn.subject_length, Some(60));
+    }
+
+    #[test]
+    fn test_load_merged_skips_nonexistent_paths() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "[commit]\ntypes = [\"feat\"]").unwrap();
+        let paths = vec![
+            PathBuf::from("/does/not/exist.toml"),
+            file.path().to_path_buf(),
+        ];
+        let config = Config::load_merged(&paths).unwrap();
+        assert!(config.commit.types.contains("feat"));
+    }
+
+    // --- get_allowed_types / get_allowed_scopes ---
+
+    #[test]
+    fn test_get_allowed_types_returns_configured_types() {
+        let config = Config::default();
+        let types = config.get_allowed_types();
+        assert!(types.contains("feat"));
+        assert!(types.contains("fix"));
+    }
+
+    #[test]
+    fn test_get_allowed_scopes_returns_none_when_not_configured() {
+        let config = Config::default();
+        assert!(config.get_allowed_scopes().is_none());
+    }
+
+    // --- load_or_default with validation error ---
+
+    #[test]
+    fn test_load_or_default_returns_default_on_validation_error() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"
+[commit.rules.warn]
+subject_length = 100
+[commit.rules.deny]
+subject_length = 50
+"#
+        )
+        .unwrap();
+
+        // validation error: deny must be > warn
+        let config = Config::load_or_default(file.path());
+        // should silently fall back to defaults
+        assert_eq!(config.commit.rules.warn.subject_length, Some(50));
+    }
+
+    // --- ChangelogConfig defaults ---
+
+    #[test]
+    fn test_changelog_config_default_values() {
+        let cfg = ChangelogConfig::default();
+        assert_eq!(cfg.output_file, "CHANGELOG.md");
+        assert!(!cfg.include_merge_commits);
+        assert!(cfg.include_reverts);
+        assert_eq!(cfg.date_format, "%Y-%m-%d");
+        assert!(cfg.sections.is_none());
+    }
+
+    // --- VersionConfig defaults ---
+
+    #[test]
+    fn test_version_config_default_values() {
+        let cfg = VersionConfig::default();
+        assert_eq!(cfg.strategy, VersionStrategy::Semver);
+        assert_eq!(cfg.tag_prefix, "v");
+        assert!(!cfg.sign_tags);
+        assert!(cfg.commit_version_files.is_none());
+    }
+
+    // --- CommitRules::validate body_length ---
+
+    #[test]
+    fn test_config_validation_fails_body_length() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"
+[commit.rules.warn]
+body_length = 300
+
+[commit.rules.deny]
+body_length = 100
+"#
+        )
+        .unwrap();
+
+        let result = Config::load(file.path());
+        assert!(result.is_err());
+        if let Err(ConfigError::Validation(msg)) = result {
+            assert!(msg.contains("body_length"));
+        } else {
+            panic!("expected Validation error");
+        }
+    }
+
+    // --- load_or_default with parse (non-validation) error ---
+
+    #[test]
+    fn test_load_or_default_returns_default_on_parse_error() {
+        let mut file = NamedTempFile::new().unwrap();
+        // invalid TOML syntax - use a literal string to avoid format issues
+        file.write_all(b"this is = [not valid toml").unwrap();
+        let config = Config::load_or_default(file.path());
+        // falls back to defaults on parse error
+        assert!(config.commit.rules.enabled);
+    }
 }

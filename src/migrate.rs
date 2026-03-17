@@ -74,6 +74,7 @@ impl std::fmt::Display for MigrateSource {
 }
 
 /// The result of a successful migration.
+#[derive(Debug)]
 pub struct MigrateResult {
     /// Which tool the configuration was migrated from.
     pub source: MigrateSource,
@@ -237,4 +238,208 @@ pub fn rollback() -> Result<PathBuf, MigrateError> {
     })?;
 
     Ok(target)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, sync::Mutex};
+
+    use tempfile::TempDir;
+
+    use super::*;
+
+    // serialise tests that change the process working directory; concurrent
+    // set_current_dir calls from multiple threads corrupt each other's paths
+    static CWD_LOCK: Mutex<()> = Mutex::new(());
+
+    fn in_temp_dir<F: FnOnce()>(f: F) {
+        // hold the lock for the entire duration so no other test moves the CWD
+        let _guard = CWD_LOCK.lock().unwrap();
+        let tmp = TempDir::new().unwrap();
+        let orig = env::current_dir().unwrap();
+        env::set_current_dir(tmp.path()).unwrap();
+        f();
+        env::set_current_dir(orig).unwrap();
+    }
+
+    // --- MigrateSource::Display ---
+
+    #[test]
+    fn test_migrate_source_display_commitlint() {
+        assert_eq!(MigrateSource::Commitlint.to_string(), "commitlint");
+    }
+
+    #[test]
+    fn test_migrate_source_display_conventional_changelog() {
+        assert_eq!(
+            MigrateSource::ConventionalChangelog.to_string(),
+            "conventional-changelog"
+        );
+    }
+
+    #[test]
+    fn test_migrate_source_display_semantic_release() {
+        assert_eq!(
+            MigrateSource::SemanticRelease.to_string(),
+            "semantic-release"
+        );
+    }
+
+    // --- MigrateError::Display ---
+
+    #[test]
+    fn test_migrate_error_no_source_found() {
+        let err = MigrateError::NoSourceFound;
+        assert!(err.to_string().contains("no supported configuration file"));
+    }
+
+    #[test]
+    fn test_migrate_error_no_backup_found() {
+        let err = MigrateError::NoBackupFound;
+        assert!(err.to_string().contains("no backup found"));
+    }
+
+    #[test]
+    fn test_migrate_error_parse() {
+        let err = MigrateError::Parse("bad syntax".to_string());
+        assert!(err.to_string().contains("bad syntax"));
+    }
+
+    #[test]
+    fn test_migrate_error_write() {
+        let err = MigrateError::Write("disk full".to_string());
+        assert!(err.to_string().contains("disk full"));
+    }
+
+    #[test]
+    fn test_migrate_error_backup() {
+        let err = MigrateError::Backup("no permission".to_string());
+        assert!(err.to_string().contains("no permission"));
+    }
+
+    // --- detect_source ---
+
+    #[test]
+    fn test_detect_source_returns_none_when_no_files_present() {
+        in_temp_dir(|| {
+            assert!(detect_source().is_none());
+        });
+    }
+
+    // --- find_source_file ---
+
+    #[test]
+    fn test_find_source_file_returns_none_when_missing() {
+        in_temp_dir(|| {
+            assert!(find_source_file(&MigrateSource::Commitlint).is_none());
+            assert!(find_source_file(&MigrateSource::ConventionalChangelog).is_none());
+            assert!(find_source_file(&MigrateSource::SemanticRelease).is_none());
+        });
+    }
+
+    // --- migrate ---
+
+    #[test]
+    fn test_migrate_no_source_found_returns_error() {
+        in_temp_dir(|| {
+            let result = migrate(None, true);
+            assert!(matches!(result, Err(MigrateError::NoSourceFound)));
+        });
+    }
+
+    #[test]
+    fn test_migrate_explicit_source_not_found_returns_error() {
+        in_temp_dir(|| {
+            let result = migrate(Some(MigrateSource::Commitlint), true);
+            assert!(matches!(result, Err(MigrateError::NoSourceFound)));
+        });
+    }
+
+    // --- detect_source / find_source_file (success paths) ---
+
+    #[test]
+    fn test_detect_source_finds_commitlint_file() {
+        in_temp_dir(|| {
+            // create a minimal commitlint JSON config
+            std::fs::write(".commitlintrc.json", b"{\"rules\":{}}").unwrap();
+            let result = detect_source();
+            assert!(result.is_some());
+            let (source, _) = result.unwrap();
+            assert_eq!(source, MigrateSource::Commitlint);
+        });
+    }
+
+    #[test]
+    fn test_find_source_file_returns_path_when_present() {
+        in_temp_dir(|| {
+            std::fs::write(".commitlintrc.json", b"{\"rules\":{}}").unwrap();
+            let result = find_source_file(&MigrateSource::Commitlint);
+            assert!(result.is_some());
+        });
+    }
+
+    // --- migrate dry-run ---
+
+    #[test]
+    fn test_migrate_dry_run_with_commitlint_source() {
+        in_temp_dir(|| {
+            std::fs::write(".commitlintrc.json", b"{\"rules\":{}}").unwrap();
+            let result = migrate(None, true);
+            assert!(result.is_ok(), "migrate dry-run failed: {:?}", result);
+            let mr = result.unwrap();
+            assert_eq!(mr.source, MigrateSource::Commitlint);
+            // in dry-run mode no output file should be written
+            assert!(!PathBuf::from(COCOA_CONFIG_FILE).exists());
+        });
+    }
+
+    #[test]
+    fn test_migrate_writes_output_file() {
+        in_temp_dir(|| {
+            std::fs::write(".commitlintrc.json", b"{\"rules\":{}}").unwrap();
+            let result = migrate(None, false);
+            assert!(result.is_ok(), "migrate failed: {:?}", result);
+            // output file should now exist
+            assert!(PathBuf::from(COCOA_CONFIG_FILE).exists());
+        });
+    }
+
+    #[test]
+    fn test_migrate_backs_up_existing_config() {
+        in_temp_dir(|| {
+            std::fs::write(".commitlintrc.json", b"{\"rules\":{}}").unwrap();
+            // pre-existing .cocoa.toml
+            std::fs::write(COCOA_CONFIG_FILE, b"[commit]\ntypes = [\"old\"]\n").unwrap();
+            let result = migrate(None, false);
+            assert!(result.is_ok());
+            // backup should exist
+            assert!(PathBuf::from(COCOA_BACKUP_FILE).exists());
+            let mr = result.unwrap();
+            assert!(mr.backup_file.is_some());
+        });
+    }
+
+    // --- rollback ---
+
+    #[test]
+    fn test_rollback_no_backup_returns_error() {
+        in_temp_dir(|| {
+            let result = rollback();
+            assert!(matches!(result, Err(MigrateError::NoBackupFound)));
+        });
+    }
+
+    #[test]
+    fn test_rollback_restores_backup() {
+        in_temp_dir(|| {
+            // create a fake backup file
+            std::fs::write(COCOA_BACKUP_FILE, b"[commit]\ntypes = [\"feat\"]\n").unwrap();
+            let result = rollback();
+            assert!(result.is_ok());
+            // the target file should now exist
+            assert!(PathBuf::from(COCOA_CONFIG_FILE).exists());
+            // the backup should be gone
+            assert!(!PathBuf::from(COCOA_BACKUP_FILE).exists());
+        });
+    }
 }

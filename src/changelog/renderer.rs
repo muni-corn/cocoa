@@ -454,4 +454,138 @@ mod tests {
         let err = result.unwrap_err().to_string();
         assert!(err.contains("template"));
     }
+
+    // --- render() dispatch function ---
+
+    #[test]
+    fn test_render_dispatch_markdown() {
+        use crate::config::ChangelogConfig;
+        let cl = sample_changelog();
+        let out = render(&cl, &OutputFormat::Markdown, &ChangelogConfig::default()).unwrap();
+        assert!(out.contains("# Changelog"));
+    }
+
+    #[test]
+    fn test_render_dispatch_json() {
+        use crate::config::ChangelogConfig;
+        let cl = sample_changelog();
+        let out = render(&cl, &OutputFormat::Json, &ChangelogConfig::default()).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert!(v["versions"].is_array());
+    }
+
+    #[test]
+    fn test_render_dispatch_html() {
+        use crate::config::ChangelogConfig;
+        let cl = sample_changelog();
+        let out = render(&cl, &OutputFormat::Html, &ChangelogConfig::default()).unwrap();
+        assert!(out.contains("<!DOCTYPE html>"));
+    }
+
+    #[test]
+    fn test_render_dispatch_rst() {
+        use crate::config::ChangelogConfig;
+        let cl = sample_changelog();
+        let out = render(
+            &cl,
+            &OutputFormat::ReStructuredText,
+            &ChangelogConfig::default(),
+        )
+        .unwrap();
+        assert!(out.contains("Changelog"));
+    }
+
+    #[test]
+    fn test_render_dispatch_asciidoc() {
+        use crate::config::ChangelogConfig;
+        let cl = sample_changelog();
+        let out = render(&cl, &OutputFormat::AsciiDoc, &ChangelogConfig::default()).unwrap();
+        assert!(out.starts_with("= Changelog"));
+    }
+
+    // --- unreleased versions (no date) ---
+
+    fn unreleased_changelog() -> Changelog {
+        Changelog {
+            versions: vec![ChangelogVersion {
+                version: None,
+                date: None,
+                breaking_changes: vec![{
+                    let mut e = sample_entry("brk00001", "feat", "renamed endpoint");
+                    e.breaking = true;
+                    e
+                }],
+                sections: vec![],
+            }],
+        }
+    }
+
+    #[test]
+    fn test_render_html_unreleased_no_date() {
+        let cl = unreleased_changelog();
+        let out = render_html(&cl);
+        // should contain "Unreleased" as the heading text
+        assert!(out.contains("Unreleased"));
+    }
+
+    #[test]
+    fn test_render_html_breaking_changes() {
+        let cl = unreleased_changelog();
+        let out = render_html(&cl);
+        assert!(out.contains("<h3>Breaking Changes</h3>"));
+        assert!(out.contains("renamed endpoint"));
+    }
+
+    #[test]
+    fn test_render_html_entry_with_scope() {
+        let mut cl = sample_changelog();
+        cl.versions[0].sections[0].entries[0].scope = Some("api & ui".to_string());
+        let out = render_html(&cl);
+        // scope is HTML-escaped
+        assert!(out.contains("api &amp; ui"));
+    }
+
+    #[test]
+    fn test_render_rst_unreleased_no_date() {
+        let cl = unreleased_changelog();
+        let out = render_rst(&cl);
+        assert!(out.contains("[Unreleased]"));
+    }
+
+    #[test]
+    fn test_render_rst_breaking_changes() {
+        let cl = unreleased_changelog();
+        let out = render_rst(&cl);
+        assert!(out.contains("Breaking Changes"));
+        assert!(out.contains("renamed endpoint"));
+    }
+
+    #[test]
+    fn test_render_rst_entry_with_scope() {
+        let mut entry = sample_entry("abc", "feat", "add feature");
+        entry.scope = Some("core".to_string());
+        assert!(rst_entry(&entry).contains("**core:**"));
+    }
+
+    #[test]
+    fn test_render_asciidoc_unreleased_no_date() {
+        let cl = unreleased_changelog();
+        let out = render_asciidoc(&cl);
+        assert!(out.contains("[Unreleased]"));
+    }
+
+    #[test]
+    fn test_render_asciidoc_breaking_changes() {
+        let cl = unreleased_changelog();
+        let out = render_asciidoc(&cl);
+        assert!(out.contains("=== Breaking Changes"));
+        assert!(out.contains("renamed endpoint"));
+    }
+
+    #[test]
+    fn test_render_asciidoc_entry_with_scope() {
+        let mut entry = sample_entry("abc", "feat", "add feature");
+        entry.scope = Some("core".to_string());
+        assert!(asciidoc_entry(&entry).contains("*core:*"));
+    }
 }

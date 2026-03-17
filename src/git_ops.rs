@@ -636,4 +636,331 @@ mod tests {
         assert_eq!(commits[0].message, "feat: add feature");
         assert_eq!(commits[1].author, "Bob");
     }
+
+    // ── Git2Ops unit tests ────────────────────────────────────────────────────
+
+    /// Create a minimal git2 repo in a temp dir and return the path.
+    ///
+    /// The repo has an initial empty commit so HEAD is valid.
+    fn make_temp_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_path_buf();
+
+        let repo = git2::Repository::init(&path).unwrap();
+
+        // configure identity so commit creation works
+        let mut cfg = repo.config().unwrap();
+        cfg.set_str("user.name", "Test").unwrap();
+        cfg.set_str("user.email", "test@example.com").unwrap();
+        drop(cfg);
+
+        // create a root commit so HEAD is valid
+        let sig = repo
+            .signature()
+            .or_else(|_| git2::Signature::now("Test", "test@example.com"))
+            .unwrap();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            "chore: initial commit",
+            &tree,
+            &[],
+        )
+        .unwrap();
+
+        (dir, path)
+    }
+
+    #[test]
+    fn test_git2ops_open_at_valid_repo() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path);
+        assert!(ops.is_ok(), "expected Ok but open_at failed");
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_open_at_invalid_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        // point to a dir that is NOT a git repo
+        let non_repo = tmp.path().join("not_a_git_repo");
+        std::fs::create_dir_all(&non_repo).unwrap();
+        let result = Git2Ops::open_at(&non_repo);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_git2ops_get_current_branch_on_main() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let branch = ops.get_current_branch();
+        // may be "main" or "master" depending on git version defaults
+        assert!(branch.is_ok(), "expected Ok, got {:?}", branch);
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_recent_commit_messages_returns_list() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let msgs = ops.get_recent_commit_messages(10).unwrap();
+        assert!(!msgs.is_empty());
+        assert_eq!(msgs[0], "chore: initial commit");
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_is_merge_not_in_progress() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        assert!(!ops.is_merge_in_progress());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_is_rebase_not_in_progress() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        assert!(!ops.is_rebase_in_progress());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_staged_diff_empty_index() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        // nothing staged → empty diff
+        let diff = ops.get_staged_diff().unwrap();
+        assert!(diff.is_empty());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_staged_files_by_status_empty() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let added = ops.get_staged_files_by_status("A").unwrap();
+        assert!(added.is_empty());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_repo_root_is_correct() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let root = ops.get_repo_root().unwrap();
+        // the root should be (or contain) our temp path
+        assert!(root.exists());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_hook_path_exists_under_dotgit() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let hook_path = ops.get_hook_path().unwrap();
+        // hooks dir is always inside .git/
+        let hook_str = hook_path.to_string_lossy();
+        assert!(
+            hook_str.contains("hooks"),
+            "unexpected hook path: {}",
+            hook_str
+        );
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_tags_empty_repo() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let tags = ops.get_tags().unwrap();
+        assert!(tags.is_empty());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_staged_diff_with_staged_file() {
+        let (dir, path) = make_temp_repo();
+        // write a new file and stage it
+        let file_path = path.join("test.txt");
+        std::fs::write(&file_path, "hello world\n").unwrap();
+        let repo = git2::Repository::open(&path).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("test.txt")).unwrap();
+        index.write().unwrap();
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let diff = ops.get_staged_diff().unwrap();
+        assert!(!diff.is_empty());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_staged_files_by_status_added() {
+        let (dir, path) = make_temp_repo();
+        let file_path = path.join("new_file.rs");
+        std::fs::write(&file_path, "fn main() {}\n").unwrap();
+        let repo = git2::Repository::open(&path).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("new_file.rs")).unwrap();
+        index.write().unwrap();
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let added = ops.get_staged_files_by_status("A").unwrap();
+        assert!(added.contains(&"new_file.rs".to_string()));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_commits_in_range_all() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        // empty string for `from` returns all commits up to HEAD
+        let commits = ops.get_commits_in_range("", "HEAD").unwrap();
+        assert!(!commits.is_empty());
+        assert_eq!(commits[0].summary, "chore: initial commit");
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_commits_in_range_with_since_tag() {
+        let (dir, path) = make_temp_repo();
+        // add a tag on the initial commit
+        let repo = git2::Repository::open(&path).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.tag_lightweight("v0.0.0", head.as_object(), false)
+            .unwrap();
+
+        // add a second commit after the tag
+        let sig = git2::Signature::now("Test", "test@example.com").unwrap();
+        let new_file = path.join("second.txt");
+        std::fs::write(&new_file, "second").unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("second.txt")).unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            "feat: second commit",
+            &tree,
+            &[&head],
+        )
+        .unwrap();
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let commits = ops.get_commits_in_range("v0.0.0", "HEAD").unwrap();
+        assert_eq!(commits.len(), 1);
+        assert_eq!(commits[0].summary, "feat: second commit");
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_create_commit_on_staged_file() {
+        let (dir, path) = make_temp_repo();
+        let file_path = path.join("commit_me.txt");
+        std::fs::write(&file_path, "content").unwrap();
+        let repo = git2::Repository::open(&path).unwrap();
+        let mut index = repo.index().unwrap();
+        index
+            .add_path(std::path::Path::new("commit_me.txt"))
+            .unwrap();
+        index.write().unwrap();
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let result = ops.create_commit("feat: add commit_me file");
+        assert!(result.is_ok(), "create_commit failed: {:?}", result);
+        // verify the commit was actually created
+        let commits = ops.get_recent_commit_messages(1).unwrap();
+        assert_eq!(commits[0], "feat: add commit_me file");
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_create_tag_lightweight() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let result = ops.create_tag("v1.0.0", "release v1.0.0", false);
+        assert!(result.is_ok(), "create_tag failed: {:?}", result);
+        let tags = ops.get_tags().unwrap();
+        assert!(tags.iter().any(|t| t.name == "v1.0.0"));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_tags_with_annotated_tag() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        ops.create_tag("v2.0.0", "release notes for v2", false)
+            .unwrap();
+        let tags = ops.get_tags().unwrap();
+        let tag = tags.iter().find(|t| t.name == "v2.0.0").unwrap();
+        assert_eq!(tag.name, "v2.0.0");
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_repository_name_no_remote() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        // no remote configured → should return an error
+        let result = ops.get_repository_name();
+        assert!(result.is_err());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_staged_files_modified_status() {
+        let (dir, path) = make_temp_repo();
+        // create and commit a file first
+        let repo = git2::Repository::open(&path).unwrap();
+        let file_path = path.join("existing.txt");
+        std::fs::write(&file_path, "original\n").unwrap();
+        let mut index = repo.index().unwrap();
+        index
+            .add_path(std::path::Path::new("existing.txt"))
+            .unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let sig = git2::Signature::now("Test", "test@example.com").unwrap();
+        let parent = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            "chore: add file",
+            &tree,
+            &[&parent],
+        )
+        .unwrap();
+
+        // now modify the file and stage it
+        std::fs::write(&file_path, "modified\n").unwrap();
+        let mut index = repo.index().unwrap();
+        index
+            .add_path(std::path::Path::new("existing.txt"))
+            .unwrap();
+        index.write().unwrap();
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let modified = ops.get_staged_files_by_status("M").unwrap();
+        assert!(modified.contains(&"existing.txt".to_string()));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_get_commits_in_range_invalid_to_returns_error() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        let result = ops.get_commits_in_range("", "nonexistent-ref");
+        assert!(result.is_err());
+        drop(dir);
+    }
 }
