@@ -1,7 +1,5 @@
 //! cocoa: the conventional commit assistant <3
 
-#![allow(dead_code)]
-
 // initialize the library-side translation backend from the bundled locale
 // catalog; this must be at the crate root so `t!` resolves
 // `crate::_rust_i18n_t`

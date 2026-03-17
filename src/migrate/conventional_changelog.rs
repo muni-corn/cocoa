@@ -146,8 +146,10 @@ fn convert(entries: Vec<TypeEntry>) -> Result<Config, MigrateError> {
         // include all types (even hidden ones) in commit.types so linting works
         types.insert(entry.commit_type.clone());
 
-        // only map types with sections to changelog sections
-        if let Some(section_title) = entry.section {
+        // only map non-hidden types with sections to changelog sections
+        if !entry.hidden
+            && let Some(section_title) = entry.section
+        {
             sections.insert(entry.commit_type, section_title);
         }
     }

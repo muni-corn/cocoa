@@ -1,3 +1,7 @@
+// these items are used from the binary (main.rs) and integration tests but
+// not from other library modules, so the library-side dead_code lint fires
+#![allow(dead_code)]
+
 use std::{fmt, process};
 
 use console::Style;
