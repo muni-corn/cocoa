@@ -306,6 +306,64 @@ for all API endpoints."#;
     }
 
     #[test]
+    fn test_parse_commit_with_comments() {
+        let message = r#"fix(commit): remove comments from commit messages before parsing
+
+Fixes a problem where cocoa would count the entirety of a commit text file as its body.
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch main
+# Your branch is up to date with 'origin/main'.
+#
+# Changes to be committed:
+#	modified:   src/commit.rs
+#
+# Changes not staged for commit:
+#	modified:   src/commit.rs
+#
+# ------------------------ >8 ------------------------
+# Do not modify or remove the line above.
+# Everything below it will be ignored.
+diff --git a/src/commit.rs b/src/commit.rs
+index 4bf40a1..88b9714 100644
+--- a/src/commit.rs
++++ b/src/commit.rs
+@@ -22,6 +22,9 @@ pub enum ParseError {
+     /// Input didn't match the expected header/body/footer layout.
+     #[error("invalid commit format")]
+     InvalidFormat,
++
++    #[error("couldn't prettify message: {0}")]
++    PrettifyError(#[from] git2::Error),
+ }
+ 
+ /// A structured representation of a commit message.
+@@ -76,6 +79,7 @@ impl CommitMessage {
+     /// );
+     /// ```
+     pub fn parse(message: &str) -> Result<Self, ParseError> {
++        let message = git2::message_prettify(message, None)?;
+         let lines = message.lines();
+         let mut header_lines = Vec::new();
+         let mut body_lines = Vec::new();
+"#;
+
+        let commit = CommitMessage::parse(message).unwrap();
+
+        assert_eq!(commit.commit_type, "fix");
+        assert_eq!(commit.scope, Some("commit".to_string()));
+        assert_eq!(
+            commit.subject,
+            "remove comments from commit messages before parsing"
+        );
+        assert_eq!(
+            commit.body,
+            Some("Fixes a problem where cocoa would count the entirety of a commit text file as its body.".to_string())
+        );
+    }
+
+    #[test]
     fn test_parse_commit_with_footers() {
         let message = r#"feat: add new feature
 
