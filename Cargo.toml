@@ -17,14 +17,14 @@ clap = { version = "4", features = ["derive"] }
 clap_mangen = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.9"
+toml = "1"
 regex = "1"
 thiserror = "2"
 anyhow = "1"
 console = "0.16"
-dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 nom = "8"
-genai = "0.4"
+genai = "0.5"
 tokio = { version = "1", features = ["full"] }
 git2 = "0.20.2"
 chrono = "0.4"
