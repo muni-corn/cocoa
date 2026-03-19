@@ -104,7 +104,7 @@ pub fn detect_bump_type(commits: &[CommitInfo]) -> BumpType {
     let mut has_feat = false;
 
     for c in commits {
-        if let Ok(msg) = CommitMessage::parse(&c.message) {
+        if let Ok(msg) = CommitMessage::parse(&c.summary) {
             if msg.breaking {
                 return BumpType::Major;
             }
@@ -211,7 +211,7 @@ mod tests {
     fn make_commit(message: &str) -> CommitInfo {
         CommitInfo {
             id: "abc123".to_string(),
-            message: message.to_string(),
+            summary: message.to_string(),
             author: "test".to_string(),
             timestamp: 0,
         }

@@ -336,7 +336,7 @@ fn handle_range_lint(
     let lint_results: Vec<_> = commits
         .into_iter()
         .map(|commit| {
-            let result = linter.lint(&commit.message);
+            let result = linter.lint(&commit.summary);
             (commit, result)
         })
         .collect();
@@ -350,7 +350,7 @@ fn handle_range_lint(
                 let short_id = commit.id.get(..8).unwrap_or(&commit.id);
                 serde_json::json!({
                     "commit_id": short_id,
-                    "message": commit.message,
+                    "message": commit.summary,
                     "is_valid": result.is_valid,
                     "violations": result.violations,
                 })
@@ -360,7 +360,7 @@ fn handle_range_lint(
     } else if !quiet {
         for (commit, result) in &lint_results {
             let short_id = commit.id.get(..8).unwrap_or(&commit.id);
-            let commit_label = format!("[{}] {}", short_id, commit.message);
+            let commit_label = format!("[{}] {}", short_id, commit.summary);
 
             if result.violations.is_empty() {
                 print_success_bold(&commit_label);

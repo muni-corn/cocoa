@@ -73,7 +73,7 @@ fn build_entries(
     commits
         .iter()
         .filter_map(|c| {
-            let msg = CommitMessage::parse(&c.message).ok()?;
+            let msg = CommitMessage::parse(&c.summary).ok()?;
 
             // filter based on config flags
             if !config.include_merge_commits && msg.is_merge() {
@@ -277,12 +277,15 @@ fn build_versioned_history<G: GitOperations>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::ChangelogConfig, git_ops::MockGitOps};
+    use crate::{
+        config::ChangelogConfig,
+        git_ops::{CommitInfo, MockGitOps},
+    };
 
-    fn make_commit(id: &str, message: &str, timestamp: i64) -> crate::git_ops::CommitInfo {
-        crate::git_ops::CommitInfo {
+    fn make_commit(id: &str, message: &str, timestamp: i64) -> CommitInfo {
+        CommitInfo {
             id: id.to_string(),
-            message: message.to_string(),
+            summary: message.to_string(),
             author: "Test User".to_string(),
             timestamp,
         }

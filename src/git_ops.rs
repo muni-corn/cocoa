@@ -10,7 +10,7 @@ pub struct CommitInfo {
     /// Full SHA of the commit.
     pub id: String,
     /// First line of the commit message (subject).
-    pub message: String,
+    pub summary: String,
     /// Author name.
     pub author: String,
     /// Unix timestamp of the commit.
@@ -298,12 +298,12 @@ impl GitOperations for Git2Ops {
             .filter_map(|oid_result| {
                 let oid = oid_result.ok()?;
                 let commit = self.repo.find_commit(oid).ok()?;
-                let message = commit.summary().unwrap_or("").to_string();
+                let summary = commit.summary().unwrap_or("").trim_end().to_string();
                 let author = commit.author().name().unwrap_or("").to_string();
                 let timestamp = commit.time().seconds();
                 Some(CommitInfo {
                     id: oid.to_string(),
-                    message,
+                    summary,
                     author,
                     timestamp,
                 })
@@ -617,13 +617,13 @@ mod tests {
             commits_in_range: Ok(vec![
                 CommitInfo {
                     id: "abc123".to_string(),
-                    message: "feat: add feature".to_string(),
+                    summary: "feat: add feature".to_string(),
                     author: "Alice".to_string(),
                     timestamp: 1000,
                 },
                 CommitInfo {
                     id: "def456".to_string(),
-                    message: "fix: fix bug".to_string(),
+                    summary: "fix: fix bug".to_string(),
                     author: "Bob".to_string(),
                     timestamp: 900,
                 },
@@ -633,7 +633,7 @@ mod tests {
 
         let commits = mock.get_commits_in_range("v0.9.0", "HEAD").unwrap();
         assert_eq!(commits.len(), 2);
-        assert_eq!(commits[0].message, "feat: add feature");
+        assert_eq!(commits[0].summary, "feat: add feature");
         assert_eq!(commits[1].author, "Bob");
     }
 

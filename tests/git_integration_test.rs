@@ -297,8 +297,8 @@ fn test_git2ops_get_commits_in_range() {
 
     // should include beta and gamma but not alpha (which is at the tag)
     assert_eq!(commits.len(), 2);
-    assert_eq!(commits[0].message, "docs: gamma");
-    assert_eq!(commits[1].message, "fix: beta");
+    assert_eq!(commits[0].summary, "docs: gamma");
+    assert_eq!(commits[1].summary, "fix: beta");
 }
 
 #[test]
