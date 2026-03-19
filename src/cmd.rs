@@ -1,3 +1,4 @@
+pub mod changelog;
 pub mod commit;
 pub mod generate;
 pub mod init;
