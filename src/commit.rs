@@ -76,6 +76,7 @@ impl CommitMessage {
     /// );
     /// ```
     pub fn parse(message: &str) -> Result<Self, ParseError> {
+        let message = strip_git_context(message);
         let lines = message.lines();
         let mut header_lines = Vec::new();
         let mut body_lines = Vec::new();
@@ -247,6 +248,47 @@ fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
     }
 
     footers
+}
+
+/// Strips git-added context from a raw commit message.
+///
+/// Removes two kinds of noise that git writes into `COMMIT_EDITMSG`:
+///
+/// 1. The scissors line (any `#`-prefixed line containing `>8`) and everything
+///    below it — including verbose diffs added by `git commit --verbose`.
+/// 2. Comment lines — any line whose first non-whitespace character is `#`.
+///
+/// This mirrors git's own cleanup behavior so that only the user-authored
+/// content is returned. The result is trimmed of leading and trailing
+/// whitespace.
+///
+/// # Example
+///
+/// ```rust
+/// use cocoa::commit::strip_git_context;
+///
+/// let raw = "feat: add cocoa\n\n# Please enter the commit message\n# On branch main\n# ------------------------ >8 ------------------------\ndiff --git a/foo b/foo\n";
+/// assert_eq!(strip_git_context(raw), "feat: add cocoa");
+/// ```
+pub fn strip_git_context(message: &str) -> String {
+    // truncate at the scissors line (# ---- >8 ----) and everything below it
+    let above_scissors = message
+        .lines()
+        .take_while(|l| {
+            let trimmed = l.trim_start();
+            !(trimmed.starts_with('#') && trimmed.contains(">8"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // strip remaining comment lines (lines starting with #)
+    above_scissors
+        .lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]
