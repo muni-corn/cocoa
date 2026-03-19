@@ -502,4 +502,80 @@ being done by `cargo test`
         assert_eq!(commit_with_body.get_subject_length(), 5);
         assert_eq!(commit_with_body.get_body_length(), 16);
     }
+
+    // --- strip_git_context ---
+
+    #[test]
+    fn test_strip_git_context_clean_message() {
+        // already-clean messages pass through unchanged
+        assert_eq!(strip_git_context("feat: add cocoa"), "feat: add cocoa");
+    }
+
+    #[test]
+    fn test_strip_git_context_strips_comment_lines() {
+        let msg = "fix: correct typo\n\n# On branch main\n# Changes to be committed:\n#\tmodified: foo.rs";
+        assert_eq!(strip_git_context(msg), "fix: correct typo");
+    }
+
+    #[test]
+    fn test_strip_git_context_strips_scissors_and_diff() {
+        let msg = "feat: add cocoa\n\n# ------------------------ >8 ------------------------\ndiff --git a/foo b/foo\nindex abc..def 100644\n--- a/foo\n+++ b/foo";
+        assert_eq!(strip_git_context(msg), "feat: add cocoa");
+    }
+
+    #[test]
+    fn test_strip_git_context_strips_comments_and_scissors() {
+        // realistic full COMMIT_EDITMSG as produced by git commit --verbose
+        let msg = concat!(
+            "feat: add cocoa\n",
+            "\n",
+            "# Please enter the commit message for your changes. Lines starting\n",
+            "# with '#' will be ignored, and an empty message aborts the commit.\n",
+            "#\n",
+            "# On branch main\n",
+            "# Your branch is up to date with 'origin/main'.\n",
+            "#\n",
+            "# Changes to be committed:\n",
+            "#\tmodified:   flake.nix\n",
+            "#\n",
+            "# ------------------------ >8 ------------------------\n",
+            "# Do not modify or remove the line above.\n",
+            "# Everything below it will be ignored.\n",
+            "diff --git a/flake.nix b/flake.nix\n",
+            "index 8aad7bfe..70b2247e 100644\n",
+            "--- a/flake.nix\n",
+            "+++ b/flake.nix\n",
+            "@@ -99,6 +99,10 @@\n",
+        );
+        assert_eq!(strip_git_context(msg), "feat: add cocoa");
+    }
+
+    #[test]
+    fn test_strip_git_context_preserves_body() {
+        let msg = concat!(
+            "fix(parser): correct off-by-one error\n",
+            "\n",
+            "The tokenizer was counting from 1 instead of 0.\n",
+            "\n",
+            "# On branch main\n",
+            "# ------------------------ >8 ------------------------\n",
+            "diff --git a/src/parser.rs b/src/parser.rs\n",
+        );
+        assert_eq!(
+            strip_git_context(msg),
+            "fix(parser): correct off-by-one error\n\nThe tokenizer was counting from 1 instead of 0."
+        );
+    }
+
+    #[test]
+    fn test_strip_git_context_empty_message() {
+        assert_eq!(strip_git_context(""), "");
+        assert_eq!(strip_git_context("   "), "");
+    }
+
+    #[test]
+    fn test_strip_git_context_only_comments() {
+        let msg = "# On branch main\n# Changes to be committed:\n#\tmodified: foo.rs";
+        assert_eq!(strip_git_context(msg), "");
+    }
 }

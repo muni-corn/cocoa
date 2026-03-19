@@ -160,7 +160,7 @@ fn test_lint_from_file_path_invalid() {
 fn test_lint_from_commit_editmsg_style_file() {
     use std::io::Write;
 
-    // simulate what git writes to .git/COMMIT_EDITMSG
+    // simulate what git writes to .git/COMMIT_EDITMSG with comment lines only
     let mut tmp = tempfile::NamedTempFile::new().unwrap();
     writeln!(tmp, "fix(parser): correct off-by-one error in tokenizer").unwrap();
     writeln!(tmp).unwrap();
@@ -178,6 +178,81 @@ fn test_lint_from_commit_editmsg_style_file() {
     let mut cmd = cargo_bin_cmd!("cocoa");
     cmd.arg("lint")
         .arg(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("valid"));
+}
+
+#[test]
+fn test_lint_from_commit_editmsg_with_scissors_and_diff() {
+    use std::io::Write;
+
+    // simulate `git commit --verbose`, which appends the diff below the scissors
+    // line; the linter must ignore everything from the scissors line downward
+    let mut tmp = tempfile::NamedTempFile::new().unwrap();
+    writeln!(tmp, "feat: add cocoa").unwrap();
+    writeln!(tmp).unwrap();
+    writeln!(
+        tmp,
+        "# Please enter the commit message for your changes. Lines starting"
+    )
+    .unwrap();
+    writeln!(
+        tmp,
+        "# with '#' will be ignored, and an empty message aborts the commit."
+    )
+    .unwrap();
+    writeln!(tmp, "#").unwrap();
+    writeln!(tmp, "# On branch main").unwrap();
+    writeln!(tmp, "# Your branch is up to date with 'origin/main'.").unwrap();
+    writeln!(tmp, "#").unwrap();
+    writeln!(tmp, "# Changes to be committed:").unwrap();
+    writeln!(tmp, "#\tmodified:   flake.nix").unwrap();
+    writeln!(tmp, "#").unwrap();
+    writeln!(
+        tmp,
+        "# ------------------------ >8 ------------------------"
+    )
+    .unwrap();
+    writeln!(tmp, "# Do not modify or remove the line above.").unwrap();
+    writeln!(tmp, "# Everything below it will be ignored.").unwrap();
+    writeln!(tmp, "diff --git a/flake.nix b/flake.nix").unwrap();
+    writeln!(tmp, "index 8aad7bfe..70b2247e 100644").unwrap();
+    writeln!(tmp, "--- a/flake.nix").unwrap();
+    writeln!(tmp, "+++ b/flake.nix").unwrap();
+    writeln!(tmp, "@@ -99,6 +99,10 @@").unwrap();
+    writeln!(tmp, "+    cocoa = {{").unwrap();
+    writeln!(tmp, "+      url = \"github:muni-corn/cocoa\";").unwrap();
+
+    let mut cmd = cargo_bin_cmd!("cocoa");
+    cmd.arg("lint")
+        .arg(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("valid"));
+}
+
+#[test]
+fn test_lint_stdin_with_scissors_and_diff() {
+    // same scenario via stdin (the git commit-msg hook path)
+    let input = concat!(
+        "feat: add cocoa\n",
+        "\n",
+        "# Please enter the commit message for your changes.\n",
+        "# On branch main\n",
+        "#\n",
+        "# ------------------------ >8 ------------------------\n",
+        "# Do not modify or remove the line above.\n",
+        "diff --git a/flake.nix b/flake.nix\n",
+        "index 8aad7bfe..70b2247e 100644\n",
+        "--- a/flake.nix\n",
+        "+++ b/flake.nix\n",
+    );
+
+    let mut cmd = cargo_bin_cmd!("cocoa");
+    cmd.arg("lint")
+        .arg("--stdin")
+        .write_stdin(input)
         .assert()
         .success()
         .stdout(predicate::str::contains("valid"));
