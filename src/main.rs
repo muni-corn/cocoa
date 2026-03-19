@@ -17,7 +17,7 @@ use cocoa::{
     git_ops::{Git2Ops, GitOperations},
     hook,
     i18n::{detect_locale, set_locale},
-    init, interactive, migrate, release, tag, version,
+    interactive, migrate, release, tag, version,
 };
 use rust_i18n::t;
 use style::{
@@ -60,29 +60,7 @@ async fn main() -> Result<()> {
         }
         Commands::Init => {
             welcome(t!("main.init.welcome"));
-            match init::init(cli.dry_run) {
-                Ok(()) => {
-                    if cli.dry_run {
-                        print_info(t!("main.init.dry_run_done"));
-                    } else {
-                        print_success_bold(t!("main.init.wrote_config"));
-                    }
-                    goodbye_with_success();
-                }
-                Err(init::InitError::Aborted) => {
-                    print_warning(t!("main.init.cancelled"));
-                    goodbye_with_warning();
-                }
-                Err(init::InitError::FileExists) => {
-                    print_error_bold(t!("main.init.file_exists"));
-                    print_info(t!("main.init.file_exists_hint"));
-                    goodbye_with_death(1);
-                }
-                Err(e) => {
-                    print_error_bold(t!("main.init.failed", error = e.to_string()));
-                    goodbye_with_death(1);
-                }
-            }
+            cmd::init::handle_init(cli.dry_run)?;
         }
         Commands::Commit => {
             welcome(t!("main.commit.welcome"));
