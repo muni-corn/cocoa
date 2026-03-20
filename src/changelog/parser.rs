@@ -16,15 +16,12 @@ use crate::{
 pub(crate) fn default_section_title(commit_type: &str) -> Option<&'static str> {
     match commit_type {
         "feat" => Some("Features"),
-        "fix" => Some("Bug Fixes"),
-        "perf" => Some("Performance Improvements"),
-        "refactor" => Some("Code Refactoring"),
+        "fix" => Some("Bug fixes"),
+        "perf" => Some("Performance"),
         "docs" => Some("Documentation"),
-        "style" => Some("Code Style"),
         "test" => Some("Tests"),
-        "build" => Some("Build System"),
-        "ci" => Some("Continuous Integration"),
-        "chore" => Some("Chores"),
+        "build" => Some("Build system"),
+        "ci" => Some("Continuous integration"),
         _ => None,
     }
 }
@@ -36,13 +33,13 @@ fn section_order(commit_type: &str) -> usize {
         "feat" => 0,
         "fix" => 1,
         "perf" => 2,
-        "refactor" => 3,
-        "docs" => 4,
-        "style" => 5,
-        "test" => 6,
-        "build" => 7,
-        "ci" => 8,
-        "chore" => 9,
+        "test" => 3,
+        "build" => 4,
+        "ci" => 5,
+        "docs" => 6,
+        "refactor" => 7,
+        "chore" => 8,
+        "style" => 9,
         _ => 999,
     }
 }
