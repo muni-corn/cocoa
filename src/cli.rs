@@ -67,12 +67,12 @@ options:
 
 #[derive(Parser)]
 #[command(name = "cocoa")]
-#[command(about = "The conventional commit assistant")]
+#[command(about = "the conventional commit assistant")]
 #[command(
-    long_about = "cocoa is a conventional commit assistant that helps you write well-formed\n\
-                  commit messages, lint existing ones, generate changelogs, and manage\n\
-                  semantic versioning — all from a single tool.\n\n\
-                  All commands accept --dry-run to preview changes without writing anything,\n\
+    long_about = "hi! i'm cocoa, the conventional commit assistant! i can help you write
+                  well-formed commit messages, lint existing ones, generate changelogs,
+                  and manage semantic versioning, all from a single tool.\n
+                  All commands accept --dry-run to preview changes without writing anything,
                   --json for machine-readable output, and --quiet to suppress non-error output."
 )]
 #[command(version, author)]
@@ -138,10 +138,10 @@ pub enum Command {
     ///
     /// Use --dry-run to preview the generated file without writing it.
     #[command(
-        about = "Initialize configuration interactively",
-        after_help = "examples:\n  \
-            cocoa init               # interactive setup, writes .cocoa.toml\n  \
-            cocoa --dry-run init     # preview generated config without writing"
+        about = "Initialize cocoa config interactively",
+        after_help = "examples:
+    cocoa init               # interactive setup, writes .cocoa.toml
+    cocoa --dry-run init     # preview generated config without writing"
     )]
     Init,
 
@@ -155,10 +155,10 @@ pub enum Command {
     ///
     /// Use --dry-run to print the assembled message without committing.
     #[command(
-        about = "Create a commit interactively",
-        after_help = "examples:\n  \
-            cocoa commit             # interactive commit wizard\n  \
-            cocoa --dry-run commit   # preview message without committing"
+        about = "Create commits interactively",
+        after_help = "examples:
+    cocoa commit             # interactive commit wizard
+    cocoa --dry-run commit   # preview message without committing"
     )]
     Commit,
 
@@ -171,10 +171,10 @@ pub enum Command {
     /// Requires an [ai] section in .cocoa.toml with a provider and API key.
     /// Use `cocoa init` to configure AI interactively.
     #[command(
-        about = "Generate a commit message from staged changes using AI",
-        after_help = "examples:\n  \
-            git add -p && cocoa generate   # stage hunks, then generate message\n  \
-            cocoa --json generate          # emit proposed message as JSON"
+        about = "Generate commit messages with AI",
+        after_help = "examples:
+    git add -p && cocoa generate   # stage hunks, then generate message
+    cocoa --json generate          # emit proposed message as JSON"
     )]
     Generate,
 
@@ -189,13 +189,13 @@ pub enum Command {
     ///
     /// Exit codes: 0 = all valid, 3 = one or more violations found.
     #[command(
-        about = "Lint commit messages against conventional commit rules",
-        after_help = "examples:\n  \
-            cocoa lint \"feat: add login\"          # lint a message string\n  \
-            cocoa lint HEAD~5..HEAD               # lint last 5 commits\n  \
-            cocoa lint .git/COMMIT_EDITMSG        # lint a message file\n  \
-            echo \"fix: typo\" | cocoa lint --stdin # lint from stdin (git hook)\n  \
-            cocoa --json lint HEAD~3..HEAD        # machine-readable range output"
+        about = "Lint commit messages",
+        after_help = r#"examples:
+    cocoa lint "feat: add login"          # lint a message string
+    cocoa lint HEAD~5..HEAD               # lint last 5 commits
+    cocoa lint .git/COMMIT_EDITMSG        # lint a message file
+    echo "fix: typo" | cocoa lint --stdin # lint from stdin (git hook)
+    cocoa --json lint HEAD~3..HEAD        # machine-readable range output"#
     )]
     Lint {
         /// Commit message, file path, or git range to lint.
@@ -228,13 +228,13 @@ pub enum Command {
     /// and template:<path> for a custom Jinja2-style template file.
     #[command(
         about = "Generate a changelog from commit history",
-        after_help = "examples:\n  \
-            cocoa changelog                          # full history → CHANGELOG.md\n  \
-            cocoa changelog v1.0.0..HEAD             # since a specific tag\n  \
-            cocoa changelog --format json            # emit as JSON\n  \
-            cocoa changelog --output CHANGES.md      # write to a custom file\n  \
-            cocoa --dry-run changelog v1.2.0..HEAD   # preview without writing\n  \
-            cocoa changelog --format template:tmpl/changelog.md  # custom template"
+        after_help = r#"examples:
+    cocoa changelog                                       # full history -> CHANGELOG.md
+    cocoa changelog v1.0.0..HEAD                          # since a specific tag
+    cocoa changelog --format json                         # emit as JSON
+    cocoa changelog --output CHANGES.md                   # write to a custom file
+    cocoa --dry-run changelog v1.2.0..HEAD                # preview without writing
+    cocoa changelog --format template:tmpl/changelog.md   # custom template"#
     )]
     Changelog {
         /// Git range to include in the changelog.
@@ -281,11 +281,11 @@ pub enum Command {
     /// without making any changes.
     #[command(
         about = "Bump the project version",
-        after_help = "examples:\n  \
-            cocoa bump              # auto-detect bump type from commits\n  \
-            cocoa bump minor        # force a minor bump\n  \
-            cocoa bump major        # force a major bump\n  \
-            cocoa --dry-run bump    # preview new version without writing"
+        after_help = "examples:
+    cocoa bump              # auto-detect bump type from commits
+    cocoa bump minor        # force a minor bump
+    cocoa bump major        # force a major bump
+    cocoa --dry-run bump    # preview new version without writing"
     )]
     Bump {
         /// Bump type to apply.
@@ -312,9 +312,9 @@ pub enum Command {
     /// Use `cocoa unhook` to remove it.
     #[command(
         about = "Install the commit-msg git hook",
-        after_help = "examples:\n  \
-            cocoa hook               # install the hook\n  \
-            cocoa --dry-run hook     # show what would be written without installing"
+        after_help = "examples:
+    cocoa hook               # install the hook
+    cocoa --dry-run hook     # show what would be written without installing"
     )]
     Hook,
 
@@ -324,9 +324,9 @@ pub enum Command {
     /// previous hook exists, it is restored automatically.
     #[command(
         about = "Remove the commit-msg git hook",
-        after_help = "examples:\n  \
-            cocoa unhook             # remove the hook\n  \
-            cocoa --dry-run unhook   # show what would be removed without acting"
+        after_help = "examples:
+    cocoa unhook             # remove the hook
+    cocoa --dry-run unhook   # show what would be removed without acting"
     )]
     Unhook,
 
@@ -341,11 +341,11 @@ pub enum Command {
     /// Use --dry-run to print the tag name and message without creating it.
     #[command(
         about = "Create an annotated version tag",
-        after_help = "examples:\n  \
-            cocoa tag                # auto-detect version and tag\n  \
-            cocoa tag 2.1.0          # tag a specific version\n  \
-            cocoa tag v2.1.0         # v-prefix is stripped automatically\n  \
-            cocoa --dry-run tag      # preview tag name and message"
+        after_help = "examples:
+    cocoa tag                # auto-detect version and tag
+    cocoa tag 2.1.0          # tag a specific version
+    cocoa tag v2.1.0         # v-prefix is stripped automatically
+    cocoa --dry-run tag      # preview tag name and message"
     )]
     Tag {
         /// Version to tag.
@@ -372,12 +372,12 @@ pub enum Command {
     /// Use --dry-run to preview the converted config without writing anything.
     #[command(
         about = "Migrate another tool's config to .cocoa.toml",
-        after_help = "examples:\n  \
-            cocoa migrate                              # auto-detect source tool\n  \
-            cocoa migrate --from commitlint            # migrate from commitlint\n  \
-            cocoa migrate --from semantic-release      # migrate from semantic-release\n  \
-            cocoa --dry-run migrate                    # preview without writing\n  \
-            cocoa migrate --undo                       # restore previous .cocoa.toml"
+        after_help = "examples:
+    cocoa migrate                              # auto-detect source tool
+    cocoa migrate --from commitlint            # migrate from commitlint
+    cocoa migrate --from semantic-release      # migrate from semantic-release
+    cocoa --dry-run migrate                    # preview without writing
+    cocoa migrate --undo                       # restore previous .cocoa.toml"
     )]
     Migrate {
         /// Source tool to migrate from.
@@ -415,12 +415,12 @@ pub enum Command {
     /// Use --dry-run to preview the full plan without making any changes.
     #[command(
         about = "Run the full release workflow (bump + changelog + commit + tag)",
-        after_help = "examples:\n  \
-            cocoa release                           # full auto release\n  \
-            cocoa release minor                     # force a minor release\n  \
-            cocoa --dry-run release                 # preview without changes\n  \
-            cocoa release --skip-commit --skip-tag  # update files and changelog only\n  \
-            cocoa release --skip-changelog          # skip changelog generation"
+        after_help = "examples:
+    cocoa release                           # full auto release
+    cocoa release minor                     # force a minor release
+    cocoa --dry-run release                 # preview without changes
+    cocoa release --skip-commit --skip-tag  # update files and changelog only
+    cocoa release --skip-changelog          # skip changelog generation"
     )]
     Release {
         /// Bump type to apply.
