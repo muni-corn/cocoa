@@ -5,13 +5,14 @@ rust_i18n::i18n!("locales");
 use anyhow::Result;
 use clap::FromArgMatches;
 use cocoa::{
-    cli::{Cli, Command},
     cmd::{self, lint::handle_lint, man::handle_man},
     config::Config,
     i18n::{detect_locale, set_locale},
     style::welcome,
 };
 use rust_i18n::t;
+
+use cocoa::{cli::Cli, cmd::Command};
 
 #[tokio::main]
 async fn main() -> Result<()> {

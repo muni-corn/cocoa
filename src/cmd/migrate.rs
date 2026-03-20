@@ -1,14 +1,27 @@
 use anyhow::Result;
+use clap::ValueEnum;
 use rust_i18n::t;
 
 use crate::{
-    cli::MigrateSourceArg,
     migrate,
     style::{
         goodbye_with_death, goodbye_with_success, print_error, print_error_bold, print_info,
         print_success_bold,
     },
 };
+
+/// The third-party tool to migrate from, as supplied on the command line.
+#[derive(Debug, Clone, PartialEq, ValueEnum)]
+pub enum MigrateSourceArg {
+    /// Migrate from a commitlint configuration file.
+    Commitlint,
+    /// Migrate from a conventional-changelog configuration file.
+    #[value(name = "conventional-changelog")]
+    ConventionalChangelog,
+    /// Migrate from a semantic-release configuration file.
+    #[value(name = "semantic-release")]
+    SemanticRelease,
+}
 
 /// Migrate a third-party tool's configuration to `.cocoa.toml`.
 ///
