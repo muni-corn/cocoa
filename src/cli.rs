@@ -80,7 +80,7 @@ options:
 #[command(disable_help_subcommand = true)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Command,
 
     /// Path to the configuration file.
     ///
@@ -129,7 +129,7 @@ pub struct Cli {
 }
 
 #[derive(Subcommand)]
-pub enum Commands {
+pub enum Command {
     /// Initialize a cocoa configuration file interactively.
     ///
     /// Prompts you for commit type preferences, scope rules, line-length
@@ -507,7 +507,7 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
 
         match cli.command {
-            Commands::Lint { stdin, .. } => assert!(stdin),
+            Command::Lint { stdin, .. } => assert!(stdin),
             _ => panic!("expected lint command"),
         }
     }
@@ -518,7 +518,7 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
 
         match cli.command {
-            Commands::Lint { input, .. } => assert_eq!(input, Some("feat: test".to_string())),
+            Command::Lint { input, .. } => assert_eq!(input, Some("feat: test".to_string())),
             _ => panic!("expected lint command"),
         }
     }
@@ -528,7 +528,7 @@ mod tests {
         let args = vec!["cocoa", "generate"];
         let cli = Cli::try_parse_from(args).unwrap();
 
-        assert!(matches!(cli.command, Commands::Generate));
+        assert!(matches!(cli.command, Command::Generate));
     }
 
     #[test]

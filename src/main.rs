@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::FromArgMatches;
 use cocoa::{
     Config,
-    cli::{Cli, Commands},
+    cli::{Cli, Command},
     i18n::{detect_locale, set_locale},
 };
 use rust_i18n::t;
@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     };
 
     match cli.command {
-        Commands::Lint { input, stdin } => {
+        Command::Lint { input, stdin } => {
             welcome(t!("main.lint.welcome"));
             cmd::lint::handle_lint(
                 &config,
@@ -48,20 +48,20 @@ async fn main() -> Result<()> {
                 cli.dry_run,
             )?;
         }
-        Commands::Init => {
+        Command::Init => {
             welcome(t!("main.init.welcome"));
             cmd::init::handle_init(cli.dry_run)?;
         }
-        Commands::Commit => {
+        Command::Commit => {
             welcome(t!("main.commit.welcome"));
             cmd::commit::handle_commit(&config, cli.dry_run)?;
         }
-        Commands::Generate => {
+        Command::Generate => {
             welcome(t!("main.generate.welcome"));
             cmd::generate::handle_generate(&config, cli.json, cli.quiet, cli.verbose, cli.dry_run)
                 .await?;
         }
-        Commands::Changelog {
+        Command::Changelog {
             range,
             format,
             output,
@@ -78,27 +78,27 @@ async fn main() -> Result<()> {
                 cli.dry_run,
             )?;
         }
-        Commands::Bump { bump_type } => {
+        Command::Bump { bump_type } => {
             if !cli.json {
                 welcome(t!("main.bump.welcome"));
             }
             cmd::bump::handle_bump(&config, bump_type.as_deref(), cli.json, cli.dry_run)?;
         }
-        Commands::Hook => {
+        Command::Hook => {
             welcome(t!("main.hook.welcome"));
             cmd::hook::handle_hook(&config, cli.dry_run)?;
         }
-        Commands::Unhook => {
+        Command::Unhook => {
             welcome(t!("main.unhook.welcome"));
             cmd::unhook::handle_unhook(&config, cli.dry_run)?;
         }
-        Commands::Tag { version } => {
+        Command::Tag { version } => {
             if !cli.json {
                 welcome(t!("main.tag.welcome"));
             }
             cmd::tag::handle_tag(&config, version.as_deref(), cli.json, cli.dry_run)?;
         }
-        Commands::Release {
+        Command::Release {
             bump_type,
             skip_changelog,
             skip_commit,
@@ -117,7 +117,7 @@ async fn main() -> Result<()> {
                 cli.dry_run,
             )?;
         }
-        Commands::Migrate { from, undo } => {
+        Command::Migrate { from, undo } => {
             welcome(t!("main.migrate.welcome"));
             cmd::migrate::handle_migrate(from, undo, cli.dry_run)?;
         }
