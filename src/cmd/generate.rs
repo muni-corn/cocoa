@@ -1,12 +1,14 @@
 use std::{io, process};
 
 use anyhow::Result;
-use cocoa::{Config, generate};
 use rust_i18n::t;
 
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
-    print_info, print_success_bold, print_warning, print_warning_bold,
+use crate::{
+    Config, generate,
+    style::{
+        goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error,
+        print_error_bold, print_info, print_success_bold, print_warning, print_warning_bold,
+    },
 };
 
 pub async fn handle_generate(

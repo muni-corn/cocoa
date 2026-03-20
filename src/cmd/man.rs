@@ -12,7 +12,8 @@
 use std::path::PathBuf;
 
 use clap::CommandFactory;
-use cocoa::cli::Cli;
+
+use crate::cli::Cli;
 
 pub fn handle_man() -> std::io::Result<()> {
     let out_dir = std::env::args()

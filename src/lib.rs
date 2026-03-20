@@ -8,6 +8,7 @@ rust_i18n::i18n!("locales");
 pub mod ai;
 pub mod changelog;
 pub mod cli;
+pub mod cmd;
 pub mod commit;
 pub mod config;
 pub mod generate;
@@ -20,7 +21,7 @@ pub mod lint;
 pub mod migrate;
 pub mod release;
 pub mod security;
-pub(crate) mod style;
+pub mod style;
 pub mod tag;
 pub mod version;
 

@@ -1,11 +1,15 @@
 use std::process;
 
 use anyhow::Result;
-use cocoa::{Config, git_ops::Git2Ops, tag};
 use rust_i18n::t;
 
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, print_error_bold, print_info, print_success_bold,
+use crate::{
+    Config,
+    git_ops::Git2Ops,
+    style::{
+        goodbye_with_death, goodbye_with_success, print_error_bold, print_info, print_success_bold,
+    },
+    tag,
 };
 
 /// Create an annotated version tag with the changelog as its message.

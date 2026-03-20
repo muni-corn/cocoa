@@ -1,10 +1,13 @@
 use anyhow::Result;
-use cocoa::{cli::MigrateSourceArg, migrate};
 use rust_i18n::t;
 
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, print_error, print_error_bold, print_info,
-    print_success_bold,
+use crate::{
+    cli::MigrateSourceArg,
+    migrate,
+    style::{
+        goodbye_with_death, goodbye_with_success, print_error, print_error_bold, print_info,
+        print_success_bold,
+    },
 };
 
 /// Migrate a third-party tool's configuration to `.cocoa.toml`.

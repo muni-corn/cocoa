@@ -1,14 +1,14 @@
 use anyhow::Result;
-use cocoa::{
+use rust_i18n::t;
+
+use crate::{
     Config,
     git_ops::{Git2Ops, GitOperations},
     hook,
-};
-use rust_i18n::t;
-
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error_bold, print_info,
-    print_success_bold, print_warning,
+    style::{
+        goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error_bold,
+        print_info, print_success_bold, print_warning,
+    },
 };
 
 /// Removes the cocoa `commit-msg` git hook, restoring a backup if present.

@@ -1,10 +1,12 @@
 use anyhow::Result;
-use cocoa::init;
 use rust_i18n::t;
 
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error_bold, print_info,
-    print_success_bold, print_warning,
+use crate::{
+    init,
+    style::{
+        goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error_bold,
+        print_info, print_success_bold, print_warning,
+    },
 };
 
 pub fn handle_init(dry_run: bool) -> Result<()> {

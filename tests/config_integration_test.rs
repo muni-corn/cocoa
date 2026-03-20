@@ -2,10 +2,7 @@
 
 use std::{fs, path::PathBuf};
 
-use cocoa::{
-    Config,
-    config::{ChangelogConfig, VersionConfig, VersionStrategy},
-};
+use cocoa::config::{ChangelogConfig, Config, VersionConfig, VersionStrategy};
 use tempfile::TempDir;
 
 #[test]

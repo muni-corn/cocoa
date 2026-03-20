@@ -6,7 +6,7 @@
 
 use thiserror::Error;
 
-use crate::{Config, Linter, git_ops::GitOperations};
+use crate::{Config, git_ops::GitOperations, lint::Linter};
 
 /// Errors that can occur during interactive commit creation.
 #[derive(Debug, Error)]

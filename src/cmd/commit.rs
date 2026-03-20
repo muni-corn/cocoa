@@ -1,10 +1,14 @@
 use anyhow::Result;
-use cocoa::{Config, git_ops::Git2Ops, interactive};
 use rust_i18n::t;
 
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
-    print_info, print_success_bold, print_warning,
+use crate::{
+    Config,
+    git_ops::Git2Ops,
+    interactive,
+    style::{
+        goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error,
+        print_error_bold, print_info, print_success_bold, print_warning,
+    },
 };
 
 /// Runs the interactive commit wizard and performs the commit.

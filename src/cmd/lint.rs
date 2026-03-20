@@ -4,17 +4,17 @@ use std::{
 };
 
 use anyhow::Result;
-use cocoa::{
+use rust_i18n::t;
+
+use crate::{
     Config,
     git_ops::{Git2Ops, GitOperations},
     lint,
     lint::Linter,
-};
-use rust_i18n::t;
-
-use crate::style::{
-    goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error, print_error_bold,
-    print_info, print_success_bold, print_warning, print_warning_bold,
+    style::{
+        goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error,
+        print_error_bold, print_info, print_success_bold, print_warning, print_warning_bold,
+    },
 };
 
 pub fn handle_lint(

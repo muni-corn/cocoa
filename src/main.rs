@@ -2,20 +2,16 @@
 // as the library so all keys are available in both lib and bin code)
 rust_i18n::i18n!("locales");
 
-mod cmd;
-mod style;
-
 use anyhow::Result;
 use clap::FromArgMatches;
 use cocoa::{
-    Config,
     cli::{Cli, Command},
+    cmd::{self, lint::handle_lint, man::handle_man},
+    config::Config,
     i18n::{detect_locale, set_locale},
+    style::welcome,
 };
 use rust_i18n::t;
-use style::welcome;
-
-use crate::cmd::man::handle_man;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -40,7 +36,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Command::Lint { input, stdin } => {
             welcome(t!("main.lint.welcome"));
-            cmd::lint::handle_lint(
+            handle_lint(
                 &config,
                 input,
                 stdin,

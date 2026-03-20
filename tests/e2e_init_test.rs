@@ -5,6 +5,7 @@
 //! configuration values.
 
 use assert_cmd::cargo::cargo_bin_cmd;
+use cocoa::config::Config;
 use predicates::prelude::*;
 use tempfile::TempDir;
 
@@ -97,8 +98,8 @@ fn test_init_written_config_is_loadable() {
     init_cmd_in(&tmp).arg("init").assert().success();
 
     let config_path = tmp.path().join(".cocoa.toml");
-    let config = cocoa::Config::load(&config_path)
-        .expect("written config should be parseable by Config::load");
+    let config =
+        Config::load(&config_path).expect("written config should be parseable by Config::load");
 
     // default types must all be present in the non-interactive path
     for typ in &["feat", "fix", "chore", "docs", "style", "refactor", "test"] {
@@ -116,7 +117,7 @@ fn test_init_written_config_has_valid_rules() {
     init_cmd_in(&tmp).arg("init").assert().success();
 
     let config_path = tmp.path().join(".cocoa.toml");
-    let config = cocoa::Config::load(&config_path).unwrap();
+    let config = Config::load(&config_path).unwrap();
 
     // default warn < deny (validation would have rejected otherwise)
     let warn_subj = config.commit.rules.warn.subject_length.unwrap();
