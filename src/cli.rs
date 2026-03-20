@@ -77,7 +77,6 @@ options:
 )]
 #[command(version, author)]
 #[command(help_template = HELP_TEMPLATE)]
-#[command(disable_help_subcommand = true)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
