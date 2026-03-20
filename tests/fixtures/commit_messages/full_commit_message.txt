@@ -1,0 +1,176 @@
+refactor: rename `message` to `summary` in CommitMessage
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Date:      Wed Mar 18 21:45:47 2026 -0600
+#
+# HEAD detached at 5f4657f
+# Changes to be committed:
+#	modified:   src/changelog/parser.rs
+#	modified:   src/git_ops.rs
+#	modified:   src/main.rs
+#	modified:   src/version/mod.rs
+#	modified:   tests/git_integration_test.rs
+#
+# Untracked files:
+#	man/
+#	tests/fixtures/commit_messages/full_commit_message.txt
+#
+# ------------------------ >8 ------------------------
+# Do not modify or remove the line above.
+# Everything below it will be ignored.
+diff --git a/src/changelog/parser.rs b/src/changelog/parser.rs
+index 48cf898..792ead5 100644
+--- a/src/changelog/parser.rs
++++ b/src/changelog/parser.rs
+@@ -73,7 +73,7 @@ fn build_entries(
+     commits
+         .iter()
+         .filter_map(|c| {
+-            let msg = CommitMessage::parse(&c.message).ok()?;
++            let msg = CommitMessage::parse(&c.summary).ok()?;
+ 
+             // filter based on config flags
+             if !config.include_merge_commits && msg.is_merge() {
+@@ -277,12 +277,15 @@ fn build_versioned_history<G: GitOperations>(
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+-    use crate::{config::ChangelogConfig, git_ops::MockGitOps};
++    use crate::{
++        config::ChangelogConfig,
++        git_ops::{CommitInfo, MockGitOps},
++    };
+ 
+-    fn make_commit(id: &str, message: &str, timestamp: i64) -> crate::git_ops::CommitInfo {
+-        crate::git_ops::CommitInfo {
++    fn make_commit(id: &str, message: &str, timestamp: i64) -> CommitInfo {
++        CommitInfo {
+             id: id.to_string(),
+-            message: message.to_string(),
++            summary: message.to_string(),
+             author: "Test User".to_string(),
+             timestamp,
+         }
+diff --git a/src/git_ops.rs b/src/git_ops.rs
+index af9bb8f..48a7d9d 100644
+--- a/src/git_ops.rs
++++ b/src/git_ops.rs
+@@ -10,7 +10,7 @@ pub struct CommitInfo {
+     /// Full SHA of the commit.
+     pub id: String,
+     /// First line of the commit message (subject).
+-    pub message: String,
++    pub summary: String,
+     /// Author name.
+     pub author: String,
+     /// Unix timestamp of the commit.
+@@ -298,12 +298,12 @@ impl GitOperations for Git2Ops {
+             .filter_map(|oid_result| {
+                 let oid = oid_result.ok()?;
+                 let commit = self.repo.find_commit(oid).ok()?;
+-                let message = commit.summary().unwrap_or("").to_string();
++                let summary = commit.summary().unwrap_or("").trim_end().to_string();
+                 let author = commit.author().name().unwrap_or("").to_string();
+                 let timestamp = commit.time().seconds();
+                 Some(CommitInfo {
+                     id: oid.to_string(),
+-                    message,
++                    summary,
+                     author,
+                     timestamp,
+                 })
+@@ -617,13 +617,13 @@ mod tests {
+             commits_in_range: Ok(vec![
+                 CommitInfo {
+                     id: "abc123".to_string(),
+-                    message: "feat: add feature".to_string(),
++                    summary: "feat: add feature".to_string(),
+                     author: "Alice".to_string(),
+                     timestamp: 1000,
+                 },
+                 CommitInfo {
+                     id: "def456".to_string(),
+-                    message: "fix: fix bug".to_string(),
++                    summary: "fix: fix bug".to_string(),
+                     author: "Bob".to_string(),
+                     timestamp: 900,
+                 },
+@@ -633,7 +633,7 @@ mod tests {
+ 
+         let commits = mock.get_commits_in_range("v0.9.0", "HEAD").unwrap();
+         assert_eq!(commits.len(), 2);
+-        assert_eq!(commits[0].message, "feat: add feature");
++        assert_eq!(commits[0].summary, "feat: add feature");
+         assert_eq!(commits[1].author, "Bob");
+     }
+ 
+diff --git a/src/main.rs b/src/main.rs
+index 4e52626..244d3be 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -336,7 +336,7 @@ fn handle_range_lint(
+     let lint_results: Vec<_> = commits
+         .into_iter()
+         .map(|commit| {
+-            let result = linter.lint(&commit.message);
++            let result = linter.lint(&commit.summary);
+             (commit, result)
+         })
+         .collect();
+@@ -350,7 +350,7 @@ fn handle_range_lint(
+                 let short_id = commit.id.get(..8).unwrap_or(&commit.id);
+                 serde_json::json!({
+                     "commit_id": short_id,
+-                    "message": commit.message,
++                    "message": commit.summary,
+                     "is_valid": result.is_valid,
+                     "violations": result.violations,
+                 })
+@@ -360,7 +360,7 @@ fn handle_range_lint(
+     } else if !quiet {
+         for (commit, result) in &lint_results {
+             let short_id = commit.id.get(..8).unwrap_or(&commit.id);
+-            let commit_label = format!("[{}] {}", short_id, commit.message);
++            let commit_label = format!("[{}] {}", short_id, commit.summary);
+ 
+             if result.violations.is_empty() {
+                 print_success_bold(&commit_label);
+diff --git a/src/version/mod.rs b/src/version/mod.rs
+index 1958a63..ebc8bb6 100644
+--- a/src/version/mod.rs
++++ b/src/version/mod.rs
+@@ -104,7 +104,7 @@ pub fn detect_bump_type(commits: &[CommitInfo]) -> BumpType {
+     let mut has_feat = false;
+ 
+     for c in commits {
+-        if let Ok(msg) = CommitMessage::parse(&c.message) {
++        if let Ok(msg) = CommitMessage::parse(&c.summary) {
+             if msg.breaking {
+                 return BumpType::Major;
+             }
+@@ -211,7 +211,7 @@ mod tests {
+     fn make_commit(message: &str) -> CommitInfo {
+         CommitInfo {
+             id: "abc123".to_string(),
+-            message: message.to_string(),
++            summary: message.to_string(),
+             author: "test".to_string(),
+             timestamp: 0,
+         }
+diff --git a/tests/git_integration_test.rs b/tests/git_integration_test.rs
+index 0b11e50..310ab36 100644
+--- a/tests/git_integration_test.rs
++++ b/tests/git_integration_test.rs
+@@ -297,8 +297,8 @@ fn test_git2ops_get_commits_in_range() {
+ 
+     // should include beta and gamma but not alpha (which is at the tag)
+     assert_eq!(commits.len(), 2);
+-    assert_eq!(commits[0].message, "docs: gamma");
+-    assert_eq!(commits[1].message, "fix: beta");
++    assert_eq!(commits[0].summary, "docs: gamma");
++    assert_eq!(commits[1].summary, "fix: beta");
+ }
+ 
+ #[test]
