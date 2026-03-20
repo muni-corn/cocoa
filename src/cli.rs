@@ -444,6 +444,9 @@ pub enum Command {
         #[arg(long, help = "Skip tag creation")]
         skip_tag: bool,
     },
+
+    #[command(about = "Generate man pages for cocoa")]
+    Man,
 }
 
 /// The third-party tool to migrate from, as supplied on the command line.

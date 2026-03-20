@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use clap::CommandFactory;
 use cocoa::cli::Cli;
 
-fn main() -> std::io::Result<()> {
+pub fn handle_man() -> std::io::Result<()> {
     let out_dir = std::env::args()
         .nth(1)
         .map(PathBuf::from)

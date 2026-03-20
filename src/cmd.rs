@@ -5,6 +5,7 @@ pub mod generate;
 pub mod hook;
 pub mod init;
 pub mod lint;
+pub mod man;
 pub mod migrate;
 pub mod release;
 pub mod tag;

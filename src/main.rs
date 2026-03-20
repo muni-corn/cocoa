@@ -15,6 +15,8 @@ use cocoa::{
 use rust_i18n::t;
 use style::welcome;
 
+use crate::cmd::man::handle_man;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // detect and apply system locale before any output is produced
@@ -121,6 +123,8 @@ async fn main() -> Result<()> {
             welcome(t!("main.migrate.welcome"));
             cmd::migrate::handle_migrate(from, undo, cli.dry_run)?;
         }
+
+        Command::Man => handle_man()?,
     }
 
     Ok(())
