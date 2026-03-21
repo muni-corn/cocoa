@@ -163,6 +163,7 @@ mod tests {
     use clap::CommandFactory;
 
     use super::*;
+    use crate::cmd::lint::LintArgs;
 
     #[test]
     fn test_cli_can_parse() {
@@ -176,7 +177,7 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
 
         match cli.command {
-            Command::Lint { stdin, .. } => assert!(stdin),
+            Command::Lint(LintArgs { stdin, .. }) => assert!(stdin),
             _ => panic!("expected lint command"),
         }
     }
@@ -187,7 +188,9 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
 
         match cli.command {
-            Command::Lint { input, .. } => assert_eq!(input, Some("feat: test".to_string())),
+            Command::Lint(LintArgs { input, .. }) => {
+                assert_eq!(input, Some("feat: test".to_string()))
+            }
             _ => panic!("expected lint command"),
         }
     }

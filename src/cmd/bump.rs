@@ -1,6 +1,7 @@
 use std::process;
 
 use anyhow::Result;
+use clap::Args;
 use rust_i18n::t;
 
 use crate::{
@@ -13,6 +14,21 @@ use crate::{
     version,
 };
 
+#[derive(Args)]
+pub struct BumpArgs {
+    /// Bump type to apply.
+    ///
+    /// One of: major, minor, patch, or auto (default). When auto is
+    /// used (or the argument is omitted), the bump type is inferred
+    /// from conventional commits since the last version tag: a breaking
+    /// change triggers major, feat triggers minor, and fix triggers
+    /// patch.
+    #[arg(
+        value_name = "BUMP_TYPE",
+        help = "Bump type: major, minor, patch, or auto (default: auto)"
+    )]
+    pub bump_type: Option<String>,
+}
 /// Bump the project version and update configured version files.
 ///
 /// Accepts an explicit bump type (major, minor, patch) or "auto" to detect

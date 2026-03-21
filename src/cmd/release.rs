@@ -1,6 +1,7 @@
 use std::process;
 
 use anyhow::Result;
+use clap::Args;
 use rust_i18n::t;
 
 use crate::{
@@ -12,6 +13,31 @@ use crate::{
     },
     tag, version,
 };
+
+#[derive(Args)]
+pub struct ReleaseArgs {
+    /// Bump type to apply.
+    ///
+    /// One of: major, minor, patch, or auto (default). Auto infers the
+    /// bump type from conventional commits since the last version tag.
+    #[arg(
+        value_name = "BUMP_TYPE",
+        help = "Bump type: major, minor, patch, or auto (default: auto)"
+    )]
+    pub bump_type: Option<String>,
+
+    /// Skip changelog generation and writing.
+    #[arg(long, help = "Skip changelog generation and writing")]
+    pub skip_changelog: bool,
+
+    /// Skip staging files and creating the version commit.
+    #[arg(long, help = "Skip staging files and creating the version commit")]
+    pub skip_commit: bool,
+
+    /// Skip tag creation.
+    #[arg(long, help = "Skip tag creation")]
+    pub skip_tag: bool,
+}
 
 /// Execute the full release workflow: bump version, update files, write
 /// changelog, commit, and tag.

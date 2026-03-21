@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::Args;
 use rust_i18n::t;
 
 use crate::{
@@ -10,6 +11,41 @@ use crate::{
         print_info, print_success_bold, print_warning,
     },
 };
+
+#[derive(Args)]
+pub struct ChangelogArgs {
+    /// Git range to include in the changelog.
+    ///
+    /// Uses the format FROM..TO (e.g. v1.0.0..HEAD). Omit to include
+    /// the full commit history reachable from HEAD.
+    #[arg(
+        value_name = "RANGE",
+        help = "Git range (e.g. v1.0.0..HEAD); defaults to full history"
+    )]
+    pub range: Option<String>,
+
+    /// Output format.
+    ///
+    /// One of: markdown, json, html, rst, asciidoc, or
+    /// template:<path> to use a custom Jinja2-style template.
+    #[arg(
+        long,
+        value_name = "FORMAT",
+        help = "Output format: markdown (default), json, html, rst, asciidoc, template:<path>"
+    )]
+    pub format: Option<String>,
+
+    /// Output file path.
+    ///
+    /// Overrides the path set in [changelog] config (default:
+    /// CHANGELOG.md).
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Output file path (overrides config)"
+    )]
+    pub output: Option<String>,
+}
 
 /// Generate a changelog from git history and write or print it.
 ///

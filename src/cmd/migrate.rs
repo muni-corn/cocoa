@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::ValueEnum;
+use clap::{Args, ValueEnum};
 use rust_i18n::t;
 
 use crate::{
@@ -21,6 +21,29 @@ pub enum MigrateSourceArg {
     /// Migrate from a semantic-release configuration file.
     #[value(name = "semantic-release")]
     SemanticRelease,
+}
+
+#[derive(Args)]
+pub struct MigrateArgs {
+    /// Source tool to migrate from.
+    ///
+    /// One of: commitlint, conventional-changelog, semantic-release.
+    /// When omitted, the source is auto-detected by looking for known
+    /// configuration files in the current directory.
+    #[arg(
+        long,
+        value_enum,
+        value_name = "TOOL",
+        help = "Source tool to migrate from (auto-detected if omitted)"
+    )]
+    pub from: Option<MigrateSourceArg>,
+
+    /// Restore the previous `.cocoa.toml` from the backup.
+    ///
+    /// Renames `.cocoa.toml.bak` back to `.cocoa.toml`. Use this to
+    /// undo a migration.
+    #[arg(long, help = "Undo migration by restoring .cocoa.toml.bak")]
+    pub undo: bool,
 }
 
 /// Migrate a third-party tool's configuration to `.cocoa.toml`.

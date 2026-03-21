@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
+use clap::Args;
 use rust_i18n::t;
 
 use crate::{
@@ -16,6 +17,25 @@ use crate::{
         print_error_bold, print_info, print_success_bold, print_warning, print_warning_bold,
     },
 };
+
+#[derive(Args)]
+pub struct LintArgs {
+    /// Commit message, file path, or git range to lint.
+    ///
+    /// Omit to read from stdin (requires --stdin).
+    #[arg(
+        value_name = "INPUT",
+        help = "Commit message, file path, or git range (e.g. HEAD~5..HEAD)"
+    )]
+    pub input: Option<String>,
+
+    /// Read the commit message from standard input.
+    ///
+    /// Intended for use as a commit-msg git hook. Install the hook
+    /// automatically with `cocoa hook`.
+    #[arg(long, help = "Read commit message from stdin")]
+    pub stdin: bool,
+}
 
 pub fn handle_lint(
     config: &Config,

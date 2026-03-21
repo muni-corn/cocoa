@@ -1,6 +1,7 @@
 use std::process;
 
 use anyhow::Result;
+use clap::Args;
 use rust_i18n::t;
 
 use crate::{
@@ -11,6 +12,20 @@ use crate::{
     },
     tag,
 };
+
+#[derive(Args)]
+pub struct TagArgs {
+    /// Version to tag.
+    ///
+    /// Accepts plain semver (2.1.0) or with a v-prefix (v2.1.0). When
+    /// omitted, the version is auto-detected by analyzing conventional
+    /// commits since the last tag.
+    #[arg(
+        value_name = "VERSION",
+        help = "Version to tag (e.g. 1.2.3 or v1.2.3); auto-detected if omitted"
+    )]
+    pub version: Option<String>,
+}
 
 /// Create an annotated version tag with the changelog as its message.
 ///

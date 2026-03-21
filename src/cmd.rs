@@ -1,6 +1,9 @@
 use clap::Subcommand;
 
-use crate::cmd::migrate::MigrateSourceArg;
+use crate::cmd::{
+    bump::BumpArgs, changelog::ChangelogArgs, lint::LintArgs, migrate::MigrateArgs,
+    release::ReleaseArgs, tag::TagArgs,
+};
 
 pub mod bump;
 pub mod changelog;
@@ -84,23 +87,7 @@ pub enum Command {
     echo "fix: typo" | cocoa lint --stdin # lint from stdin (git hook)
     cocoa --json lint HEAD~3..HEAD        # machine-readable range output"#
     )]
-    Lint {
-        /// Commit message, file path, or git range to lint.
-        ///
-        /// Omit to read from stdin (requires --stdin).
-        #[arg(
-            value_name = "INPUT",
-            help = "Commit message, file path, or git range (e.g. HEAD~5..HEAD)"
-        )]
-        input: Option<String>,
-
-        /// Read the commit message from standard input.
-        ///
-        /// Intended for use as a commit-msg git hook. Install the hook
-        /// automatically with `cocoa hook`.
-        #[arg(long, help = "Read commit message from stdin")]
-        stdin: bool,
-    },
+    Lint(LintArgs),
 
     /// Generate a changelog from conventional commit history.
     ///
@@ -123,39 +110,7 @@ pub enum Command {
     cocoa --dry-run changelog v1.2.0..HEAD                # preview without writing
     cocoa changelog --format template:tmpl/changelog.md   # custom template"#
     )]
-    Changelog {
-        /// Git range to include in the changelog.
-        ///
-        /// Uses the format FROM..TO (e.g. v1.0.0..HEAD). Omit to include
-        /// the full commit history reachable from HEAD.
-        #[arg(
-            value_name = "RANGE",
-            help = "Git range (e.g. v1.0.0..HEAD); defaults to full history"
-        )]
-        range: Option<String>,
-
-        /// Output format.
-        ///
-        /// One of: markdown, json, html, rst, asciidoc, or
-        /// template:<path> to use a custom Jinja2-style template.
-        #[arg(
-            long,
-            value_name = "FORMAT",
-            help = "Output format: markdown (default), json, html, rst, asciidoc, template:<path>"
-        )]
-        format: Option<String>,
-
-        /// Output file path.
-        ///
-        /// Overrides the path set in [changelog] config (default:
-        /// CHANGELOG.md).
-        #[arg(
-            long,
-            value_name = "PATH",
-            help = "Output file path (overrides config)"
-        )]
-        output: Option<String>,
-    },
+    Changelog(ChangelogArgs),
 
     /// Bump the project version based on conventional commits.
     ///
@@ -174,20 +129,7 @@ pub enum Command {
     cocoa bump major        # force a major bump
     cocoa --dry-run bump    # preview new version without writing"
     )]
-    Bump {
-        /// Bump type to apply.
-        ///
-        /// One of: major, minor, patch, or auto (default). When auto is
-        /// used (or the argument is omitted), the bump type is inferred
-        /// from conventional commits since the last version tag: a breaking
-        /// change triggers major, feat triggers minor, and fix triggers
-        /// patch.
-        #[arg(
-            value_name = "BUMP_TYPE",
-            help = "Bump type: major, minor, patch, or auto (default: auto)"
-        )]
-        bump_type: Option<String>,
-    },
+    Bump(BumpArgs),
 
     /// Install the cocoa commit-msg git hook.
     ///
@@ -234,18 +176,7 @@ pub enum Command {
     cocoa tag v2.1.0         # v-prefix is stripped automatically
     cocoa --dry-run tag      # preview tag name and message"
     )]
-    Tag {
-        /// Version to tag.
-        ///
-        /// Accepts plain semver (2.1.0) or with a v-prefix (v2.1.0). When
-        /// omitted, the version is auto-detected by analyzing conventional
-        /// commits since the last tag.
-        #[arg(
-            value_name = "VERSION",
-            help = "Version to tag (e.g. 1.2.3 or v1.2.3); auto-detected if omitted"
-        )]
-        version: Option<String>,
-    },
+    Tag(TagArgs),
 
     /// Migrate another tool's configuration to `.cocoa.toml`.
     ///
@@ -266,27 +197,7 @@ pub enum Command {
     cocoa --dry-run migrate                    # preview without writing
     cocoa migrate --undo                       # restore previous .cocoa.toml"
     )]
-    Migrate {
-        /// Source tool to migrate from.
-        ///
-        /// One of: commitlint, conventional-changelog, semantic-release.
-        /// When omitted, the source is auto-detected by looking for known
-        /// configuration files in the current directory.
-        #[arg(
-            long,
-            value_enum,
-            value_name = "TOOL",
-            help = "Source tool to migrate from (auto-detected if omitted)"
-        )]
-        from: Option<MigrateSourceArg>,
-
-        /// Restore the previous `.cocoa.toml` from the backup.
-        ///
-        /// Renames `.cocoa.toml.bak` back to `.cocoa.toml`. Use this to
-        /// undo a migration.
-        #[arg(long, help = "Undo migration by restoring .cocoa.toml.bak")]
-        undo: bool,
-    },
+    Migrate(MigrateArgs),
 
     /// Run the full release workflow.
     ///
@@ -309,29 +220,7 @@ pub enum Command {
     cocoa release --skip-commit --skip-tag  # update files and changelog only
     cocoa release --skip-changelog          # skip changelog generation"
     )]
-    Release {
-        /// Bump type to apply.
-        ///
-        /// One of: major, minor, patch, or auto (default). Auto infers the
-        /// bump type from conventional commits since the last version tag.
-        #[arg(
-            value_name = "BUMP_TYPE",
-            help = "Bump type: major, minor, patch, or auto (default: auto)"
-        )]
-        bump_type: Option<String>,
-
-        /// Skip changelog generation and writing.
-        #[arg(long, help = "Skip changelog generation and writing")]
-        skip_changelog: bool,
-
-        /// Skip staging files and creating the version commit.
-        #[arg(long, help = "Skip staging files and creating the version commit")]
-        skip_commit: bool,
-
-        /// Skip tag creation.
-        #[arg(long, help = "Skip tag creation")]
-        skip_tag: bool,
-    },
+    Release(ReleaseArgs),
 
     #[command(about = "Generate man pages for cocoa")]
     Man,
