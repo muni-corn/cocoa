@@ -160,7 +160,9 @@ fn test_release_invalid_bump_type_exits_with_error() {
         .args(["release", "ultrasuper"])
         .assert()
         .failure()
-        .stdout(predicates::str::contains("unknown bump type"));
+        .stderr(predicates::str::contains(
+            "error: invalid value 'ultrasuper'",
+        ));
 }
 
 // ─── Duplicate tag rejection

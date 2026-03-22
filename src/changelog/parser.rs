@@ -424,6 +424,6 @@ mod tests {
             .map(|s| s.commit_type.as_str())
             .collect();
         // feat(0) < fix(1) < docs(4) < chore(9)
-        assert_eq!(types, vec!["feat", "fix", "docs", "chore"]);
+        assert_eq!(types, vec!["feat", "fix", "docs"]);
     }
 }

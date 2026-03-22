@@ -1,11 +1,7 @@
 //! Man page generator for cocoa.
 //!
 //! Generates ROFF man page files for all cocoa commands into an output
-//! directory. Run with:
-//!
-//! ```
-//! cargo run --bin gen-man -- [OUTPUT_DIR]
-//! ```
+//! directory.
 //!
 //! `OUTPUT_DIR` defaults to `man/` relative to the working directory.
 
