@@ -22,8 +22,6 @@ pub struct LintViolation {
     pub rule: String,
     pub severity: Severity,
     pub message: String,
-    pub line: Option<usize>,
-    pub column: Option<usize>,
 }
 
 impl fmt::Display for LintViolation {
@@ -67,8 +65,6 @@ impl<'a> Linter<'a> {
                     rule: "format".to_string(),
                     severity: Severity::Error,
                     message: t!("lint.error.invalid_format").to_string(),
-                    line: Some(1),
-                    column: None,
                 });
                 return LintResult {
                     violations,
@@ -119,16 +115,12 @@ impl<'a> Linter<'a> {
                     rule: "no-type".to_string(),
                     severity: Severity::Error,
                     message: t!("lint.error.type_required").to_string(),
-                    line: Some(1),
-                    column: None,
                 });
             } else if warn_no_type {
                 violations.push(LintViolation {
                     rule: "no-type".to_string(),
                     severity: Severity::Warning,
                     message: t!("lint.warn.type_missing").to_string(),
-                    line: Some(1),
-                    column: None,
                 });
             }
             return;
@@ -146,8 +138,6 @@ impl<'a> Linter<'a> {
                     allowed_types = allowed_list
                 )
                 .to_string(),
-                line: Some(1),
-                column: None,
             });
         }
     }
@@ -162,16 +152,12 @@ impl<'a> Linter<'a> {
                     rule: "no-scope".to_string(),
                     severity: Severity::Error,
                     message: t!("lint.error.scope_required").to_string(),
-                    line: Some(1),
-                    column: None,
                 });
             } else if warn_no_scope {
                 violations.push(LintViolation {
                     rule: "no-scope".to_string(),
                     severity: Severity::Warning,
                     message: t!("lint.warn.scope_missing").to_string(),
-                    line: Some(1),
-                    column: None,
                 });
             }
             return;
@@ -195,8 +181,6 @@ impl<'a> Linter<'a> {
                     allowed_scopes = allowed_list
                 )
                 .to_string(),
-                line: Some(1),
-                column: None,
             });
         }
     }
@@ -216,8 +200,6 @@ impl<'a> Linter<'a> {
                     max = deny_length
                 )
                 .to_string(),
-                line: Some(1),
-                column: None,
             });
             return;
         }
@@ -229,8 +211,6 @@ impl<'a> Linter<'a> {
                 rule: "subject-max-length".to_string(),
                 severity: Severity::Warning,
                 message: t!("lint.warn.subject_long", len = length, max = warn_length).to_string(),
-                line: Some(1),
-                column: None,
             });
         }
     }
@@ -246,8 +226,6 @@ impl<'a> Linter<'a> {
                 severity: Severity::Error,
                 message: t!("lint.error.body_too_long", len = length, max = deny_length)
                     .to_string(),
-                line: Some(3),
-                column: None,
             });
             return;
         }
@@ -259,8 +237,6 @@ impl<'a> Linter<'a> {
                 rule: "body-max-length".to_string(),
                 severity: Severity::Warning,
                 message: t!("lint.warn.body_long", len = length, max = warn_length).to_string(),
-                line: Some(3),
-                column: None,
             });
         }
     }
@@ -275,16 +251,12 @@ impl<'a> Linter<'a> {
                     rule: "no-body".to_string(),
                     severity: Severity::Error,
                     message: t!("lint.error.body_required").to_string(),
-                    line: Some(3),
-                    column: None,
                 });
             } else if warn_no_body {
                 violations.push(LintViolation {
                     rule: "no-body".to_string(),
                     severity: Severity::Warning,
                     message: t!("lint.warn.body_missing").to_string(),
-                    line: Some(3),
-                    column: None,
                 });
             }
         }
@@ -307,16 +279,12 @@ impl<'a> Linter<'a> {
                     rule: "no-breaking-change-footer".to_string(),
                     severity: Severity::Error,
                     message: t!("lint.error.no_breaking_change_footer").to_string(),
-                    line: None,
-                    column: None,
                 });
             } else if warn_no_breaking_footer {
                 violations.push(LintViolation {
                     rule: "no-breaking-change-footer".to_string(),
                     severity: Severity::Warning,
                     message: t!("lint.warn.no_breaking_change_footer").to_string(),
-                    line: None,
-                    column: None,
                 });
             }
         }
@@ -340,8 +308,6 @@ impl<'a> Linter<'a> {
                     rule: "regex-pattern".to_string(),
                     severity: Severity::Error,
                     message: t!("lint.error.pattern_mismatch", pattern = pattern).to_string(),
-                    line: None,
-                    column: None,
                 });
             }
         }
@@ -358,8 +324,6 @@ impl<'a> Linter<'a> {
                     rule: "regex-pattern".to_string(),
                     severity: Severity::Warning,
                     message: t!("lint.warn.pattern_mismatch", pattern = pattern).to_string(),
-                    line: None,
-                    column: None,
                 });
             }
         }
@@ -818,8 +782,6 @@ mod tests {
             rule: "test".to_string(),
             severity: Severity::Error,
             message: "something wrong".to_string(),
-            line: None,
-            column: None,
         };
         let s = v.to_string();
         assert!(s.contains("something wrong"));
@@ -831,8 +793,6 @@ mod tests {
             rule: "test".to_string(),
             severity: Severity::Warning,
             message: "heads up".to_string(),
-            line: None,
-            column: None,
         };
         let s = v.to_string();
         assert!(s.contains("heads up"));
@@ -844,8 +804,6 @@ mod tests {
             rule: "test".to_string(),
             severity: Severity::Info,
             message: "fyi".to_string(),
-            line: None,
-            column: None,
         };
         let s = v.to_string();
         assert!(s.contains("fyi"));
