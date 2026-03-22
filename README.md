@@ -2,8 +2,8 @@
 
 hi! i'm cocoa, the **co**nventional **co**mmit **a**ssistant! ^u^
 
-i can help you write good, conventional commits, generate beautiful changelogs, manage your
-versioning scheme, and even draft commit messages for you with the power of artificial intelligence!
+i can help you write conventional commits, generate beautiful changelogs, manage your versioning
+scheme, and even write commit messages for you!
 
 ## what can i do?
 
