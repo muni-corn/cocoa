@@ -33,7 +33,7 @@ pub fn render_markdown(changelog: &Changelog) -> String {
         out.push('\n');
 
         if !version.breaking_changes.is_empty() {
-            out.push_str("\n### Breaking Changes\n\n");
+            out.push_str("\n### Breaking changes\n\n");
             for entry in &version.breaking_changes {
                 out.push_str(&markdown_entry(entry));
             }
