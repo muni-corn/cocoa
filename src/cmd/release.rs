@@ -11,10 +11,11 @@ use crate::{
     style::{
         goodbye_with_death, goodbye_with_success, print_error_bold, print_info, print_success_bold,
     },
-    tag, version,
+    tag,
+    version::{self, BumpType},
 };
 
-#[derive(Args)]
+#[derive(Default, Args)]
 pub struct ReleaseArgs {
     /// Bump type to apply.
     ///
@@ -24,7 +25,7 @@ pub struct ReleaseArgs {
         value_name = "BUMP_TYPE",
         help = "Bump type: major, minor, patch, or auto (default: auto)"
     )]
-    pub bump_type: Option<String>,
+    pub bump_type: Option<BumpType>,
 
     /// Skip changelog generation and writing.
     #[arg(long, help = "Skip changelog generation and writing")]
@@ -45,10 +46,12 @@ pub struct ReleaseArgs {
 /// In dry-run mode the plan is shown without making any changes.
 pub fn handle_release(
     config: &Config,
-    bump_type: Option<&str>,
-    skip_changelog: bool,
-    skip_commit: bool,
-    skip_tag: bool,
+    args @ ReleaseArgs {
+        skip_changelog,
+        skip_commit,
+        skip_tag,
+        ..
+    }: ReleaseArgs,
     json_output: bool,
     dry_run: bool,
 ) -> Result<()> {
@@ -63,15 +66,7 @@ pub fn handle_release(
         }
     };
 
-    let opts = release::ReleaseOptions {
-        bump_type: bump_type.map(|s| s.to_string()),
-        dry_run,
-        skip_changelog,
-        skip_commit,
-        skip_tag,
-    };
-
-    match release::execute(&git_ops, &v_config, &cl_config, &opts) {
+    match release::execute(&git_ops, &v_config, &cl_config, &args, dry_run) {
         Ok(outcome) => {
             let bump_label = match outcome.bump_type {
                 version::BumpType::Major => "major",

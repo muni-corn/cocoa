@@ -13,7 +13,6 @@ use cocoa::{
         lint::{LintArgs, handle_lint},
         man::handle_man,
         migrate::MigrateArgs,
-        release::ReleaseArgs,
         tag::TagArgs,
     },
     config::Config,
@@ -115,24 +114,11 @@ async fn main() -> Result<()> {
             }
             cmd::tag::handle_tag(&config, version.as_deref(), cli.json, cli.dry_run)?;
         }
-        Command::Release(ReleaseArgs {
-            bump_type,
-            skip_changelog,
-            skip_commit,
-            skip_tag,
-        }) => {
+        Command::Release(args) => {
             if !cli.json {
                 welcome(t!("main.release.welcome"));
             }
-            cmd::release::handle_release(
-                &config,
-                bump_type.as_deref(),
-                skip_changelog,
-                skip_commit,
-                skip_tag,
-                cli.json,
-                cli.dry_run,
-            )?;
+            cmd::release::handle_release(&config, args, cli.json, cli.dry_run)?;
         }
         Command::Migrate(MigrateArgs { from, undo }) => {
             welcome(t!("main.migrate.welcome"));

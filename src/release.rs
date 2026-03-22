@@ -14,6 +14,7 @@ use thiserror::Error;
 
 use crate::{
     changelog::{self, ChangelogError, OutputFormat},
+    cmd::release::ReleaseArgs,
     config::{ChangelogConfig, VersionConfig},
     generate::GenerateError,
     git_ops::GitOperations,
@@ -55,21 +56,6 @@ impl From<GenerateError> for ReleaseError {
     }
 }
 
-/// Options that control release behaviour.
-#[derive(Debug, Clone, Default)]
-pub struct ReleaseOptions {
-    /// Explicit bump type; `None` means auto-detect from commits.
-    pub bump_type: Option<String>,
-    /// When `true`, do not actually write or commit anything.
-    pub dry_run: bool,
-    /// When `true`, skip changelog generation and writing.
-    pub skip_changelog: bool,
-    /// When `true`, skip staging files and creating the version commit.
-    pub skip_commit: bool,
-    /// When `true`, skip tag creation.
-    pub skip_tag: bool,
-}
-
 /// The outcome of a completed (or simulated) release.
 #[derive(Debug)]
 pub struct ReleaseOutcome {
@@ -103,7 +89,8 @@ pub fn execute<G: GitOperations>(
     ops: &G,
     v_config: &VersionConfig,
     cl_config: &ChangelogConfig,
-    opts: &ReleaseOptions,
+    opts: &ReleaseArgs,
+    dry_run: bool,
 ) -> Result<ReleaseOutcome, ReleaseError> {
     // ── step 1: detect current version ───────────────────────────────────────
     let current = match version::detect_current_semver(ops, &v_config.tag_prefix)? {
@@ -121,12 +108,10 @@ pub fn execute<G: GitOperations>(
     };
 
     // ── step 3: resolve bump type ─────────────────────────────────────────────
-    let bump_type = match opts.bump_type.as_deref() {
-        Some("major") => BumpType::Major,
-        Some("minor") => BumpType::Minor,
-        Some("patch") => BumpType::Patch,
-        Some("auto") | None => version::detect_bump_type(&commits),
-        Some(other) => return Err(ReleaseError::InvalidBumpType(other.to_string())),
+    let bump_type = if let Some(bt) = opts.bump_type {
+        bt
+    } else {
+        version::detect_bump_type(&commits)
     };
 
     // ── step 4: compute new version ───────────────────────────────────────────
@@ -143,7 +128,7 @@ pub fn execute<G: GitOperations>(
     // ── step 5: update version files ─────────────────────────────────────────
     let files: Vec<String> = v_config.commit_version_files.clone().unwrap_or_default();
 
-    if !files.is_empty() && !opts.dry_run {
+    if !files.is_empty() && !dry_run {
         version::update_version_files(&files, &old_str, &new_str)?;
     }
 
@@ -154,7 +139,7 @@ pub fn execute<G: GitOperations>(
         let range = latest_tag.as_ref().map(|t| format!("{}..HEAD", t.name));
         let cl = changelog::parser::parse_history(ops, range.as_deref(), cl_config)?;
 
-        if !opts.dry_run {
+        if !dry_run {
             let rendered = changelog::renderer::render(&cl, &OutputFormat::Markdown, cl_config)?;
             std::fs::write(&changelog_path, rendered).map_err(|e| {
                 ReleaseError::File(format!("failed to write '{}': {}", changelog_path, e))
@@ -163,7 +148,7 @@ pub fn execute<G: GitOperations>(
     }
 
     // ── step 7: stage files and create version commit ─────────────────────────
-    if !opts.skip_commit && !opts.dry_run {
+    if !opts.skip_commit && !dry_run {
         // stage version files and changelog with git add
         let repo_root = ops
             .get_repo_root()
@@ -191,7 +176,7 @@ pub fn execute<G: GitOperations>(
 
     // ── step 8: create version tag ────────────────────────────────────────────
     if !opts.skip_tag {
-        tag::create_version_tag(ops, &new_version, v_config, cl_config, opts.dry_run)?;
+        tag::create_version_tag(ops, &new_version, v_config, cl_config, dry_run)?;
     }
 
     Ok(ReleaseOutcome {
@@ -246,12 +231,10 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("a1", "feat: add widget")]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            dry_run: true,
-            ..Default::default()
-        };
 
-        let outcome = execute(&ops, &v_config(), &cl_config(), &opts).unwrap();
+        let opts = ReleaseArgs::default();
+
+        let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.previous_version, "0.0.0");
         assert_eq!(outcome.new_version, "0.1.0");
@@ -266,12 +249,9 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("b1", "feat!: breaking change")]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            dry_run: true,
-            ..Default::default()
-        };
+        let opts = ReleaseArgs::default();
 
-        let outcome = execute(&ops, &v_config(), &cl_config(), &opts).unwrap();
+        let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.previous_version, "1.2.3");
         assert_eq!(outcome.new_version, "2.0.0");
@@ -287,13 +267,12 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("c1", "fix: patch bug")]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            bump_type: Some("major".to_string()),
-            dry_run: true,
+        let opts = ReleaseArgs {
+            bump_type: Some(BumpType::Major),
             ..Default::default()
         };
 
-        let outcome = execute(&ops, &v_config(), &cl_config(), &opts).unwrap();
+        let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.new_version, "2.0.0");
         assert!(matches!(outcome.bump_type, BumpType::Major));
@@ -306,13 +285,12 @@ mod tests {
             commits_in_range: Ok(vec![]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            bump_type: Some("minor".to_string()),
-            dry_run: true,
+        let opts = ReleaseArgs {
+            bump_type: BumpType::Minor.into(),
             ..Default::default()
         };
 
-        let outcome = execute(&ops, &v_config(), &cl_config(), &opts).unwrap();
+        let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.new_version, "1.1.0");
     }
@@ -324,30 +302,14 @@ mod tests {
             commits_in_range: Ok(vec![]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            bump_type: Some("patch".to_string()),
-            dry_run: true,
+        let opts = ReleaseArgs {
+            bump_type: BumpType::Patch.into(),
             ..Default::default()
         };
 
-        let outcome = execute(&ops, &v_config(), &cl_config(), &opts).unwrap();
+        let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.new_version, "2.3.5");
-    }
-
-    // ── invalid bump type ────────────────────────────────────────────────────
-
-    #[test]
-    fn test_execute_invalid_bump_type_returns_error() {
-        let ops = MockGitOps::default();
-        let opts = ReleaseOptions {
-            bump_type: Some("superduper".to_string()),
-            dry_run: true,
-            ..Default::default()
-        };
-
-        let err = execute(&ops, &v_config(), &cl_config(), &opts).unwrap_err();
-        assert!(matches!(err, ReleaseError::InvalidBumpType(_)));
     }
 
     // ── tag name format ───────────────────────────────────────────────────────
@@ -362,12 +324,9 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("d1", "fix: typo")]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            dry_run: true,
-            ..Default::default()
-        };
+        let opts = ReleaseArgs::default();
 
-        let outcome = execute(&ops, &vc, &cl_config(), &opts).unwrap();
+        let outcome = execute(&ops, &vc, &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.tag_name, "release/0.0.1");
     }
@@ -381,13 +340,12 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("e1", "feat: something")]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            dry_run: true,
+        let opts = ReleaseArgs {
             skip_tag: true,
             ..Default::default()
         };
 
-        assert!(execute(&ops, &v_config(), &cl_config(), &opts).is_ok());
+        assert!(execute(&ops, &v_config(), &cl_config(), &opts, true).is_ok());
     }
 
     #[test]
@@ -397,13 +355,10 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("f1", "fix: small")]),
             ..Default::default()
         };
-        let opts = ReleaseOptions {
-            dry_run: true,
-            ..Default::default()
-        };
+        let opts = ReleaseArgs::default();
 
         // detected version would be 0.0.2, not 0.0.1 — so this should succeed
-        let outcome = execute(&ops, &v_config(), &cl_config(), &opts).unwrap();
+        let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
         assert_eq!(outcome.new_version, "0.0.2");
     }
 }

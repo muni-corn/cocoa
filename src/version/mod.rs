@@ -7,9 +7,10 @@
 pub mod calver;
 pub mod semver;
 
-use std::fs;
+use std::{fmt::Display, fs};
 
 pub use calver::{CalVer, CalVerError};
+use clap::ValueEnum;
 pub use semver::{SemVer, SemVerError};
 use thiserror::Error;
 
@@ -47,7 +48,7 @@ pub enum VersionError {
 }
 
 /// The type of bump to apply to a version.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum BumpType {
     /// Increment the major version (breaking change).
     Major,
@@ -55,6 +56,20 @@ pub enum BumpType {
     Minor,
     /// Increment the patch version (bug fix or other).
     Patch,
+}
+
+impl Display for BumpType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BumpType::Major => "major",
+                BumpType::Minor => "minor",
+                BumpType::Patch => "patch",
+            }
+        )
+    }
 }
 
 /// Detect the latest semantic version from repository tags.
