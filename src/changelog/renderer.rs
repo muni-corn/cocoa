@@ -33,7 +33,7 @@ pub fn render_markdown(changelog: &Changelog) -> String {
         out.push('\n');
 
         if !version.breaking_changes.is_empty() {
-            out.push_str("\n### Breaking changes\n\n");
+            out.push_str("\n### **Breaking changes**\n\n");
             for entry in &version.breaking_changes {
                 out.push_str(&markdown_entry(entry));
             }
@@ -54,19 +54,16 @@ pub fn render_markdown(changelog: &Changelog) -> String {
 
 fn markdown_version_heading(version: &ChangelogVersion) -> String {
     let name = version.version.as_deref().unwrap_or("Unreleased");
-    match &version.date {
-        Some(date) => format!("## [{}] - {}", name, date),
-        None => format!("## [{}]", name),
-    }
+    format!("## {}", name)
 }
 
 fn markdown_entry(entry: &ChangelogEntry) -> String {
     let scope = entry
         .scope
         .as_ref()
-        .map(|s| format!("**{}:** ", s))
+        .map(|s| format!("**{s}:** "))
         .unwrap_or_default();
-    format!("- {}{} (`{}`)\n", scope, entry.subject, entry.id)
+    format!("- {}{}\n", scope, entry.subject)
 }
 
 // ─── JSON ─────────────────────────────────────────────────────────────────────
