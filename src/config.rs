@@ -193,10 +193,10 @@ fn default_warn_rule_level() -> RuleLevel {
         subject_length: Some(50),
         body_length: Some(250),
         no_scope: Some(true),
-        no_body: Some(false),
-        no_type: Some(true),
-        no_breaking_change_footer: Some(true),
-        regex_patterns: Some(vec![]),
+        no_body: None,
+        no_type: None,
+        no_breaking_change_footer: None,
+        regex_patterns: None,
     }
 }
 
@@ -204,11 +204,11 @@ fn default_deny_rule_level() -> RuleLevel {
     RuleLevel {
         subject_length: Some(72),
         body_length: Some(500),
-        no_scope: Some(false),
-        no_body: Some(false),
+        no_scope: None,
+        no_body: None,
         no_type: Some(true),
-        no_breaking_change_footer: Some(false),
-        regex_patterns: Some(vec![]),
+        no_breaking_change_footer: Some(true),
+        regex_patterns: None,
     }
 }
 
