@@ -1,6 +1,7 @@
-use std::{io, process};
+use std::{io, path::PathBuf, process};
 
 use anyhow::Result;
+use clap::Args;
 use rust_i18n::t;
 
 use crate::{
@@ -11,13 +12,35 @@ use crate::{
     },
 };
 
+/// Arguments for the `cocoa generate` subcommand.
+#[derive(Args, Debug)]
+pub struct GenerateArgs {
+    /// Write the generated message directly to FILE (git hook mode).
+    ///
+    /// When provided, cocoa writes the AI-generated commit message to FILE
+    /// without any interactive prompts. This is intended for use from a
+    /// `prepare-commit-msg` git hook installed by `cocoa hook generate`.
+    ///
+    /// On any failure (no AI configured, no staged changes, API error), cocoa
+    /// writes a comment to FILE explaining the issue and exits 0 so the
+    /// commit is never blocked.
+    #[arg(long, value_name = "FILE")]
+    pub hook: Option<PathBuf>,
+}
+
 pub async fn handle_generate(
     config: &Config,
+    args: GenerateArgs,
     json_output: bool,
     quiet: bool,
     verbose: bool,
     _dry_run: bool,
 ) -> Result<()> {
+    // non-interactive git hook mode: write message to file, never block commit
+    if let Some(ref hook_file) = args.hook {
+        return handle_generate_hook(config, hook_file).await;
+    }
+
     // check if AI is configured
     if config.ai.is_none() {
         print_error_bold(t!("main.generate.no_ai"));
@@ -141,6 +164,42 @@ pub async fn handle_generate(
                 };
                 goodbye_with_death(exit_code);
             }
+        }
+    }
+
+    Ok(())
+}
+
+/// Handles `cocoa generate --hook <file>` (non-interactive `prepare-commit-msg`
+/// mode).
+///
+/// Writes the AI-generated message to `hook_file`. On any failure, prepends a
+/// friendly comment to the file so the user sees the error in their editor,
+/// then exits 0 to avoid blocking the commit.
+async fn handle_generate_hook(config: &Config, hook_file: &PathBuf) -> Result<()> {
+    // read any content git already placed in the message file (e.g. a template)
+    let existing = std::fs::read_to_string(hook_file).unwrap_or_default();
+
+    // check AI is configured; surface the error as a comment in the file
+    if config.ai.is_none() {
+        let comment = format!(
+            "# hi, cocoa here! ^~^ i couldn't generate a commit message for you because ai is not configured. add an [ai] section to .cocoa.toml!\n{existing}"
+        );
+        let _ = std::fs::write(hook_file, comment);
+        return Ok(());
+    }
+
+    match generate::generate_commit_message(config).await {
+        Ok(result) => {
+            // write the generated message; best-effort (don't block commit on write error)
+            let _ = std::fs::write(hook_file, &result.message);
+        }
+        Err(e) => {
+            // prepend the error as a comment so the user sees it in their editor
+            let comment = format!(
+                "# hi, cocoa here! ^~^ i couldn't generate a commit message for you due to an error: {e}\n{existing}"
+            );
+            let _ = std::fs::write(hook_file, comment);
         }
     }
 

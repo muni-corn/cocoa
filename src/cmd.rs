@@ -1,8 +1,8 @@
 use clap::Subcommand;
 
 use crate::cmd::{
-    bump::BumpArgs, changelog::ChangelogArgs, lint::LintArgs, migrate::MigrateArgs,
-    release::ReleaseArgs, tag::TagArgs,
+    bump::BumpArgs, changelog::ChangelogArgs, generate::GenerateArgs, hook::HookArgs,
+    lint::LintArgs, migrate::MigrateArgs, release::ReleaseArgs, tag::TagArgs, unhook::UnhookArgs,
 };
 
 pub mod bump;
@@ -66,7 +66,7 @@ pub enum Command {
     git add -p && cocoa generate   # stage hunks, then generate message
     cocoa --json generate          # emit proposed message as JSON"
     )]
-    Generate,
+    Generate(GenerateArgs),
 
     /// Lint one or more commit messages against conventional commit rules.
     ///
@@ -131,33 +131,43 @@ pub enum Command {
     )]
     Bump(BumpArgs),
 
-    /// Install the cocoa commit-msg git hook.
+    /// Install cocoa git hooks.
     ///
-    /// Writes a shell script to .git/hooks/commit-msg that pipes the
-    /// commit message through `cocoa lint --stdin`. If a non-cocoa hook
-    /// already exists it is backed up before being replaced.
+    /// Writes hook scripts into .git/hooks. Available hooks:
+    ///   - lint     — commit-msg: lints messages through `cocoa lint`
+    ///   - generate — prepare-commit-msg: pre-fills messages via AI
+    ///   - all      — installs both hooks (default)
     ///
-    /// The hook prevents commits with invalid messages from being created.
-    /// Use `cocoa unhook` to remove it.
+    /// If a non-cocoa hook already exists it is backed up before being
+    /// replaced. Use `cocoa unhook` to remove installed hooks.
+    ///
+    /// The `generate` hook requires [ai] configuration in .cocoa.toml.
     #[command(
-        about = "Install the commit-msg git hook",
+        about = "Install cocoa git hooks",
         after_help = "examples:
-    cocoa hook               # install the hook
+    cocoa hook               # install both hooks (lint + generate)
+    cocoa hook lint          # install only the commit-msg lint hook
+    cocoa hook generate      # install only the prepare-commit-msg hook
     cocoa --dry-run hook     # show what would be written without installing"
     )]
-    Hook,
+    Hook(HookArgs),
 
-    /// Remove the cocoa commit-msg git hook.
+    /// Remove cocoa git hooks.
     ///
-    /// Deletes the hook installed by `cocoa hook`. If a backup of a
+    /// Deletes the hooks installed by `cocoa hook`. If a backup of a
     /// previous hook exists, it is restored automatically.
+    ///
+    /// Pass a kind to remove only a specific hook; omit to remove all
+    /// cocoa-managed hooks.
     #[command(
-        about = "Remove the commit-msg git hook",
+        about = "Remove cocoa git hooks",
         after_help = "examples:
-    cocoa unhook             # remove the hook
+    cocoa unhook             # remove all cocoa hooks
+    cocoa unhook lint        # remove only the commit-msg hook
+    cocoa unhook generate    # remove only the prepare-commit-msg hook
     cocoa --dry-run unhook   # show what would be removed without acting"
     )]
-    Unhook,
+    Unhook(UnhookArgs),
 
     /// Create an annotated git tag for a version.
     ///

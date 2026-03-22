@@ -1,13 +1,15 @@
 //! Git hook management for cocoa.
 //!
-//! Implements `cocoa hook` and `cocoa unhook`, which install and remove a
-//! `commit-msg` git hook that pipes the commit message through `cocoa lint`.
+//! Implements `cocoa hook` and `cocoa unhook`, which install and remove git
+//! hooks. The `commit-msg` hook lints messages through `cocoa lint`, and the
+//! `prepare-commit-msg` hook pre-fills messages via `cocoa generate --hook`.
 
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
+use clap::ValueEnum;
 use thiserror::Error;
 
 /// Marker embedded in cocoa-managed hook scripts.
@@ -20,11 +22,62 @@ const COCOA_MARKER: &str = "# managed by cocoa";
 ///
 /// The hook pipes the commit message file (passed as `$1` by git) into
 /// `cocoa lint --stdin`, failing the commit when lint errors are found.
-const HOOK_SCRIPT: &str =
+const LINT_HOOK_SCRIPT: &str =
     "#!/bin/sh\n# managed by cocoa - do not edit\ncocoa lint --stdin < \"$1\"\n";
+
+/// Shell script written to `.git/hooks/prepare-commit-msg`.
+///
+/// The hook calls `cocoa generate --hook "$1"` to pre-fill the commit message
+/// with an AI-generated suggestion before the editor opens. It skips
+/// invocation when git already supplies a message source (amend, merge,
+/// squash, or `-m`), so the hook only fires for fresh interactive commits.
+const GENERATE_HOOK_SCRIPT: &str = "\
+#!/bin/sh
+# managed by cocoa - do not edit
+# skip when git already has a message source (amend, merge, squash, or -m)
+case \"$2\" in
+  message|merge|squash|commit) exit 0 ;;
+esac
+cocoa generate --hook \"$1\"
+";
 
 /// Name of the backup file saved when a pre-existing non-cocoa hook is found.
 const BACKUP_SUFFIX: &str = ".cocoa-backup";
+
+/// Selects which git hooks to install or remove.
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum HookKind {
+    /// The `commit-msg` hook — lints commit messages with `cocoa lint`.
+    Lint,
+    /// The `prepare-commit-msg` hook — generates messages with `cocoa
+    /// generate`.
+    Generate,
+    /// Both hooks (default).
+    All,
+}
+
+impl HookKind {
+    /// Returns `(hook_filename, script_content)` pairs for this kind.
+    fn hooks(&self) -> Vec<(&'static str, &'static str)> {
+        match self {
+            HookKind::Lint => vec![("commit-msg", LINT_HOOK_SCRIPT)],
+            HookKind::Generate => vec![("prepare-commit-msg", GENERATE_HOOK_SCRIPT)],
+            HookKind::All => vec![
+                ("commit-msg", LINT_HOOK_SCRIPT),
+                ("prepare-commit-msg", GENERATE_HOOK_SCRIPT),
+            ],
+        }
+    }
+}
+
+impl std::fmt::Display for HookKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_possible_value()
+            .expect("no skipped variants")
+            .get_name()
+            .fmt(f)
+    }
+}
 
 /// Errors from hook install and uninstall operations.
 #[derive(Debug, Error)]
@@ -39,11 +92,11 @@ pub enum HookError {
 
     /// An existing non-cocoa hook was found during uninstall and we have no
     /// backup to restore.
-    #[error("the existing commit-msg hook is not managed by cocoa; remove it manually")]
-    NotManagedByCocoa,
+    #[error("the existing {hook_name} hook is not managed by cocoa; remove it manually")]
+    NotManagedByCocoa { hook_name: String },
 }
 
-/// Outcome reported back to the caller after a successful install.
+/// Outcome reported back to the caller after a successful install of one hook.
 #[derive(Debug)]
 pub enum InstallOutcome {
     /// Hook was freshly written for the first time.
@@ -59,7 +112,8 @@ pub enum InstallOutcome {
     },
 }
 
-/// Outcome reported back to the caller after a successful uninstall.
+/// Outcome reported back to the caller after a successful uninstall of one
+/// hook.
 #[derive(Debug)]
 pub enum UninstallOutcome {
     /// Hook was removed and a backup was restored in its place.
@@ -75,107 +129,126 @@ pub enum UninstallOutcome {
     NotInstalled,
 }
 
-/// Installs the cocoa `commit-msg` hook into `hooks_dir`.
+/// Installs cocoa hooks of the given `kind` into `hooks_dir`.
 ///
-/// The installation is idempotent: if a cocoa-managed hook already exists it
+/// Each installation is idempotent: if a cocoa-managed hook already exists it
 /// is silently overwritten. If a non-cocoa hook exists it is backed up to
 /// `<name>.cocoa-backup` before being replaced.
 ///
-/// When `dry_run` is `true` the function returns the outcome that *would* have
-/// occurred without writing or modifying any files.
-pub fn install(hooks_dir: &Path, dry_run: bool) -> Result<InstallOutcome, HookError> {
+/// Returns one [`InstallOutcome`] per hook managed by `kind`. When `dry_run`
+/// is `true` the function returns the outcomes that *would* have occurred
+/// without writing or modifying any files.
+pub fn install(
+    hooks_dir: &Path,
+    kind: HookKind,
+    dry_run: bool,
+) -> Result<Vec<InstallOutcome>, HookError> {
     if !hooks_dir.exists() {
         return Err(HookError::NotAGitRepo);
     }
 
-    let hook_path = hooks_dir.join("commit-msg");
-    let backup_path = hooks_dir.join(format!("commit-msg{}", BACKUP_SUFFIX));
+    let mut outcomes = Vec::new();
 
-    let outcome = if hook_path.exists() {
-        let existing = fs::read_to_string(&hook_path)?;
+    for (hook_name, script) in kind.hooks() {
+        let hook_path = hooks_dir.join(hook_name);
+        let backup_path = hooks_dir.join(format!("{hook_name}{BACKUP_SUFFIX}"));
 
-        if existing.contains(COCOA_MARKER) {
-            // already ours — safe to overwrite
-            if !dry_run {
-                write_hook(&hook_path)?;
-            }
-            InstallOutcome::Updated {
-                hook_path: hook_path.clone(),
+        let outcome = if hook_path.exists() {
+            let existing = fs::read_to_string(&hook_path)?;
+
+            if existing.contains(COCOA_MARKER) {
+                // already ours — safe to overwrite
+                if !dry_run {
+                    write_hook(&hook_path, script)?;
+                }
+                InstallOutcome::Updated { hook_path }
+            } else {
+                // belongs to someone else — back it up first
+                if !dry_run {
+                    fs::copy(&hook_path, &backup_path)?;
+                    write_hook(&hook_path, script)?;
+                }
+                InstallOutcome::Replaced {
+                    hook_path,
+                    backup_path,
+                }
             }
         } else {
-            // belongs to someone else — back it up first
             if !dry_run {
-                fs::copy(&hook_path, &backup_path)?;
-                write_hook(&hook_path)?;
+                // ensure the hooks directory exists (git init may not create it)
+                fs::create_dir_all(hooks_dir)?;
+                write_hook(&hook_path, script)?;
             }
-            InstallOutcome::Replaced {
-                hook_path: hook_path.clone(),
-                backup_path: backup_path.clone(),
-            }
-        }
-    } else {
-        if !dry_run {
-            // ensure the hooks directory exists (git init may not create it)
-            fs::create_dir_all(hooks_dir)?;
-            write_hook(&hook_path)?;
-        }
-        InstallOutcome::Installed {
-            hook_path: hook_path.clone(),
-        }
-    };
+            InstallOutcome::Installed { hook_path }
+        };
 
-    Ok(outcome)
+        outcomes.push(outcome);
+    }
+
+    Ok(outcomes)
 }
 
-/// Uninstalls the cocoa `commit-msg` hook from `hooks_dir`.
+/// Uninstalls cocoa hooks of the given `kind` from `hooks_dir`.
 ///
-/// If a backup created by `install` is present it is restored. Otherwise the
-/// hook file is removed. Returns [`UninstallOutcome::NotInstalled`] when no
-/// cocoa-managed hook is found.
+/// For each hook, if a backup created by [`install`] is present it is
+/// restored. Otherwise the hook file is removed. Yields
+/// [`UninstallOutcome::NotInstalled`] for hooks that are not present.
 ///
+/// Returns an error if any hook file exists but is not managed by cocoa.
 /// When `dry_run` is `true` no files are modified.
-pub fn uninstall(hooks_dir: &Path, dry_run: bool) -> Result<UninstallOutcome, HookError> {
+pub fn uninstall(
+    hooks_dir: &Path,
+    kind: HookKind,
+    dry_run: bool,
+) -> Result<Vec<UninstallOutcome>, HookError> {
     if !hooks_dir.exists() {
         return Err(HookError::NotAGitRepo);
     }
 
-    let hook_path = hooks_dir.join("commit-msg");
-    let backup_path = hooks_dir.join(format!("commit-msg{}", BACKUP_SUFFIX));
+    let mut outcomes = Vec::new();
 
-    if !hook_path.exists() {
-        return Ok(UninstallOutcome::NotInstalled);
+    for (hook_name, _script) in kind.hooks() {
+        let hook_path = hooks_dir.join(hook_name);
+        let backup_path = hooks_dir.join(format!("{hook_name}{BACKUP_SUFFIX}"));
+
+        if !hook_path.exists() {
+            outcomes.push(UninstallOutcome::NotInstalled);
+            continue;
+        }
+
+        let existing = fs::read_to_string(&hook_path)?;
+
+        if !existing.contains(COCOA_MARKER) {
+            return Err(HookError::NotManagedByCocoa {
+                hook_name: hook_name.to_string(),
+            });
+        }
+
+        let outcome = if backup_path.exists() {
+            if !dry_run {
+                fs::copy(&backup_path, &hook_path)?;
+                fs::remove_file(&backup_path)?;
+            }
+            UninstallOutcome::Restored {
+                hook_path,
+                backup_path,
+            }
+        } else {
+            if !dry_run {
+                fs::remove_file(&hook_path)?;
+            }
+            UninstallOutcome::Removed { hook_path }
+        };
+
+        outcomes.push(outcome);
     }
 
-    let existing = fs::read_to_string(&hook_path)?;
-
-    if !existing.contains(COCOA_MARKER) {
-        return Err(HookError::NotManagedByCocoa);
-    }
-
-    let outcome = if backup_path.exists() {
-        if !dry_run {
-            fs::copy(&backup_path, &hook_path)?;
-            fs::remove_file(&backup_path)?;
-        }
-        UninstallOutcome::Restored {
-            hook_path: hook_path.clone(),
-            backup_path: backup_path.clone(),
-        }
-    } else {
-        if !dry_run {
-            fs::remove_file(&hook_path)?;
-        }
-        UninstallOutcome::Removed {
-            hook_path: hook_path.clone(),
-        }
-    };
-
-    Ok(outcome)
+    Ok(outcomes)
 }
 
-/// Writes [`HOOK_SCRIPT`] to `path` and makes it executable.
-fn write_hook(path: &Path) -> Result<(), HookError> {
-    fs::write(path, HOOK_SCRIPT)?;
+/// Writes `script` to `path` and makes it executable.
+fn write_hook(path: &Path, script: &str) -> Result<(), HookError> {
+    fs::write(path, script)?;
 
     #[cfg(unix)]
     {

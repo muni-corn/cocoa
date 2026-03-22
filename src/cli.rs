@@ -200,7 +200,7 @@ mod tests {
         let args = vec!["cocoa", "generate"];
         let cli = Cli::try_parse_from(args).unwrap();
 
-        assert!(matches!(cli.command, Command::Generate));
+        assert!(matches!(cli.command, Command::Generate(_)));
     }
 
     #[test]

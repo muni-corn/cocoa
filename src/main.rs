@@ -63,10 +63,20 @@ async fn main() -> Result<()> {
             welcome(t!("main.commit.welcome"));
             cmd::commit::handle_commit(&config, cli.dry_run)?;
         }
-        Command::Generate => {
-            welcome(t!("main.generate.welcome"));
-            cmd::generate::handle_generate(&config, cli.json, cli.quiet, cli.verbose, cli.dry_run)
-                .await?;
+        Command::Generate(args) => {
+            // skip the welcome banner in hook mode (non-interactive)
+            if args.hook.is_none() {
+                welcome(t!("main.generate.welcome"));
+            }
+            cmd::generate::handle_generate(
+                &config,
+                args,
+                cli.json,
+                cli.quiet,
+                cli.verbose,
+                cli.dry_run,
+            )
+            .await?;
         }
         Command::Changelog(ChangelogArgs {
             range,
@@ -91,13 +101,13 @@ async fn main() -> Result<()> {
             }
             cmd::bump::handle_bump(&config, bump_type.as_deref(), cli.json, cli.dry_run)?;
         }
-        Command::Hook => {
+        Command::Hook(args) => {
             welcome(t!("main.hook.welcome"));
-            cmd::hook::handle_hook(&config, cli.dry_run)?;
+            cmd::hook::handle_hook(&config, args, cli.dry_run)?;
         }
-        Command::Unhook => {
+        Command::Unhook(args) => {
             welcome(t!("main.unhook.welcome"));
-            cmd::unhook::handle_unhook(&config, cli.dry_run)?;
+            cmd::unhook::handle_unhook(&config, args, cli.dry_run)?;
         }
         Command::Tag(TagArgs { version }) => {
             if !cli.json {
