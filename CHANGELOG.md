@@ -1,162 +1,171 @@
 # Changelog
 
-## [v0.2.0] - 2026-03-22
-
-### Features
-
-- make commit message generation configurable via CommitConfig (`02209ded`)
-- **generate:** increase recent commits context from 5 to 10 (`b70c1681`)
-- add hook kind selection and generate hook support (`c4bfb22c`)
-- add body to generated commit messages (`7d7d9291`)
-
-### Tests
-
-- update assertions to match current behavior (`ee3307bb`)
-- expand hook tests for lint, generate, and all kinds (`346e01b3`)
-
-### Documentation
-
-- simplify README description (`f57d07ec`)
-- add comprehensive README (`ffcf100f`)
-
----
-
-## [v0.1.0] - 2026-03-20
-
-### Features
-
-- **cli:** reintroduce help subcommand (`3d3f7182`)
-- **cli:** modify help messages a bit (`c84b6770`)
-- **migrate:** implement conventional-changelog migration (`04856873`)
-- **migrate:** implement commitlint configuration migration (`3718f222`)
-- **migrate:** add rollback support with config backup (`60a989bf`)
-- **migrate:** add migration module scaffold (`ecafaf21`)
-- **migrate:** implement semantic-release migration (`f0b57824`)
-- **release:** add release module with orchestration logic (`127ed832`)
-- **i18n:** add English baseline translations (`27951a75`)
-- implement system locale detection (`2c559a14`)
-- **release:** wire release command into CLI handler (`796bc7f6`)
-- add i18n infrastructure with message catalog (`c2e71373`)
-- **generate:** add sensitive content warning for staged diffs (`e560006b`)
-- **tag:** wire tag command into CLI handler (`9cfaf2be`)
-- **tag:** implement GPG signing for tags (`844ab4c1`)
-- **tag:** implement tag uniqueness verification (`75ed72df`)
-- **tag:** implement annotated git tag creation (`e1fe4a23`)
-- **bump:** wire bump command into CLI handler (`d0f5e000`)
-- **version:** implement atomic version file updates (`6cb70f38`)
-- **version:** implement automatic bump type detection from commits (`552a2b81`)
-- **version:** implement version detection from git tags (`6fa9fd92`)
-- **version:** implement calendar versioning engine (`69d43a1b`)
-- **version:** implement semantic versioning engine (`e2301c10`)
-- **version:** add version module scaffold (`e34d5c8e`)
-- **changelog:** wire changelog command into CLI handler (`b6c71b09`)
-- **changelog:** add custom template support (`aa9f0b27`)
-- **changelog:** implement AsciiDoc output format (`171cefd2`)
-- **changelog:** implement reStructuredText output format (`dac89444`)
-- **changelog:** implement HTML output format (`c578a8d5`)
-- **changelog:** implement JSON output format (`619ef914`)
-- **changelog:** implement markdown output renderer (`caace065`)
-- **changelog:** define entry and version data types (`2f36da10`)
-- **changelog:** add changelog module scaffold (`81fbfb5d`)
-- **interactive:** wire commit command into CLI handler (`c0014399`)
-- **interactive:** assemble message, validate, and commit (`60e72a84`)
-- **interactive:** implement issue reference linking (`f335a86f`)
-- **interactive:** implement breaking change annotation flow (`cda31665`)
-- **interactive:** implement optional body text entry (`d3527152`)
-- **interactive:** implement subject composition with char counting (`08b14fda`)
-- **interactive:** implement scope input with autocomplete (`97a6eff3`)
-- **interactive:** implement commit type selection prompt (`04973e27`)
-- **interactive:** add interactive commit module scaffold (`520f48be`)
-- **hook:** wire hook and unhook commands into CLI (`6e8064ca`)
-- **hook:** implement hook uninstallation with backup restore (`a5a9657b`)
-- **hook:** implement commit-msg hook installation (`95b347a5`)
-- **hook:** add hook module (`fbbd0d11`)
-- **cli:** add hook and unhook command variants (`754fe1d6`)
-- **lint:** implement git range linting, file path input, and dry-run mode (`5cc4a704`)
-- **init:** wire init command into CLI handler (`6a5ddad9`)
-- **init:** add init module scaffold (`435308ec`)
-- **config:** add version management configuration schema (`113a494e`)
-- **config:** add changelog configuration schema (`ff2afcaf`)
-- **config:** implement config merging for cascading fallback (`4a10b7ab`)
-- **config:** add cascading config file discovery (`54b798cc`)
-- **git_ops:** implement extended methods in Git2Ops (`a8252a8f`)
-- **git_ops:** extend GitOperations trait with tag, range, and hook methods (`5868640b`)
-- **cli:** add global --dry-run flag for non-destructive operations (`2ee9d7dd`)
-- **cli:** wire up --no-color flag to disable terminal colors (`ab44616c`)
-- **cli:** wire up --verbose flag for detailed output (`6ecad7dc`)
-- **ai:** add Provider struct with serde support for AI adapter configuration (`1cc9440c`)
-- **ai:** add provider-specific model mapping and auth resolver to AI client (`281339b0`)
-- **cli:** add conditional help templates for subcommands without arguments (`193546fc`)
-- **git_ops:** add git operations abstraction for testability (`ffa829cb`)
-- implement cli integration for generate command (`65640d4c`)
-- implement commit generation logic (`2cbf96df`)
-- integrate genai for real ai provider support (`7fb0041a`)
-- add core ai module structure (`5973c564`)
-- add goodbye functions and improve error messaging with better UX (`b1b8b65c`)
-- **flake:** add bacon package to development shell for Rust development (`ef9a36e4`)
-- add welcome function and add styling with Unicode symbols (`d139efcb`)
-- add style module with colored console output utility functions (`ba73cefd`)
-- improve console output with colored icons and lowercase (`d195ee07`)
-- add Display trait implementation for LintViolation (`1335bcfd`)
-- **config:** update commit message validation rules with stricter warn defaults (`5bf9e535`)
-- implement warn/deny rule structure for linting (`1ec369c7`)
-- **spec:** replace single-level commit rules with warn/deny rule structure (`f093e27b`)
-- implement main application and lint command (`accfc9be`)
-- implement CLI interface structure (`9870d2ae`)
-- implement lint validation engine (`71da56a4`)
-- implement conventional commit parser (`bd1e804d`)
-- implement configuration module (`2caadef4`)
-- add core dependencies for CLI and configuration (`10ee890e`)
+## Unreleased
 
 ### Bug fixes
 
-- **commit:** strip git context and comments from commit messages (`6e0f5ddb`)
-- ensure CI/CD compatibility across all commands (`39398574`)
-- audit and sanitize error messages to prevent secret leakage (`da91cc6d`)
-- **changelog:** ensure deterministic output ordering (`cabbb646`)
-- **lint:** use regex crate for custom pattern matching (`e295e8a3`)
-- **flake:** update project description from generic Rust to cocoa (`d18e0ee4`)
-- **commit:** fix footer line parsing with "BREAKING CHANGE" support (`9b2ffd17`)
-- **commit:** allow `is_ident_char` to take hyphens (`a691e83e`)
-- change JSON output from pretty-printed to compact unstyled format (`6a90ec25`)
+- **cmd:** fix indentation for release command help
+- make breaking changes header sentence case in markdown
+
+---
+
+## v0.2.0
+
+### Features
+
+- make commit message generation configurable via CommitConfig
+- **generate:** increase recent commits context from 5 to 10
+- add hook kind selection and generate hook support
+- add body to generated commit messages
 
 ### Tests
 
-- **fixtures:** add `full_commit_message.txt` (`3964f22d`)
-- add tests for commits with comments and git context (`7fd79aea`)
-- **commit:** add test for commit messages with git context (`63864ffb`)
-- add missing tests to reach 80% coverage target (`09f29316`)
-- **migrate:** add tests for all migration paths (`996a9dbc`)
-- **tag:** add integration tests for tag creation and signing (`4b4db923`)
-- **release:** add e2e tests for full release workflow (`6389d50d`)
-- **bump:** add e2e tests for bump command (`a24f3c28`)
-- **version:** add tests for semver, calver, detection, and file updates (`f7beab64`)
-- **changelog:** add unit and integration tests (`a518d5de`)
-- **interactive:** add tests for interactive commit creation (`f4d413f3`)
-- **hook:** add integration tests for hook install and uninstall (`0912b699`)
-- **lint:** add tests for git range and file path linting (`44f15f18`)
-- **init:** add e2e tests for init command (`b6158875`)
-- **config:** add tests for cascading config discovery and merging (`083544d4`)
-- **git_ops:** add integration tests for Git2Ops (`686c2759`)
-- **git_ops:** update MockGitOps for extended trait methods (`08b507df`)
-- **ai:** add comprehensive deserialization tests for Provider enum (`59555a1d`)
-- isolate git configuration in test environment (`85a158e3`)
-- add test infrastructure for helpers and fixtures (`fee3142c`)
-- add integration and e2e test suites for config, git, and lint (`adde731a`)
-- add comprehensive unit tests for cli, style, and ai modules (`31df12d7`)
-- add dependencies and structure for CLI integration testing (`6de57dab`)
+- update assertions to match current behavior
+- expand hook tests for lint, generate, and all kinds
 
 ### Documentation
 
-- add user guide (`1f1eadea`)
-- add man page generation with clap_mangen (`0027d4f9`)
-- **cli:** enhance help text with examples and detailed descriptions (`2f4e2718`)
-- add plan to implement remaining features (`f65b0027`)
-- **comments:** apply sentence case to all doc comments (`327c9b33`)
-- restructure AGENTS.md into comprehensive cocoa development guide (`b2decda9`)
-- **TESTING:** add comprehensive testing documentation (`a992536e`)
-- **commit:** improve documentation formatting and capitalize sentence beginnings (`6722e384`)
-- add comments for commit module (`e2988b3c`)
-- add development guidelines and conventions (`085a90da`)
+- simplify README description
+- add comprehensive README
+
+---
+
+## v0.1.0
+
+### Features
+
+- **cli:** reintroduce help subcommand
+- **cli:** modify help messages a bit
+- **migrate:** implement conventional-changelog migration
+- **migrate:** implement commitlint configuration migration
+- **migrate:** add rollback support with config backup
+- **migrate:** add migration module scaffold
+- **migrate:** implement semantic-release migration
+- **release:** add release module with orchestration logic
+- **i18n:** add English baseline translations
+- implement system locale detection
+- **release:** wire release command into CLI handler
+- add i18n infrastructure with message catalog
+- **generate:** add sensitive content warning for staged diffs
+- **tag:** wire tag command into CLI handler
+- **tag:** implement GPG signing for tags
+- **tag:** implement tag uniqueness verification
+- **tag:** implement annotated git tag creation
+- **bump:** wire bump command into CLI handler
+- **version:** implement atomic version file updates
+- **version:** implement automatic bump type detection from commits
+- **version:** implement version detection from git tags
+- **version:** implement calendar versioning engine
+- **version:** implement semantic versioning engine
+- **version:** add version module scaffold
+- **changelog:** wire changelog command into CLI handler
+- **changelog:** add custom template support
+- **changelog:** implement AsciiDoc output format
+- **changelog:** implement reStructuredText output format
+- **changelog:** implement HTML output format
+- **changelog:** implement JSON output format
+- **changelog:** implement markdown output renderer
+- **changelog:** define entry and version data types
+- **changelog:** add changelog module scaffold
+- **interactive:** wire commit command into CLI handler
+- **interactive:** assemble message, validate, and commit
+- **interactive:** implement issue reference linking
+- **interactive:** implement breaking change annotation flow
+- **interactive:** implement optional body text entry
+- **interactive:** implement subject composition with char counting
+- **interactive:** implement scope input with autocomplete
+- **interactive:** implement commit type selection prompt
+- **interactive:** add interactive commit module scaffold
+- **hook:** wire hook and unhook commands into CLI
+- **hook:** implement hook uninstallation with backup restore
+- **hook:** implement commit-msg hook installation
+- **hook:** add hook module
+- **cli:** add hook and unhook command variants
+- **lint:** implement git range linting, file path input, and dry-run mode
+- **init:** wire init command into CLI handler
+- **init:** add init module scaffold
+- **config:** add version management configuration schema
+- **config:** add changelog configuration schema
+- **config:** implement config merging for cascading fallback
+- **config:** add cascading config file discovery
+- **git_ops:** implement extended methods in Git2Ops
+- **git_ops:** extend GitOperations trait with tag, range, and hook methods
+- **cli:** add global --dry-run flag for non-destructive operations
+- **cli:** wire up --no-color flag to disable terminal colors
+- **cli:** wire up --verbose flag for detailed output
+- **ai:** add Provider struct with serde support for AI adapter configuration
+- **ai:** add provider-specific model mapping and auth resolver to AI client
+- **cli:** add conditional help templates for subcommands without arguments
+- **git_ops:** add git operations abstraction for testability
+- implement cli integration for generate command
+- implement commit generation logic
+- integrate genai for real ai provider support
+- add core ai module structure
+- add goodbye functions and improve error messaging with better UX
+- **flake:** add bacon package to development shell for Rust development
+- add welcome function and add styling with Unicode symbols
+- add style module with colored console output utility functions
+- improve console output with colored icons and lowercase
+- add Display trait implementation for LintViolation
+- **config:** update commit message validation rules with stricter warn defaults
+- implement warn/deny rule structure for linting
+- **spec:** replace single-level commit rules with warn/deny rule structure
+- implement main application and lint command
+- implement CLI interface structure
+- implement lint validation engine
+- implement conventional commit parser
+- implement configuration module
+- add core dependencies for CLI and configuration
+
+### Bug fixes
+
+- **commit:** strip git context and comments from commit messages
+- ensure CI/CD compatibility across all commands
+- audit and sanitize error messages to prevent secret leakage
+- **changelog:** ensure deterministic output ordering
+- **lint:** use regex crate for custom pattern matching
+- **flake:** update project description from generic Rust to cocoa
+- **commit:** fix footer line parsing with "BREAKING CHANGE" support
+- **commit:** allow `is_ident_char` to take hyphens
+- change JSON output from pretty-printed to compact unstyled format
+
+### Tests
+
+- **fixtures:** add `full_commit_message.txt`
+- add tests for commits with comments and git context
+- **commit:** add test for commit messages with git context
+- add missing tests to reach 80% coverage target
+- **migrate:** add tests for all migration paths
+- **tag:** add integration tests for tag creation and signing
+- **release:** add e2e tests for full release workflow
+- **bump:** add e2e tests for bump command
+- **version:** add tests for semver, calver, detection, and file updates
+- **changelog:** add unit and integration tests
+- **interactive:** add tests for interactive commit creation
+- **hook:** add integration tests for hook install and uninstall
+- **lint:** add tests for git range and file path linting
+- **init:** add e2e tests for init command
+- **config:** add tests for cascading config discovery and merging
+- **git_ops:** add integration tests for Git2Ops
+- **git_ops:** update MockGitOps for extended trait methods
+- **ai:** add comprehensive deserialization tests for Provider enum
+- isolate git configuration in test environment
+- add test infrastructure for helpers and fixtures
+- add integration and e2e test suites for config, git, and lint
+- add comprehensive unit tests for cli, style, and ai modules
+- add dependencies and structure for CLI integration testing
+
+### Documentation
+
+- add user guide
+- add man page generation with clap_mangen
+- **cli:** enhance help text with examples and detailed descriptions
+- add plan to implement remaining features
+- **comments:** apply sentence case to all doc comments
+- restructure AGENTS.md into comprehensive cocoa development guide
+- **TESTING:** add comprehensive testing documentation
+- **commit:** improve documentation formatting and capitalize sentence beginnings
+- add comments for commit module
+- add development guidelines and conventions
 
 ---
