@@ -64,24 +64,77 @@ fn cocoa_in(dir: &TempDir) -> assert_cmd::Command {
     cmd
 }
 
-// --- cocoa hook ---
+// --- cocoa hook (default = all) ---
 
 #[test]
-fn test_hook_installs_commit_msg_hook() {
+fn test_hook_default_installs_both_hooks() {
     let (dir, hooks_dir) = make_git_repo();
-    let hook_path = hooks_dir.join("commit-msg");
 
+    // default (no kind arg) installs both hooks
     cocoa_in(&dir).arg("hook").assert().success();
 
     assert!(
-        hook_path.exists(),
-        "commit-msg hook should have been created"
+        hooks_dir.join("commit-msg").exists(),
+        "commit-msg hook should be installed"
     );
+    assert!(
+        hooks_dir.join("prepare-commit-msg").exists(),
+        "prepare-commit-msg hook should be installed"
+    );
+}
 
-    let contents = fs::read_to_string(&hook_path).unwrap();
+#[test]
+fn test_hook_lint_installs_only_commit_msg() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).args(["hook", "lint"]).assert().success();
+
+    assert!(
+        hooks_dir.join("commit-msg").exists(),
+        "commit-msg hook should be installed"
+    );
+    assert!(
+        !hooks_dir.join("prepare-commit-msg").exists(),
+        "prepare-commit-msg hook should NOT be installed with lint kind"
+    );
+}
+
+#[test]
+fn test_hook_generate_installs_only_prepare_commit_msg() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).args(["hook", "generate"]).assert().success();
+
+    assert!(
+        !hooks_dir.join("commit-msg").exists(),
+        "commit-msg hook should NOT be installed with generate kind"
+    );
+    assert!(
+        hooks_dir.join("prepare-commit-msg").exists(),
+        "prepare-commit-msg hook should be installed"
+    );
+}
+
+#[test]
+fn test_hook_all_installs_both_hooks() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).args(["hook", "all"]).assert().success();
+
+    assert!(hooks_dir.join("commit-msg").exists());
+    assert!(hooks_dir.join("prepare-commit-msg").exists());
+}
+
+#[test]
+fn test_hook_lint_script_calls_cocoa_lint() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).args(["hook", "lint"]).assert().success();
+
+    let contents = fs::read_to_string(hooks_dir.join("commit-msg")).unwrap();
     assert!(
         contents.contains("cocoa lint --stdin"),
-        "hook should invoke cocoa lint --stdin"
+        "commit-msg hook should invoke cocoa lint --stdin"
     );
     assert!(
         contents.contains("managed by cocoa"),
@@ -90,30 +143,73 @@ fn test_hook_installs_commit_msg_hook() {
 }
 
 #[test]
-fn test_hook_makes_file_executable() {
+fn test_hook_generate_script_calls_cocoa_generate() {
     let (dir, hooks_dir) = make_git_repo();
-    let hook_path = hooks_dir.join("commit-msg");
+
+    cocoa_in(&dir).args(["hook", "generate"]).assert().success();
+
+    let contents = fs::read_to_string(hooks_dir.join("prepare-commit-msg")).unwrap();
+    assert!(
+        contents.contains("cocoa generate --hook"),
+        "prepare-commit-msg hook should invoke cocoa generate --hook"
+    );
+    assert!(
+        contents.contains("managed by cocoa"),
+        "hook should contain the cocoa marker"
+    );
+}
+
+#[test]
+fn test_hook_generate_script_skips_known_sources() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).args(["hook", "generate"]).assert().success();
+
+    let contents = fs::read_to_string(hooks_dir.join("prepare-commit-msg")).unwrap();
+    assert!(
+        contents.contains("message|merge|squash|commit"),
+        "prepare-commit-msg hook should skip amend/merge/squash/-m sources"
+    );
+}
+
+#[test]
+fn test_hook_makes_files_executable() {
+    let (dir, hooks_dir) = make_git_repo();
 
     cocoa_in(&dir).arg("hook").assert().success();
 
-    let mode = fs::metadata(&hook_path).unwrap().permissions().mode();
-    assert_ne!(mode & 0o100, 0, "hook must have the executable bit set");
+    for hook_name in ["commit-msg", "prepare-commit-msg"] {
+        let mode = fs::metadata(hooks_dir.join(hook_name))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_ne!(
+            mode & 0o100,
+            0,
+            "{hook_name} must have the executable bit set"
+        );
+    }
 }
 
 #[test]
 fn test_hook_is_idempotent() {
     let (dir, hooks_dir) = make_git_repo();
-    let hook_path = hooks_dir.join("commit-msg");
 
     cocoa_in(&dir).arg("hook").assert().success();
-    let first_contents = fs::read_to_string(&hook_path).unwrap();
+    let first_lint = fs::read_to_string(hooks_dir.join("commit-msg")).unwrap();
+    let first_gen = fs::read_to_string(hooks_dir.join("prepare-commit-msg")).unwrap();
 
     cocoa_in(&dir).arg("hook").assert().success();
-    let second_contents = fs::read_to_string(&hook_path).unwrap();
+    let second_lint = fs::read_to_string(hooks_dir.join("commit-msg")).unwrap();
+    let second_gen = fs::read_to_string(hooks_dir.join("prepare-commit-msg")).unwrap();
 
     assert_eq!(
-        first_contents, second_contents,
-        "hook contents should not change on repeated installs"
+        first_lint, second_lint,
+        "commit-msg contents should not change on repeat install"
+    );
+    assert_eq!(
+        first_gen, second_gen,
+        "prepare-commit-msg contents should not change on repeat install"
     );
 }
 
@@ -126,7 +222,7 @@ fn test_hook_backs_up_existing_non_cocoa_hook() {
     let original = "#!/bin/sh\necho 'existing hook'\n";
     fs::write(&hook_path, original).unwrap();
 
-    cocoa_in(&dir).arg("hook").assert().success();
+    cocoa_in(&dir).args(["hook", "lint"]).assert().success();
 
     assert!(backup_path.exists(), "backup file should have been created");
     let backup_contents = fs::read_to_string(&backup_path).unwrap();
@@ -137,9 +233,8 @@ fn test_hook_backs_up_existing_non_cocoa_hook() {
 }
 
 #[test]
-fn test_hook_dry_run_does_not_write_file() {
+fn test_hook_dry_run_does_not_write_files() {
     let (dir, hooks_dir) = make_git_repo();
-    let hook_path = hooks_dir.join("commit-msg");
 
     cocoa_in(&dir)
         .args(["--dry-run", "hook"])
@@ -147,22 +242,75 @@ fn test_hook_dry_run_does_not_write_file() {
         .success()
         .stdout(predicate::str::contains("dry-run").or(predicate::str::contains("would")));
 
-    assert!(!hook_path.exists(), "dry-run must not create the hook file");
+    assert!(
+        !hooks_dir.join("commit-msg").exists(),
+        "dry-run must not create commit-msg"
+    );
+    assert!(
+        !hooks_dir.join("prepare-commit-msg").exists(),
+        "dry-run must not create prepare-commit-msg"
+    );
 }
 
 // --- cocoa unhook ---
 
 #[test]
-fn test_unhook_removes_installed_hook() {
+fn test_unhook_default_removes_both_hooks() {
     let (dir, hooks_dir) = make_git_repo();
-    let hook_path = hooks_dir.join("commit-msg");
 
     cocoa_in(&dir).arg("hook").assert().success();
-    assert!(hook_path.exists());
+    assert!(hooks_dir.join("commit-msg").exists());
+    assert!(hooks_dir.join("prepare-commit-msg").exists());
 
     cocoa_in(&dir).arg("unhook").assert().success();
 
-    assert!(!hook_path.exists(), "hook should have been removed");
+    assert!(
+        !hooks_dir.join("commit-msg").exists(),
+        "commit-msg should be removed"
+    );
+    assert!(
+        !hooks_dir.join("prepare-commit-msg").exists(),
+        "prepare-commit-msg should be removed"
+    );
+}
+
+#[test]
+fn test_unhook_lint_only_removes_commit_msg() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).arg("hook").assert().success();
+
+    cocoa_in(&dir).args(["unhook", "lint"]).assert().success();
+
+    assert!(
+        !hooks_dir.join("commit-msg").exists(),
+        "commit-msg should be removed"
+    );
+    assert!(
+        hooks_dir.join("prepare-commit-msg").exists(),
+        "prepare-commit-msg should remain"
+    );
+}
+
+#[test]
+fn test_unhook_generate_only_removes_prepare_commit_msg() {
+    let (dir, hooks_dir) = make_git_repo();
+
+    cocoa_in(&dir).arg("hook").assert().success();
+
+    cocoa_in(&dir)
+        .args(["unhook", "generate"])
+        .assert()
+        .success();
+
+    assert!(
+        hooks_dir.join("commit-msg").exists(),
+        "commit-msg should remain"
+    );
+    assert!(
+        !hooks_dir.join("prepare-commit-msg").exists(),
+        "prepare-commit-msg should be removed"
+    );
 }
 
 #[test]
@@ -174,10 +322,10 @@ fn test_unhook_restores_backup() {
     let original = "#!/bin/sh\necho 'existing hook'\n";
     fs::write(&hook_path, original).unwrap();
 
-    cocoa_in(&dir).arg("hook").assert().success();
+    cocoa_in(&dir).args(["hook", "lint"]).assert().success();
     assert!(backup_path.exists(), "backup should exist after install");
 
-    cocoa_in(&dir).arg("unhook").assert().success();
+    cocoa_in(&dir).args(["unhook", "lint"]).assert().success();
 
     assert!(!backup_path.exists(), "backup should be cleaned up");
     let restored = fs::read_to_string(&hook_path).unwrap();
@@ -188,7 +336,7 @@ fn test_unhook_restores_backup() {
 fn test_unhook_not_installed_exits_with_warning() {
     let (dir, _hooks_dir) = make_git_repo();
 
-    // no hook installed — should succeed with a warning message
+    // no hooks installed — should succeed with a warning message
     cocoa_in(&dir).arg("unhook").assert().success();
 }
 
@@ -200,18 +348,23 @@ fn test_unhook_refuses_non_cocoa_hook() {
     fs::write(&hook_path, "#!/bin/sh\necho 'not managed by cocoa'\n").unwrap();
 
     // cocoa writes all output to stdout (not stderr)
-    cocoa_in(&dir).arg("unhook").assert().failure().stdout(
-        predicate::str::contains("not managed by cocoa").or(predicate::str::contains("manually")),
-    );
+    cocoa_in(&dir)
+        .args(["unhook", "lint"])
+        .assert()
+        .failure()
+        .stdout(
+            predicate::str::contains("not managed by cocoa")
+                .or(predicate::str::contains("manually")),
+        );
 }
 
 #[test]
-fn test_unhook_dry_run_does_not_remove_file() {
+fn test_unhook_dry_run_does_not_remove_files() {
     let (dir, hooks_dir) = make_git_repo();
-    let hook_path = hooks_dir.join("commit-msg");
 
     cocoa_in(&dir).arg("hook").assert().success();
-    assert!(hook_path.exists());
+    assert!(hooks_dir.join("commit-msg").exists());
+    assert!(hooks_dir.join("prepare-commit-msg").exists());
 
     cocoa_in(&dir)
         .args(["--dry-run", "unhook"])
@@ -219,5 +372,12 @@ fn test_unhook_dry_run_does_not_remove_file() {
         .success()
         .stdout(predicate::str::contains("dry-run").or(predicate::str::contains("would")));
 
-    assert!(hook_path.exists(), "dry-run must not remove the hook file");
+    assert!(
+        hooks_dir.join("commit-msg").exists(),
+        "dry-run must not remove commit-msg"
+    );
+    assert!(
+        hooks_dir.join("prepare-commit-msg").exists(),
+        "dry-run must not remove prepare-commit-msg"
+    );
 }

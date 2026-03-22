@@ -273,20 +273,18 @@ mod tests {
         tmp
     }
 
-    // --- install ---
+    // --- install (lint only) ---
 
     #[test]
-    fn test_install_fresh() {
+    fn test_install_lint_fresh() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
 
-        let outcome = install(&hooks_dir, false).unwrap();
+        let outcomes = install(&hooks_dir, HookKind::Lint, false).unwrap();
+        assert_eq!(outcomes.len(), 1);
 
         let hook_path = hooks_dir.join("commit-msg");
-        assert!(
-            matches!(outcome, InstallOutcome::Installed { .. }),
-            "expected Installed"
-        );
+        assert!(matches!(outcomes[0], InstallOutcome::Installed { .. }));
         assert!(hook_path.exists());
         let contents = fs::read_to_string(&hook_path).unwrap();
         assert!(contents.contains(COCOA_MARKER));
@@ -294,21 +292,18 @@ mod tests {
     }
 
     #[test]
-    fn test_install_idempotent() {
+    fn test_install_lint_idempotent() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
 
-        install(&hooks_dir, false).unwrap();
-        let outcome = install(&hooks_dir, false).unwrap();
+        install(&hooks_dir, HookKind::Lint, false).unwrap();
+        let outcomes = install(&hooks_dir, HookKind::Lint, false).unwrap();
 
-        assert!(
-            matches!(outcome, InstallOutcome::Updated { .. }),
-            "second install should report Updated"
-        );
+        assert!(matches!(outcomes[0], InstallOutcome::Updated { .. }));
     }
 
     #[test]
-    fn test_install_backs_up_existing_hook() {
+    fn test_install_lint_backs_up_existing_hook() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
         let hook_path = hooks_dir.join("commit-msg");
@@ -316,32 +311,68 @@ mod tests {
 
         fs::write(&hook_path, "#!/bin/sh\necho 'existing hook'\n").unwrap();
 
-        let outcome = install(&hooks_dir, false).unwrap();
+        let outcomes = install(&hooks_dir, HookKind::Lint, false).unwrap();
 
-        assert!(
-            matches!(outcome, InstallOutcome::Replaced { .. }),
-            "expected Replaced"
-        );
+        assert!(matches!(outcomes[0], InstallOutcome::Replaced { .. }));
         assert!(backup_path.exists(), "backup should have been created");
         let hook_contents = fs::read_to_string(&hook_path).unwrap();
         assert!(hook_contents.contains(COCOA_MARKER));
     }
 
     #[test]
-    fn test_install_dry_run_writes_nothing() {
+    fn test_install_lint_dry_run_writes_nothing() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
 
-        let outcome = install(&hooks_dir, true).unwrap();
+        let outcomes = install(&hooks_dir, HookKind::Lint, true).unwrap();
 
-        assert!(
-            matches!(outcome, InstallOutcome::Installed { .. }),
-            "expected Installed outcome even in dry-run"
-        );
-        assert!(
-            !hooks_dir.join("commit-msg").exists(),
-            "dry-run must not write files"
-        );
+        assert!(matches!(outcomes[0], InstallOutcome::Installed { .. }));
+        assert!(!hooks_dir.join("commit-msg").exists());
+    }
+
+    // --- install (generate only) ---
+
+    #[test]
+    fn test_install_generate_fresh() {
+        let tmp = make_hooks_dir();
+        let hooks_dir = tmp.path().join("hooks");
+
+        let outcomes = install(&hooks_dir, HookKind::Generate, false).unwrap();
+        assert_eq!(outcomes.len(), 1);
+
+        let hook_path = hooks_dir.join("prepare-commit-msg");
+        assert!(matches!(outcomes[0], InstallOutcome::Installed { .. }));
+        assert!(hook_path.exists());
+        let contents = fs::read_to_string(&hook_path).unwrap();
+        assert!(contents.contains(COCOA_MARKER));
+        assert!(contents.contains("cocoa generate --hook"));
+    }
+
+    // --- install (all) ---
+
+    #[test]
+    fn test_install_all_creates_both_hooks() {
+        let tmp = make_hooks_dir();
+        let hooks_dir = tmp.path().join("hooks");
+
+        let outcomes = install(&hooks_dir, HookKind::All, false).unwrap();
+        assert_eq!(outcomes.len(), 2);
+
+        assert!(hooks_dir.join("commit-msg").exists());
+        assert!(hooks_dir.join("prepare-commit-msg").exists());
+        assert!(matches!(outcomes[0], InstallOutcome::Installed { .. }));
+        assert!(matches!(outcomes[1], InstallOutcome::Installed { .. }));
+    }
+
+    #[test]
+    fn test_install_all_dry_run_writes_nothing() {
+        let tmp = make_hooks_dir();
+        let hooks_dir = tmp.path().join("hooks");
+
+        install(&hooks_dir, HookKind::All, true).unwrap();
+
+        assert!(!hooks_dir.join("commit-msg").exists());
+        assert!(!hooks_dir.join("prepare-commit-msg").exists());
     }
 
     #[test]
@@ -349,33 +380,29 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let hooks_dir = tmp.path().join("nonexistent");
 
-        // directory does not exist — should fail
-        let result = install(&hooks_dir, false);
+        let result = install(&hooks_dir, HookKind::Lint, false);
         assert!(matches!(result, Err(HookError::NotAGitRepo)));
     }
 
-    // --- uninstall ---
+    // --- uninstall (lint only) ---
 
     #[test]
-    fn test_uninstall_removes_hook() {
+    fn test_uninstall_lint_removes_hook() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
         let hook_path = hooks_dir.join("commit-msg");
 
-        install(&hooks_dir, false).unwrap();
+        install(&hooks_dir, HookKind::Lint, false).unwrap();
         assert!(hook_path.exists());
 
-        let outcome = uninstall(&hooks_dir, false).unwrap();
+        let outcomes = uninstall(&hooks_dir, HookKind::Lint, false).unwrap();
 
-        assert!(
-            matches!(outcome, UninstallOutcome::Removed { .. }),
-            "expected Removed"
-        );
+        assert!(matches!(outcomes[0], UninstallOutcome::Removed { .. }));
         assert!(!hook_path.exists());
     }
 
     #[test]
-    fn test_uninstall_restores_backup() {
+    fn test_uninstall_lint_restores_backup() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
         let hook_path = hooks_dir.join("commit-msg");
@@ -383,57 +410,99 @@ mod tests {
 
         let original = "#!/bin/sh\necho 'original hook'\n";
         fs::write(&hook_path, original).unwrap();
-        install(&hooks_dir, false).unwrap();
-        assert!(backup_path.exists(), "backup should exist after install");
+        install(&hooks_dir, HookKind::Lint, false).unwrap();
+        assert!(backup_path.exists());
 
-        let outcome = uninstall(&hooks_dir, false).unwrap();
+        let outcomes = uninstall(&hooks_dir, HookKind::Lint, false).unwrap();
 
-        assert!(
-            matches!(outcome, UninstallOutcome::Restored { .. }),
-            "expected Restored"
-        );
-        assert!(!backup_path.exists(), "backup should be gone after restore");
+        assert!(matches!(outcomes[0], UninstallOutcome::Restored { .. }));
+        assert!(!backup_path.exists());
         let restored = fs::read_to_string(&hook_path).unwrap();
-        assert_eq!(restored, original, "original hook should be restored");
+        assert_eq!(restored, original);
     }
 
     #[test]
-    fn test_uninstall_not_installed() {
+    fn test_uninstall_lint_not_installed() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
 
-        let outcome = uninstall(&hooks_dir, false).unwrap();
-        assert!(matches!(outcome, UninstallOutcome::NotInstalled));
+        let outcomes = uninstall(&hooks_dir, HookKind::Lint, false).unwrap();
+        assert!(matches!(outcomes[0], UninstallOutcome::NotInstalled));
     }
 
     #[test]
-    fn test_uninstall_refuses_non_cocoa_hook() {
+    fn test_uninstall_lint_refuses_non_cocoa_hook() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
         let hook_path = hooks_dir.join("commit-msg");
 
         fs::write(&hook_path, "#!/bin/sh\necho 'not cocoa'\n").unwrap();
 
-        let result = uninstall(&hooks_dir, false);
-        assert!(matches!(result, Err(HookError::NotManagedByCocoa)));
+        let result = uninstall(&hooks_dir, HookKind::Lint, false);
+        assert!(matches!(result, Err(HookError::NotManagedByCocoa { .. })));
     }
 
     #[test]
-    fn test_uninstall_dry_run_changes_nothing() {
+    fn test_uninstall_lint_dry_run_changes_nothing() {
         let tmp = make_hooks_dir();
         let hooks_dir = tmp.path().join("hooks");
         let hook_path = hooks_dir.join("commit-msg");
 
-        install(&hooks_dir, false).unwrap();
+        install(&hooks_dir, HookKind::Lint, false).unwrap();
         assert!(hook_path.exists());
 
-        let outcome = uninstall(&hooks_dir, true).unwrap();
+        let outcomes = uninstall(&hooks_dir, HookKind::Lint, true).unwrap();
 
-        assert!(
-            matches!(outcome, UninstallOutcome::Removed { .. }),
-            "should report what would happen"
-        );
+        assert!(matches!(outcomes[0], UninstallOutcome::Removed { .. }));
         assert!(hook_path.exists(), "dry-run must not remove files");
+    }
+
+    // --- uninstall (all) ---
+
+    #[test]
+    fn test_uninstall_all_removes_both_hooks() {
+        let tmp = make_hooks_dir();
+        let hooks_dir = tmp.path().join("hooks");
+
+        install(&hooks_dir, HookKind::All, false).unwrap();
+        assert!(hooks_dir.join("commit-msg").exists());
+        assert!(hooks_dir.join("prepare-commit-msg").exists());
+
+        let outcomes = uninstall(&hooks_dir, HookKind::All, false).unwrap();
+
+        assert_eq!(outcomes.len(), 2);
+        assert!(!hooks_dir.join("commit-msg").exists());
+        assert!(!hooks_dir.join("prepare-commit-msg").exists());
+    }
+
+    #[test]
+    fn test_uninstall_all_not_installed_returns_not_installed_for_each() {
+        let tmp = make_hooks_dir();
+        let hooks_dir = tmp.path().join("hooks");
+
+        let outcomes = uninstall(&hooks_dir, HookKind::All, false).unwrap();
+
+        assert_eq!(outcomes.len(), 2);
+        assert!(
+            outcomes
+                .iter()
+                .all(|o| matches!(o, UninstallOutcome::NotInstalled))
+        );
+    }
+
+    #[test]
+    fn test_uninstall_lint_only_leaves_generate_hook() {
+        let tmp = make_hooks_dir();
+        let hooks_dir = tmp.path().join("hooks");
+
+        install(&hooks_dir, HookKind::All, false).unwrap();
+        uninstall(&hooks_dir, HookKind::Lint, false).unwrap();
+
+        assert!(!hooks_dir.join("commit-msg").exists());
+        assert!(
+            hooks_dir.join("prepare-commit-msg").exists(),
+            "generate hook should remain"
+        );
     }
 
     // --- hook script content ---
@@ -447,12 +516,22 @@ mod tests {
             let tmp = make_hooks_dir();
             let hooks_dir = tmp.path().join("hooks");
 
-            install(&hooks_dir, false).unwrap();
+            install(&hooks_dir, HookKind::All, false).unwrap();
 
-            let hook_path = hooks_dir.join("commit-msg");
-            let mode = fs::metadata(&hook_path).unwrap().permissions().mode();
-            // check owner execute bit (0o100)
-            assert_ne!(mode & 0o100, 0, "hook must be executable");
+            for hook_name in ["commit-msg", "prepare-commit-msg"] {
+                let hook_path = hooks_dir.join(hook_name);
+                let mode = fs::metadata(&hook_path).unwrap().permissions().mode();
+                assert_ne!(mode & 0o100, 0, "{hook_name} must be executable");
+            }
         }
+    }
+
+    #[test]
+    fn test_generate_hook_skips_known_message_sources() {
+        // verify the script content contains the case statement guard
+        assert!(
+            GENERATE_HOOK_SCRIPT.contains("message|merge|squash|commit"),
+            "generate hook must skip amend/merge/squash/-m sources"
+        );
     }
 }
