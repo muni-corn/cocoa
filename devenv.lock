@@ -166,7 +166,7 @@
           "crate2nix"
         ],
         "git-hooks": "git-hooks_6",
-        "nixpkgs": "nixpkgs_8"
+        "nixpkgs": "nixpkgs_7"
       },
       "locked": {
         "lastModified": 1767714506,
@@ -194,7 +194,7 @@
           "crate2nix_stable"
         ],
         "git-hooks": "git-hooks_7",
-        "nixpkgs": "nixpkgs_9"
+        "nixpkgs": "nixpkgs_8"
       },
       "locked": {
         "lastModified": 1767714506,
@@ -217,19 +217,25 @@
         "devenv": "devenv",
         "flake-parts": "flake-parts_6",
         "musicaloft-shell": "musicaloft-shell",
-        "nixpkgs": "nixpkgs_7",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
         "rust-overlay": "rust-overlay_2",
         "treefmt-nix": "treefmt-nix_2"
       },
       "locked": {
-        "path": ".",
-        "type": "path"
+        "lastModified": 1774162295,
+        "narHash": "sha256-2DXiFoqKEov6QDcw62FeFef+xW9fUDBLqvuyehK0JDQ=",
+        "owner": "muni-corn",
+        "repo": "cocoa",
+        "rev": "f9f501b23a1c6ee4ba3691577e9ea941bc07ab21",
+        "type": "github"
       },
       "original": {
-        "path": ".",
-        "type": "path"
-      },
-      "parent": []
+        "owner": "muni-corn",
+        "repo": "cocoa",
+        "type": "github"
+      }
     },
     "crate2nix": {
       "inputs": {
@@ -387,7 +393,7 @@
         "flake-compat": "flake-compat_6",
         "flake-parts": "flake-parts_7",
         "nix-test-runner": "nix-test-runner_5",
-        "nixpkgs": "nixpkgs_10",
+        "nixpkgs": "nixpkgs_9",
         "pre-commit-hooks": "pre-commit-hooks_5"
       },
       "locked": {
@@ -421,11 +427,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1774134162,
-        "narHash": "sha256-pGjE0Agjnh8FmymDi3hiOy/pflcnbS8kpkfkL5/QKAc=",
+        "lastModified": 1774170859,
+        "narHash": "sha256-suU/K58P4zlDsyABa6lcCHfpiyYExfLHAvp1etyPHTg=",
         "owner": "cachix",
         "repo": "devenv",
-        "rev": "b24c9b58457396a9a6fe275b87555ba6e8f0a5fb",
+        "rev": "e6a4ba3e4a9ec9e3c71ace68e9ae6accc5d87701",
         "type": "github"
       },
       "original": {
@@ -437,11 +443,11 @@
     "devenv_2": {
       "locked": {
         "dir": "src/modules",
-        "lastModified": 1774134162,
-        "narHash": "sha256-pGjE0Agjnh8FmymDi3hiOy/pflcnbS8kpkfkL5/QKAc=",
+        "lastModified": 1774170859,
+        "narHash": "sha256-suU/K58P4zlDsyABa6lcCHfpiyYExfLHAvp1etyPHTg=",
         "owner": "cachix",
         "repo": "devenv",
-        "rev": "b24c9b58457396a9a6fe275b87555ba6e8f0a5fb",
+        "rev": "e6a4ba3e4a9ec9e3c71ace68e9ae6accc5d87701",
         "type": "github"
       },
       "original": {
@@ -1486,13 +1492,12 @@
       }
     },
     "musicaloft-shell_2": {
-      "flake": false,
       "locked": {
-        "lastModified": 1774156709,
-        "narHash": "sha256-WF3qZD3Qbcrmp6lBUuIvzOMlkzKT48g25YtIXtLPeHI=",
+        "lastModified": 1774157372,
+        "narHash": "sha256-mbrvYejopt2RdqHdb6xJMvD43CXwa8qOt0Zeho3PWD8=",
         "owner": "musicaloft",
         "repo": "musicaloft-shell",
-        "rev": "bf0b2f066132e2bcba31a026abe79f2ed0c5ac13",
+        "rev": "5acd17d75fd87735aa552e5042f5207bd24c6de0",
         "type": "github"
       },
       "original": {
@@ -1690,23 +1695,6 @@
     "nixpkgs-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1772173633,
-        "narHash": "sha256-MOH58F4AIbCkh6qlQcwMycyk5SWvsqnS/TCfnqDlpj4=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "c0f3d81a7ddbc2b1332be0d8481a672b4f6004d6",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs-src_2": {
-      "flake": false,
-      "locked": {
         "lastModified": 1773597492,
         "narHash": "sha256-hQ284SkIeNaeyud+LS0WVLX+WL2rxcVZLFEaK0e03zg=",
         "owner": "NixOS",
@@ -1722,24 +1710,8 @@
       }
     },
     "nixpkgs_10": {
-      "locked": {
-        "lastModified": 1769433173,
-        "narHash": "sha256-Gf1dFYgD344WZ3q0LPlRoWaNdNQq8kSBDLEWulRQSEs=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "13b0f9e6ac78abbbb736c635d87845c4f4bee51b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs_11": {
       "inputs": {
-        "nixpkgs-src": "nixpkgs-src_2"
+        "nixpkgs-src": "nixpkgs-src"
       },
       "locked": {
         "lastModified": 1773704619,
@@ -1837,21 +1809,18 @@
       }
     },
     "nixpkgs_7": {
-      "inputs": {
-        "nixpkgs-src": "nixpkgs-src"
-      },
       "locked": {
-        "lastModified": 1772749504,
-        "narHash": "sha256-eqtQIz0alxkQPym+Zh/33gdDjkkch9o6eHnMPnXFXN0=",
-        "owner": "cachix",
-        "repo": "devenv-nixpkgs",
-        "rev": "08543693199362c1fddb8f52126030d0d374ba2e",
+        "lastModified": 1765186076,
+        "narHash": "sha256-hM20uyap1a0M9d344I692r+ik4gTMyj60cQWO+hAYP8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
         "type": "github"
       },
       "original": {
-        "owner": "cachix",
-        "ref": "rolling",
-        "repo": "devenv-nixpkgs",
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
         "type": "github"
       }
     },
@@ -1873,16 +1842,16 @@
     },
     "nixpkgs_9": {
       "locked": {
-        "lastModified": 1765186076,
-        "narHash": "sha256-hM20uyap1a0M9d344I692r+ik4gTMyj60cQWO+hAYP8=",
+        "lastModified": 1769433173,
+        "narHash": "sha256-Gf1dFYgD344WZ3q0LPlRoWaNdNQq8kSBDLEWulRQSEs=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+        "rev": "13b0f9e6ac78abbbb736c635d87845c4f4bee51b",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-unstable",
+        "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -2069,7 +2038,7 @@
         "flake-parts": "flake-parts_9",
         "git-hooks": "git-hooks_8",
         "musicaloft-shell": "musicaloft-shell_2",
-        "nixpkgs": "nixpkgs_11",
+        "nixpkgs": "nixpkgs_10",
         "rust-overlay": "rust-overlay_3",
         "treefmt-nix": "treefmt-nix_3"
       }
