@@ -112,7 +112,7 @@ pub fn extract_git_context_with_git<G: GitOperations>(
     git_ops: &G,
 ) -> Result<CommitContext, GenerateError> {
     let branch_name = git_ops.get_current_branch().ok();
-    let recent_commits = git_ops.get_recent_commit_messages(5)?;
+    let recent_commits = git_ops.get_recent_commit_messages(10)?;
     let repository_name = git_ops.get_repository_name().ok();
     let is_merge = git_ops.is_merge_in_progress();
     let is_rebase = git_ops.is_rebase_in_progress();
