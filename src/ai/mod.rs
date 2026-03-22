@@ -2,6 +2,7 @@
 
 pub mod client;
 pub mod config;
+mod prompt;
 pub mod provider;
 
 pub use client::Client;

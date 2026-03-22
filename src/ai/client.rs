@@ -8,7 +8,10 @@ use genai::{
 };
 
 use super::{AiConfig, ProviderError};
-use crate::security;
+use crate::{
+    ai::prompt::{build_prompt, build_system_prompt},
+    security,
+};
 
 /// Generic AI client for generating commit messages.
 pub struct Client {
@@ -49,12 +52,11 @@ impl Client {
         context: &CommitContext,
     ) -> Result<String, ProviderError> {
         let model_name = &self.config.model;
-        let prompt = self.build_prompt(staged_changes, context);
+        let system_prompt = build_system_prompt();
+        let prompt = build_prompt(staged_changes, context);
 
         let messages = vec![
-            ChatMessage::system(
-                "you are an expert software engineer who writes excellent conventional commit messages. respond with only the commit message and body, no explanation or additional text.",
-            ),
+            ChatMessage::system(system_prompt),
             ChatMessage::user(prompt),
         ];
 
@@ -76,38 +78,6 @@ impl Client {
 
         Ok(content.trim().to_string())
     }
-
-    /// Builds the prompt for commit generation.
-    fn build_prompt(&self, staged_changes: &str, context: &CommitContext) -> String {
-        let mut prompt = String::new();
-
-        prompt.push_str("generate a conventional commit message for these staged changes:\n\n");
-        prompt.push_str("```diff\n");
-        prompt.push_str(staged_changes);
-        prompt.push_str("\n```\n\n");
-
-        if let Some(branch) = &context.branch_name {
-            prompt.push_str(&format!("branch name: {}\n\n", branch));
-        }
-
-        if !context.recent_commits.is_empty() {
-            prompt.push_str("recent commit messages for context:\n");
-            for commit in context.recent_commits.iter().take(5) {
-                prompt.push_str(&format!("- {}\n", commit));
-            }
-            prompt.push('\n');
-        }
-
-        prompt.push_str("requirements:\n");
-        prompt.push_str("- use conventional commits format (type: description)\n");
-        prompt.push_str("- type must be one of: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert\n");
-        prompt.push_str("- keep subject line under 50 characters if possible\n");
-        prompt.push_str("- use lowercase for the description\n");
-        prompt.push_str("- be concise and descriptive\n");
-        prompt.push_str("- respond with only the commit message, nothing else\n");
-
-        prompt
-    }
 }
 
 /// Context information for commit generation.
@@ -127,7 +97,7 @@ mod tests {
     use genai::adapter::AdapterKind;
 
     use super::*;
-    use crate::ai::{Provider, config::SecretConfig};
+    use crate::ai::{Provider, config::SecretConfig, prompt::build_prompt};
 
     // serialise tests that mutate env vars to prevent parallel-test race conditions
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -222,7 +192,6 @@ mod tests {
     fn test_build_prompt_with_context() {
         let _guard = ENV_LOCK.lock().unwrap();
 
-        let client = Client::new(test_config()).unwrap();
         let context = CommitContext {
             branch_name: Some("feature/test".to_string()),
             recent_commits: vec!["feat: previous commit".to_string()],
@@ -231,7 +200,7 @@ mod tests {
             is_rebase: false,
         };
 
-        let prompt = client.build_prompt("test diff", &context);
+        let prompt = build_prompt("test diff", &context);
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
@@ -248,10 +217,9 @@ mod tests {
     fn test_build_prompt_without_branch() {
         let _guard = ENV_LOCK.lock().unwrap();
 
-        let client = Client::new(test_config()).unwrap();
         let context = CommitContext::default();
 
-        let prompt = client.build_prompt("test diff", &context);
+        let prompt = build_prompt("test diff", &context);
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
