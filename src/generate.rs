@@ -91,7 +91,7 @@ pub async fn generate_commit_message_with_git<G: GitOperations>(
         .map_err(|e| GenerateError::AiGeneration(format!("failed to create ai client: {}", e)))?;
 
     let generated_message = ai_client
-        .generate_commit_message(&staged_changes.diff, &context)
+        .generate_commit_message(&staged_changes.diff, &context, &config.commit)
         .await
         .map_err(|e| GenerateError::AiGeneration(e.to_string()))?;
 

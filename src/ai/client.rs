@@ -10,6 +10,7 @@ use genai::{
 use super::{AiConfig, ProviderError};
 use crate::{
     ai::prompt::{build_prompt, build_system_prompt},
+    config::CommitConfig,
     security,
 };
 
@@ -50,10 +51,11 @@ impl Client {
         &self,
         staged_changes: &str,
         context: &CommitContext,
+        config: &CommitConfig,
     ) -> Result<String, ProviderError> {
         let model_name = &self.config.model;
         let system_prompt = build_system_prompt();
-        let prompt = build_prompt(staged_changes, context);
+        let prompt = build_prompt(staged_changes, context, config);
 
         let messages = vec![
             ChatMessage::system(system_prompt),
@@ -200,7 +202,7 @@ mod tests {
             is_rebase: false,
         };
 
-        let prompt = build_prompt("test diff", &context);
+        let prompt = build_prompt("test diff", &context, &CommitConfig::default());
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
@@ -219,7 +221,7 @@ mod tests {
 
         let context = CommitContext::default();
 
-        let prompt = build_prompt("test diff", &context);
+        let prompt = build_prompt("test diff", &context, &CommitConfig::default());
 
         unsafe {
             std::env::remove_var("TEST_API_KEY");
