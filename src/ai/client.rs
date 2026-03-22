@@ -53,7 +53,7 @@ impl Client {
 
         let messages = vec![
             ChatMessage::system(
-                "you are an expert software engineer who writes excellent conventional commit messages. respond with only the commit message, no explanation or additional text.",
+                "you are an expert software engineer who writes excellent conventional commit messages. respond with only the commit message and body, no explanation or additional text.",
             ),
             ChatMessage::user(prompt),
         ];
