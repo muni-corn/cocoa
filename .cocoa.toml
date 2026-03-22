@@ -23,7 +23,7 @@ ignore_revert_commits = true
 
 [commit.rules.warn]
 subject_length = 50
-body_length = 250
+body_length = 500
 no_scope = true
 no_body = false
 no_type = true
@@ -32,7 +32,6 @@ regex_patterns = []
 
 [commit.rules.deny]
 subject_length = 72
-body_length = 500
 no_scope = false
 no_body = false
 no_type = true
