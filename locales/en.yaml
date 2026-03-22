@@ -143,27 +143,29 @@ main.generate.check_ai: "check your ai configuration and api key"
 # ---------------------------------------------------------------------------
 
 main.hook.welcome: "cocoa hook"
-main.hook.installed: "installed commit-msg hook at %{path}"
-main.hook.updated: "updated commit-msg hook at %{path}"
-main.hook.replaced_backup: "backed up existing hook to %{path}"
+main.hook.installed: "installed %{hook} hook at %{path}"
+main.hook.updated: "updated %{hook} hook at %{path}"
+main.hook.replaced_backup: "backed up existing %{hook} hook to %{path}"
 main.hook.not_git_repo: "not inside a git repository"
 main.hook.install_failed: "hook installation failed: %{error}"
-main.hook.dry_run_install: "dry-run: would write commit-msg hook to %{path}"
-main.hook.dry_run_update: "dry-run: would update existing cocoa hook at %{path}"
+main.hook.no_ai: "ai is not configured — i can't install the generate hook without it"
+main.hook.no_ai_hint: "add an [ai] section to your .cocoa.toml (run `cocoa init` to set it up)"
+main.hook.dry_run_install: "dry-run: would write %{hook} hook to %{path}"
+main.hook.dry_run_update: "dry-run: would update existing cocoa %{hook} hook at %{path}"
 main.hook.dry_run_replace:
-  "dry-run: would back up existing hook to %{backup} and install cocoa hook"
+  "dry-run: would back up existing %{hook} hook to %{backup} and install cocoa hook"
 
 # ---------------------------------------------------------------------------
 # main.rs — unhook command
 # ---------------------------------------------------------------------------
 
 main.unhook.welcome: "cocoa unhook"
-main.unhook.removed: "removed commit-msg hook at %{path}"
-main.unhook.restored: "removed cocoa hook and restored previous hook at %{path}"
-main.unhook.not_installed: "no cocoa-managed commit-msg hook found — nothing to remove"
-main.unhook.not_managed: "the existing commit-msg hook is not managed by cocoa; remove it manually"
+main.unhook.removed: "removed %{hook} hook at %{path}"
+main.unhook.restored: "removed cocoa %{hook} hook and restored previous hook at %{path}"
+main.unhook.not_installed: "no cocoa-managed hooks found — nothing to remove"
+main.unhook.not_managed: "the existing %{hook} hook is not managed by cocoa; remove it manually"
 main.unhook.remove_failed: "hook removal failed: %{error}"
-main.unhook.dry_run_remove: "dry-run: would remove commit-msg hook at %{path}"
+main.unhook.dry_run_remove: "dry-run: would remove %{hook} hook at %{path}"
 main.unhook.dry_run_restore: "dry-run: would restore %{hook} from backup %{backup}"
 
 # ---------------------------------------------------------------------------
