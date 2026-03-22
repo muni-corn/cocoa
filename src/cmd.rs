@@ -212,12 +212,12 @@ pub enum Command {
     /// Run the full release workflow.
     ///
     /// Orchestrates the complete release process in order:
-    ///   1. Detect or apply the version bump
-    ///   2. Update version strings in configured files
-    ///   3. Generate and write the changelog (unless --skip-changelog)
-    ///   4. Stage changed files and create a version commit (unless
-    ///      --skip-commit)
-    ///   5. Create an annotated git tag (unless --skip-tag)
+    /// 1. Detect or apply the version bump
+    /// 2. Update version strings in configured files
+    /// 3. Generate and write the changelog (unless --skip-changelog)
+    /// 4. Stage changed files and create a version commit (unless
+    ///    --skip-commit)
+    /// 5. Create an annotated git tag (unless --skip-tag)
     ///
     /// Individual steps can be skipped with the corresponding flags.
     /// Use --dry-run to preview the full plan without making any changes.
