@@ -50,7 +50,7 @@ pub async fn handle_generate(
     }
 
     if verbose {
-        print_info(t!("main.generate.calling_ai"));
+        print_info(t!("main.generate.calling_provider"));
     }
 
     match generate::generate_commit_message(config).await {
