@@ -20,7 +20,6 @@ in
         package = config.git-hooks.tools.cocoa;
         description = "Generates commit messages with cocoa";
         entry = "${lib.getExe config.git-hooks.hooks.cocoa-generate.package} generate";
-        pass_filenames = false;
         stages = [ "prepare-commit-msg" ];
       };
 
@@ -29,7 +28,6 @@ in
         package = config.git-hooks.tools.cocoa;
         description = "Validates commit messages with cocoa";
         entry = "${lib.getExe config.git-hooks.hooks.cocoa-lint.package} lint";
-        pass_filenames = true;
         stages = [ "commit-msg" ];
       };
     };
