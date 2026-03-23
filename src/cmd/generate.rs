@@ -1,4 +1,8 @@
-use std::{io, path::PathBuf, process};
+use std::{
+    io,
+    path::PathBuf,
+    process::{self, Command},
+};
 
 use anyhow::Result;
 use clap::{Args, ValueEnum};
@@ -130,11 +134,12 @@ pub async fn handle_generate(
 
                 if response.trim().to_lowercase().starts_with('y') {
                     // commit with the generated message
-                    let output = std::process::Command::new("git")
+                    if Command::new("git")
                         .args(["commit", "-m", &message])
-                        .output()?;
-
-                    if output.status.success() {
+                        .spawn()?
+                        .wait()?
+                        .success()
+                    {
                         print_success_bold(t!("main.generate.commit_success"));
                         goodbye_with_success();
                     } else {
