@@ -127,7 +127,7 @@ main.generate.secrets_warning: "review staged changes carefully! secrets should 
 main.generate.success: "here you go!"
 main.generate.commit_prompt: "commit with this message? (y/n)"
 main.generate.commit_success: "all done!"
-main.generate.commit_failed: "git commit failed: %{error}"
+main.generate.commit_failed: "sorry, this commit failed"
 main.generate.cancelled: "okay! commit cancelled"
 main.generate.no_staged: "no staged changes found"
 main.generate.no_staged_hint: "use `git add <files>` to stage changes first"

@@ -138,11 +138,7 @@ pub async fn handle_generate(
                         print_success_bold(t!("main.generate.commit_success"));
                         goodbye_with_success();
                     } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        print_error_bold(t!(
-                            "main.generate.commit_failed",
-                            error = stderr.to_string()
-                        ));
+                        print_error_bold(t!("main.generate.commit_failed"));
                         goodbye_with_death(5);
                     }
                 } else {
