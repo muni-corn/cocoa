@@ -12,8 +12,8 @@ use crate::{
     Config,
     generate::{self, GenerateResult},
     style::{
-        goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error,
-        print_error_bold, print_info, print_success_bold, print_warning, print_warning_bold,
+        goodbye_with_death, goodbye_with_success, print_error, print_error_bold, print_info,
+        print_success_bold, print_warning, print_warning_bold,
     },
 };
 
@@ -148,7 +148,7 @@ pub async fn handle_generate(
                     }
                 } else {
                     print_info(t!("main.generate.cancelled"));
-                    goodbye_with_warning();
+                    goodbye_with_success();
                 }
             }
         }
