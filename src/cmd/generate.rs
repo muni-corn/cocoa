@@ -95,13 +95,10 @@ pub async fn handle_generate(
     }
 
     match generate::generate_commit_message(config).await {
-        Ok(result) => {
-            // destructure upfront to avoid partial-move issues
-            let generate::GenerateResult {
-                message,
-                sensitive_warnings,
-            } = result;
-
+        Ok(GenerateResult {
+            message,
+            sensitive_warnings,
+        }) => {
             // surface sensitive-content warnings before showing the message so
             // the user can decide whether to abort before committing
             if !sensitive_warnings.is_empty() && !quiet {
