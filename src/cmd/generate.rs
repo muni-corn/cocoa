@@ -61,20 +61,21 @@ pub async fn handle_generate(
     // check if the `source` argument can be parsed, and, if so, if it's a source we
     // don't support and will exit immediately for
     let source_warrants_abort = message_source.is_some_and(|s| {
-        CommitMessageSource::from_str(s, true).is_ok_and(|s| {
-            matches!(
-                s,
-                CommitMessageSource::Message
-                    | CommitMessageSource::Merge
-                    | CommitMessageSource::Squash
-                    | CommitMessageSource::Commit
-            )
-        })
+        !s.is_empty()
+            && CommitMessageSource::from_str(s, true).is_ok_and(|source| {
+                matches!(
+                    source,
+                    CommitMessageSource::Message
+                        | CommitMessageSource::Merge
+                        | CommitMessageSource::Squash
+                        | CommitMessageSource::Commit
+                )
+            })
     });
 
-    // exit now without a failure, and silently
+    // exit now, silently
     if source_warrants_abort {
-        process::exit(0)
+        return Ok(());
     }
 
     // non-interactive git hook mode: write message to file, never block commit
