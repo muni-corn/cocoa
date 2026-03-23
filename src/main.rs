@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
         }
         Command::Generate(args) => {
             // skip the welcome banner in hook mode (non-interactive)
-            if args.hook.is_none() {
+            if args.hook_args.is_empty() {
                 welcome(t!("main.generate.welcome"));
             }
             cmd::generate::handle_generate(

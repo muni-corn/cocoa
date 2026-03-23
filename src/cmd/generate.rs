@@ -1,7 +1,7 @@
 use std::{io, path::PathBuf, process};
 
 use anyhow::Result;
-use clap::Args;
+use clap::{Args, ValueEnum};
 use rust_i18n::t;
 
 use crate::{
@@ -13,20 +13,34 @@ use crate::{
     },
 };
 
+/// The different types of commit sources git can pass as an argument to a
+/// `prepare-commit-msg` hook.
+#[derive(Clone, Copy, ValueEnum, Debug)]
+pub enum CommitMessageSource {
+    Message,
+    Template,
+    Merge,
+    Squash,
+    Commit,
+}
+
 /// Arguments for the `cocoa generate` subcommand.
 #[derive(Args, Debug)]
 pub struct GenerateArgs {
-    /// Write the generated message directly to FILE (git hook mode).
+    /// The arguments that `git` will pass to cocoa if invoked via the
+    /// `prepare-commit-msg` hook.
     ///
-    /// When provided, cocoa writes the AI-generated commit message to FILE
-    /// without any interactive prompts. This is intended for use from a
-    /// `prepare-commit-msg` git hook installed by `cocoa hook generate`.
+    /// The first is a path to a file containing a commit message.
+    ///
+    /// When provided, cocoa prepends the AI-generated commit message to the
+    /// file without any interactive prompts. This is intended for use from
+    /// a `prepare-commit-msg` git hook installed by `cocoa hook generate`.
     ///
     /// On any failure (no AI configured, no staged changes, API error), cocoa
-    /// writes a comment to FILE explaining the issue and exits 0 so the
-    /// commit is never blocked.
-    #[arg(long, value_name = "FILE")]
-    pub hook: Option<PathBuf>,
+    /// prepends a comment to the file explaining the issue and exits with 0 so
+    /// the commit is never blocked.
+    #[arg()]
+    pub hook_args: Vec<String>,
 }
 
 pub async fn handle_generate(
@@ -37,9 +51,31 @@ pub async fn handle_generate(
     verbose: bool,
     _dry_run: bool,
 ) -> Result<()> {
+    let mut iter = args.hook_args.iter();
+    let (message_file, message_source) = (iter.next(), iter.next());
+
+    // check if the `source` argument can be parsed, and, if so, if it's a source we
+    // don't support and will exit immediately for
+    let source_warrants_abort = message_source.is_some_and(|s| {
+        CommitMessageSource::from_str(s, true).is_ok_and(|s| {
+            matches!(
+                s,
+                CommitMessageSource::Message
+                    | CommitMessageSource::Merge
+                    | CommitMessageSource::Squash
+                    | CommitMessageSource::Commit
+            )
+        })
+    });
+
+    // exit now without a failure, and silently
+    if source_warrants_abort {
+        process::exit(0)
+    }
+
     // non-interactive git hook mode: write message to file, never block commit
-    if let Some(ref hook_file) = args.hook {
-        return handle_generate_hook(config, hook_file).await;
+    if let Some(ref file_path) = message_file.map(PathBuf::from) {
+        return handle_generate_hook(config, file_path).await;
     }
 
     // check if AI is configured
