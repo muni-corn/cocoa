@@ -5,7 +5,8 @@ use clap::Args;
 use rust_i18n::t;
 
 use crate::{
-    Config, generate,
+    Config,
+    generate::{self, GenerateResult},
     style::{
         goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error,
         print_error_bold, print_info, print_success_bold, print_warning, print_warning_bold,
@@ -183,21 +184,38 @@ async fn handle_generate_hook(config: &Config, hook_file: &PathBuf) -> Result<()
     // check AI is configured; surface the error as a comment in the file
     if config.ai.is_none() {
         let comment = format!(
-            "# hi, cocoa here! ^~^ i couldn't generate a commit message for you because ai is not configured. add an [ai] section to .cocoa.toml!\n{existing}"
+            "
+
+# hi, cocoa here! ^~^
+#
+# i couldn't generate a commit message for you because you don't have an ai
+# provider configured. add an [ai] section to .cocoa.toml!
+#
+{existing}"
         );
         let _ = std::fs::write(hook_file, comment);
         return Ok(());
     }
 
     match generate::generate_commit_message(config).await {
-        Ok(result) => {
+        Ok(GenerateResult { message, .. }) => {
             // write the generated message; best-effort (don't block commit on write error)
-            let _ = std::fs::write(hook_file, &result.message);
+            let new_message = format!("{message}\n{existing}");
+            let _ = std::fs::write(hook_file, new_message);
         }
         Err(e) => {
             // prepend the error as a comment so the user sees it in their editor
             let comment = format!(
-                "# hi, cocoa here! ^~^ i couldn't generate a commit message for you due to an error: {e}\n{existing}"
+                "
+
+# hi, cocoa here! ^~^
+#
+# i couldn't generate a commit message for you due to this error:
+#
+#   {error_msg}
+#
+{existing}",
+                error_msg = e.to_string().replace("\n", "\n#   ")
             );
             let _ = std::fs::write(hook_file, comment);
         }
