@@ -60,18 +60,11 @@ pub async fn handle_generate(
 
     // check if the `source` argument can be parsed, and, if so, if it's a source we
     // don't support and will exit immediately for
-    let source_warrants_abort = message_source.is_some_and(|s| {
-        !s.is_empty()
-            && CommitMessageSource::from_str(s, true).is_ok_and(|source| {
-                matches!(
-                    source,
-                    CommitMessageSource::Message
-                        | CommitMessageSource::Merge
-                        | CommitMessageSource::Squash
-                        | CommitMessageSource::Commit
-                )
-            })
-    });
+    let source_warrants_abort = message_source.is_some_and(|s| !s.is_empty() && s != "template");
+
+    eprintln!("debug: message_file {message_file:?}");
+    eprintln!("debug: message_source {message_source:?}");
+    eprintln!("debug: aborting? {source_warrants_abort}");
 
     // exit now, silently
     if source_warrants_abort {
