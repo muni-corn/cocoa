@@ -2,7 +2,7 @@
 //!
 //! Implements `cocoa hook` and `cocoa unhook`, which install and remove git
 //! hooks. The `commit-msg` hook lints messages through `cocoa lint`, and the
-//! `prepare-commit-msg` hook pre-fills messages via `cocoa generate --hook`.
+//! `prepare-commit-msg` hook pre-fills messages via `cocoa generate`.
 
 use std::{
     fs,
@@ -22,8 +22,10 @@ const COCOA_MARKER: &str = "# managed by cocoa";
 ///
 /// The hook pipes the commit message file (passed as `$1` by git) into
 /// `cocoa lint --stdin`, failing the commit when lint errors are found.
-const LINT_HOOK_SCRIPT: &str =
-    "#!/bin/sh\n# managed by cocoa - do not edit\ncocoa lint --stdin < \"$1\"\n";
+const LINT_HOOK_SCRIPT: &str = r#"\
+#!/bin/sh
+# managed by cocoa - do not edit
+cocoa lint "$1""#;
 
 /// Shell script written to `.git/hooks/prepare-commit-msg`.
 ///
