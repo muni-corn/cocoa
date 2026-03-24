@@ -1,4 +1,6 @@
 use std::{
+    env,
+    ffi::OsString,
     io,
     path::PathBuf,
     process::{self, Command},
@@ -55,12 +57,26 @@ pub async fn handle_generate(
     verbose: bool,
     _dry_run: bool,
 ) -> Result<()> {
-    let mut iter = args.hook_args.iter();
-    let (message_file, message_source) = (iter.next(), iter.next());
+    let mut iter = args.hook_args.into_iter();
+
+    // get the message file and message source from arguments or environment
+    // variables.
+    //
+    // in the case of pre-commit (prek), the second and third arguments of a typical
+    // `prepare-commit-hsg` hook call are omitted, but they are set through
+    // environment variables. so, we try to pick that up for `message_source` here.
+    let (message_file, message_source) = (
+        iter.next(),
+        iter.next().or(env::var_os("PRE_COMMIT_COMMIT_MSG_SOURCE")
+            .map(OsString::into_string)
+            .and_then(Result::ok)),
+    );
 
     // check if the `source` argument can be parsed, and, if so, if it's a source we
     // don't support and will exit immediately for
-    let source_warrants_abort = message_source.is_some_and(|s| !s.is_empty() && s != "template");
+    let source_warrants_abort = message_source
+        .as_ref()
+        .is_some_and(|s| !s.is_empty() && s != "template");
 
     eprintln!("debug: message_file {message_file:?}");
     eprintln!("debug: message_source {message_source:?}");
