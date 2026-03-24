@@ -38,7 +38,7 @@ const GENERATE_HOOK_SCRIPT: &str = "\
 case \"$2\" in
   message|merge|squash|commit) exit 0 ;;
 esac
-cocoa generate --hook \"$1\"
+cocoa generate \"$1\" \"$2\" \"$3\"
 ";
 
 /// Name of the backup file saved when a pre-existing non-cocoa hook is found.
