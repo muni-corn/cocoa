@@ -1,7 +1,5 @@
 inputs:
   cocoa:
-    # using `path:.` here SUCKS
-    # we'll just use the github version instead
     url: github:muni-corn/cocoa
     inputs:
       nixpkgs:
