@@ -231,7 +231,7 @@ fn build_versioned_history<G: GitOperations>(
 
     for commit in all_commits {
         if let Some(tag_name) = tag_map.get(&commit.id) {
-            // this commit is tagged — close the running bucket and start a new version
+            // this commit is tagged; close the running bucket and start a new version
             if !current_commits.is_empty() || current_version.is_some() {
                 let entries = build_entries(&current_commits, config);
                 if !entries.is_empty() || current_version.is_some() {

@@ -11,10 +11,10 @@ pub use rust_i18n::{locale, set_locale, t};
 /// Inspects the following variables in priority order and returns the first
 /// usable language code:
 ///
-/// 1. `COCOA_LOCALE` — app-specific override
-/// 2. `LC_ALL` — POSIX locale override
-/// 3. `LANG` — primary POSIX locale
-/// 4. `LANGUAGE` — GNU locale preference list (first entry used)
+/// 1. `COCOA_LOCALE`: app-specific override
+/// 2. `LC_ALL`: POSIX locale override
+/// 3. `LANG`: primary POSIX locale
+/// 4. `LANGUAGE`: GNU locale preference list (first entry used)
 ///
 /// The value is normalized to a bare two-letter language code by stripping any
 /// region suffix and encoding (e.g., `"en_US.UTF-8"` → `"en"`). Returns

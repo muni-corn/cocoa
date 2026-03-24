@@ -91,7 +91,7 @@ pub fn parse(path: &Path) -> Result<Config, MigrateError> {
 /// Parse a JavaScript semantic-release config using regex heuristics.
 ///
 /// Extracts `tagFormat` from common assignment patterns. Plugin arrays are
-/// not parsed — the JS AST would be required for reliable extraction.
+/// not parsed. The JS AST would be required for reliable extraction.
 fn parse_js(content: &str) -> Result<SemanticReleaseConfig, MigrateError> {
     let mut cfg = SemanticReleaseConfig::default();
 

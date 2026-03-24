@@ -174,16 +174,16 @@ fn test_release_duplicate_tag_exits_with_error() {
     repo.create_commit("file.txt", "v1", "fix: small fix");
     // manually create a tag that would match the auto-detected next version
     repo.create_annotated_tag("v0.0.1", "already here");
-    // now try to release — auto-detected version should be 0.0.1, which exists
+    // now try to release; auto-detected version should be 0.0.1, which exists
     // but wait: with no prior semver tags in the repo (v0.0.1 doesn't count as
     // "current" because detect_current_semver picks the highest semver tag, and
     // v0.0.1 *is* a semver tag), so the detected current is 0.0.1, and a fix
-    // commit bumps it to 0.0.2 — this should succeed. Let's test the real
+    // commit bumps it to 0.0.2; this should succeed. let's test the real
     // collision case by adding a second tag.
     repo.create_commit("file.txt", "v2", "fix: another fix");
     repo.create_annotated_tag("v0.0.2", "collision");
 
-    // current = 0.0.2, fix commit → 0.0.3, which doesn't exist — succeeds
+    // current = 0.0.2, fix commit → 0.0.3, which doesn't exist; succeeds
     // to create a real collision we need the next version to already be tagged:
     // let's just test that the binary rejects a real duplicate
     cocoa(&repo)

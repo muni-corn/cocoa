@@ -53,10 +53,10 @@ pub fn parse(path: &Path) -> Result<Config, MigrateError> {
         .unwrap_or("")
         .to_lowercase();
 
-    // reject JS/TS — we can't statically evaluate these
+    // reject JS/TS; we can't statically evaluate these
     if matches!(ext.as_str(), "js" | "cjs" | "mjs" | "ts") {
         return Err(MigrateError::Parse(format!(
-            "'{}' is a JavaScript/TypeScript file — cocoa cannot statically parse it.\n\
+            "'{}' is a JavaScript/TypeScript file. cocoa cannot statically parse it.\n\
              export your config as JSON (.commitlintrc.json) or YAML (.commitlintrc.yaml) \
              and run `cocoa migrate` again.",
             path.display()
@@ -141,7 +141,7 @@ fn convert(raw: CommitlintConfig) -> Result<Config, MigrateError> {
                     deny_body_length = Some(n as usize);
                 }
             }
-            // other rules are not mapped — cocoa has its own rule model
+            // other rules are not mapped; cocoa has its own rule model
             _ => {}
         }
     }

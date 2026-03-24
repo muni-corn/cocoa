@@ -49,7 +49,7 @@ what do you want to do?
 ### conventional commits
 
 i'm a big believer in the [**conventional commits**](https://www.conventionalcommits.org/)
-specification—a simple format that makes commits readable by people, machines, and zebras alike:
+specification: a simple format that makes commits readable by people, machines, and zebras alike:
 
 ```gitcommit
 type(scope): subject

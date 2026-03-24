@@ -116,7 +116,7 @@ pub struct Cli {
     /// Output results as JSON.
     ///
     /// Emits structured JSON instead of human-readable text. The schema
-    /// varies per command — see each subcommand's documentation for details.
+    /// varies per command. See each subcommand's documentation for details.
     #[arg(long, help = "Output in JSON format")]
     pub json: bool,
 

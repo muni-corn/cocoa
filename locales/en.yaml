@@ -3,7 +3,7 @@ _version: 1
 # Variable placeholders use %{name} syntax.
 
 # ---------------------------------------------------------------------------
-# lint.rs — violation messages
+# lint.rs: violation messages
 # ---------------------------------------------------------------------------
 
 lint.error.invalid_format: "commit message does not follow conventional commits format"
@@ -26,7 +26,7 @@ lint.error.pattern_mismatch: "message does not match required pattern: %{pattern
 lint.warn.pattern_mismatch: "message should match pattern: %{pattern}"
 
 # ---------------------------------------------------------------------------
-# init.rs — interactive setup prompts
+# init.rs: interactive setup prompts
 # ---------------------------------------------------------------------------
 
 init.prompt.types: "select allowed commit types (space to toggle, enter to confirm)"
@@ -45,7 +45,7 @@ init.prompt.api_key_file: "path to API key file"
 init.prompt.overwrite: ".cocoa.toml already exists. overwrite?"
 
 # ---------------------------------------------------------------------------
-# interactive.rs — commit wizard prompts
+# interactive.rs: commit wizard prompts
 # ---------------------------------------------------------------------------
 
 interactive.prompt.commit_type: "select commit type"
@@ -62,14 +62,14 @@ interactive.prompt.add_refs: "add issue references? (e.g., Closes #123)"
 interactive.prompt.issue_refs: "issue reference(s)"
 
 # ---------------------------------------------------------------------------
-# main.rs — shared git error messages
+# main.rs: shared git error messages
 # ---------------------------------------------------------------------------
 
 main.git.open_failed: "failed to open git repository: %{error}"
 main.git.hook_path_failed: "failed to locate hooks directory: %{error}"
 
 # ---------------------------------------------------------------------------
-# main.rs — lint command
+# main.rs: lint command
 # ---------------------------------------------------------------------------
 
 main.lint.welcome: "hi! checking this commit message..."
@@ -91,11 +91,11 @@ main.lint.message_has_errors: "commit message has errors:"
 main.lint.message_has_warnings: "commit message is valid, but there are some warnings:"
 
 # ---------------------------------------------------------------------------
-# main.rs — init command
+# main.rs: init command
 # ---------------------------------------------------------------------------
 
 main.init.welcome: "cocoa init"
-main.init.dry_run_done: "dry run complete — no file was written"
+main.init.dry_run_done: "dry run complete: no file was written"
 main.init.wrote_config: "wrote .cocoa.toml"
 main.init.cancelled: "init cancelled"
 main.init.file_exists: ".cocoa.toml already exists"
@@ -103,7 +103,7 @@ main.init.file_exists_hint: "delete it or run interactively to overwrite"
 main.init.failed: "init failed: %{error}"
 
 # ---------------------------------------------------------------------------
-# main.rs — commit command
+# main.rs: commit command
 # ---------------------------------------------------------------------------
 
 main.commit.welcome: "cocoa commit"
@@ -115,7 +115,7 @@ main.commit.git_failed: "git commit failed: %{error}"
 main.commit.failed: "commit failed: %{error}"
 
 # ---------------------------------------------------------------------------
-# main.rs — generate command
+# main.rs: generate command
 # ---------------------------------------------------------------------------
 
 main.generate.welcome: "hi! generating your commit message..."
@@ -139,7 +139,7 @@ main.generate.validation_hint: "this may indicate an issue with your ai configur
 main.generate.check_ai: "check your ai configuration and api key"
 
 # ---------------------------------------------------------------------------
-# main.rs — hook command
+# main.rs: hook command
 # ---------------------------------------------------------------------------
 
 main.hook.welcome: "cocoa hook"
@@ -148,7 +148,7 @@ main.hook.updated: "updated %{hook} hook at %{path}"
 main.hook.replaced_backup: "backed up existing %{hook} hook to %{path}"
 main.hook.not_git_repo: "not inside a git repository"
 main.hook.install_failed: "hook installation failed: %{error}"
-main.hook.no_ai: "ai is not configured — i can't install the generate hook without it"
+main.hook.no_ai: "ai is not configured: i can't install the generate hook without it"
 main.hook.no_ai_hint: "add an [ai] section to your .cocoa.toml (run `cocoa init` to set it up)"
 main.hook.dry_run_install: "dry-run: would write %{hook} hook to %{path}"
 main.hook.dry_run_update: "dry-run: would update existing cocoa %{hook} hook at %{path}"
@@ -156,42 +156,42 @@ main.hook.dry_run_replace:
   "dry-run: would back up existing %{hook} hook to %{backup} and install cocoa hook"
 
 # ---------------------------------------------------------------------------
-# main.rs — unhook command
+# main.rs: unhook command
 # ---------------------------------------------------------------------------
 
 main.unhook.welcome: "cocoa unhook"
 main.unhook.removed: "removed %{hook} hook at %{path}"
 main.unhook.restored: "removed cocoa %{hook} hook and restored previous hook at %{path}"
-main.unhook.not_installed: "no cocoa-managed hooks found — nothing to remove"
+main.unhook.not_installed: "no cocoa-managed hooks found: nothing to remove"
 main.unhook.not_managed: "the existing %{hook} hook is not managed by cocoa; remove it manually"
 main.unhook.remove_failed: "hook removal failed: %{error}"
 main.unhook.dry_run_remove: "dry-run: would remove %{hook} hook at %{path}"
 main.unhook.dry_run_restore: "dry-run: would restore %{hook} from backup %{backup}"
 
 # ---------------------------------------------------------------------------
-# main.rs — changelog command
+# main.rs: changelog command
 # ---------------------------------------------------------------------------
 
 main.changelog.welcome: "cocoa changelog"
 main.changelog.unknown_format:
-  "unknown output format '%{format}' — use: markdown, json, html, rst, asciidoc, or template:<path>"
+  "unknown output format '%{format}': use: markdown, json, html, rst, asciidoc, or template:<path>"
 main.changelog.git_failed: "git error: %{error}"
 main.changelog.failed: "changelog generation failed: %{error}"
-main.changelog.empty: "no commits found — changelog is empty"
+main.changelog.empty: "no commits found: changelog is empty"
 main.changelog.render_failed: "render failed: %{error}"
 main.changelog.dry_run: "dry-run: would write changelog to '%{path}'"
 main.changelog.wrote: "wrote changelog to '%{path}'"
 
 # ---------------------------------------------------------------------------
-# main.rs — bump command
+# main.rs: bump command
 # ---------------------------------------------------------------------------
 
 main.bump.welcome: "cocoa bump"
 main.bump.no_tags: "no version tags found, starting from 0.0.0"
 main.bump.auto_detected: "auto-detected bump type: %{bump_type}"
-main.bump.unknown_type: "unknown bump type '%{bump_type}' — use: major, minor, patch, or auto"
+main.bump.unknown_type: "unknown bump type '%{bump_type}': use: major, minor, patch, or auto"
 main.bump.version_arrow: "%{old} → %{new}"
-main.bump.no_files: "no files configured in version.commit_version_files — nothing to update"
+main.bump.no_files: "no files configured in version.commit_version_files: nothing to update"
 main.bump.dry_run_no_files: "dry-run: no files configured in version.commit_version_files"
 main.bump.dry_run_would_update: "dry-run: would update %{count} file(s):"
 main.bump.dry_run_file: "  %{file}"
@@ -201,7 +201,7 @@ main.bump.detect_failed: "failed to detect current version: %{error}"
 main.bump.update_failed: "failed to update version files: %{error}"
 
 # ---------------------------------------------------------------------------
-# main.rs — tag command
+# main.rs: tag command
 # ---------------------------------------------------------------------------
 
 main.tag.welcome: "cocoa tag"
@@ -216,7 +216,7 @@ main.tag.created: "created tag '%{name}'"
 main.tag.dry_run: "dry-run: would create tag '%{name}'"
 
 # ---------------------------------------------------------------------------
-# main.rs — release command
+# main.rs: release command
 # ---------------------------------------------------------------------------
 
 main.release.welcome: "cocoa release"
@@ -230,7 +230,7 @@ main.release.success: "released %{old} → %{new}"
 main.release.updated_file: "  updated %{file}"
 main.release.wrote_changelog: "wrote changelog to '%{path}'"
 main.release.created_tag: "created tag '%{name}'"
-main.release.invalid_bump: "unknown bump type '%{bump_type}' — use: major, minor, patch, or auto"
+main.release.invalid_bump: "unknown bump type '%{bump_type}': use: major, minor, patch, or auto"
 main.release.tag_exists: "tag '%{name}' already exists"
 main.release.tag_exists_hint:
   "the version has already been released; bump commits or use --skip-tag"
@@ -238,7 +238,7 @@ main.release.git_failed: "git error: %{error}"
 main.release.failed: "release failed: %{error}"
 
 # ---------------------------------------------------------------------------
-# main.rs — migrate command
+# main.rs: migrate command
 # ---------------------------------------------------------------------------
 
 main.migrate.welcome: "cocoa migrate"
@@ -253,5 +253,5 @@ main.migrate.parse_failed: "failed to parse source configuration:"
 main.migrate.failed: "migration failed: %{error}"
 main.migrate.serialize_failed: "failed to serialize converted config: %{error}"
 main.migrate.rolled_back: "restored previous config at '%{path}'"
-main.migrate.no_backup: "no backup found at '.cocoa.toml.bak' — run `cocoa migrate` first"
+main.migrate.no_backup: "no backup found at '.cocoa.toml.bak': run `cocoa migrate` first"
 main.migrate.rollback_failed: "rollback failed: %{error}"

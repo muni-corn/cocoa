@@ -50,8 +50,8 @@ pub enum MigrateError {
     #[error("failed to create backup: {0}")]
     Backup(String),
 
-    /// No `.cocoa.toml.bak` file was found — nothing to roll back to.
-    #[error("no backup found at '.cocoa.toml.bak' — run `cocoa migrate` first")]
+    /// No `.cocoa.toml.bak` file was found; nothing to roll back to.
+    #[error("no backup found at '.cocoa.toml.bak'. run `cocoa migrate` first")]
     NoBackupFound,
 }
 

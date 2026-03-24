@@ -35,7 +35,7 @@ fn test_tag_dry_run_prefix_stripped_from_explicit_version() {
     let repo = TestRepo::new();
     repo.create_commit("file.txt", "hello", "feat: initial commit");
 
-    // user passes "v1.2.0" — the "v" prefix is accepted and stripped
+    // user passes "v1.2.0"; the "v" prefix is accepted and stripped
     cocoa(&repo)
         .args(["--dry-run", "tag", "v1.2.0"])
         .assert()

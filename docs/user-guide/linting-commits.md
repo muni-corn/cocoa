@@ -116,7 +116,7 @@ regex_patterns = [
 
 ### warnings vs. errors
 
-**warnings** — advisory, doesn't block commit:
+**warnings:** advisory, doesn't block commit:
 
 ```toml
 [commit.rules.warn]
@@ -131,7 +131,7 @@ warning: subject line is 80 characters (recommended max 72)
 
 commit still succeeds!
 
-**errors** — blocks commit if violated:
+**errors:** blocks commit if violated:
 
 ```toml
 [commit.rules.deny]

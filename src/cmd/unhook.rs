@@ -17,9 +17,9 @@ use crate::{
 pub struct UnhookArgs {
     /// Which hooks to remove.
     ///
-    /// - `lint`     — `commit-msg` hook
-    /// - `generate` — `prepare-commit-msg` hook
-    /// - `all`      — both hooks (default)
+    /// - `lint`:      `commit-msg` hook
+    /// - `generate`:  `prepare-commit-msg` hook
+    /// - `all`:       both hooks (default)
     #[arg(value_enum, default_value_t = HookKind::All)]
     pub kind: HookKind,
 }
@@ -48,7 +48,8 @@ pub fn handle_unhook(_config: &Config, args: UnhookArgs, dry_run: bool) -> Resul
 
     match hook::uninstall(&hooks_dir, args.kind, dry_run) {
         Ok(outcomes) => {
-            // count how many were actually installed — if none, report "nothing to do"
+            // count how many were actually installed
+            // if none, report "nothing to do"
             let any_present = outcomes
                 .iter()
                 .any(|o| !matches!(o, UninstallOutcome::NotInstalled));

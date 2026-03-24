@@ -165,7 +165,7 @@ fn handle_range_lint(
     verbose: bool,
     dry_run: bool,
 ) -> Result<()> {
-    // parse "from..to" — everything before the first ".." is `from`
+    // parse "from..to"; everything before the first ".." is `from`
     let (from, to) = if let Some((f, tgt)) = range.split_once("..") {
         (f, tgt)
     } else {

@@ -46,7 +46,7 @@ pub enum ReleaseError {
     File(String),
 
     /// An invalid bump type string was provided.
-    #[error("unknown bump type '{0}' — use: major, minor, patch, or auto")]
+    #[error("unknown bump type '{0}'. try `major`, `minor`, `patch`, or `auto`")]
     InvalidBumpType(String),
 }
 
@@ -357,7 +357,7 @@ mod tests {
         };
         let opts = ReleaseArgs::default();
 
-        // detected version would be 0.0.2, not 0.0.1 — so this should succeed
+        // detected version would be 0.0.2, not 0.0.1, so this should succeed
         let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
         assert_eq!(outcome.new_version, "0.0.2");
     }

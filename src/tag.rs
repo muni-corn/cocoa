@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn test_resolve_version_explicit_with_prefix() {
         let ops = MockGitOps::default();
-        // user passes "v2.3.4" — the "v" prefix should be stripped
+        // user passes "v2.3.4"; the "v" prefix should be stripped
         let v = resolve_version(&ops, Some("v2.3.4"), &v_config()).unwrap();
         assert_eq!(v.to_string(), "2.3.4");
     }
@@ -306,7 +306,7 @@ mod tests {
         let (name, message) =
             create_version_tag(&ops, &version, &v_config(), &cl_config(), true).unwrap();
         assert_eq!(name, "v1.0.0");
-        // no notable commits — falls back to plain release message
+        // no notable commits; falls back to plain release message
         assert!(message.contains("Release"));
         assert!(message.contains("1.0.0"));
     }

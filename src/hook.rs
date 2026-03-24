@@ -49,9 +49,9 @@ const BACKUP_SUFFIX: &str = ".cocoa-backup";
 /// Selects which git hooks to install or remove.
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum HookKind {
-    /// The `commit-msg` hook — lints commit messages with `cocoa lint`.
+    /// The `commit-msg` hook. Lints commit messages with `cocoa lint`.
     Lint,
-    /// The `prepare-commit-msg` hook — generates messages with `cocoa
+    /// The `prepare-commit-msg` hook. Generates messages with `cocoa
     /// generate`.
     Generate,
     /// Both hooks (default).
@@ -89,7 +89,7 @@ pub enum HookError {
     Io(#[from] std::io::Error),
 
     /// `cocoa hook` was run outside a git repository.
-    #[error("no .git/hooks directory found — are you inside a git repository?")]
+    #[error("no .git/hooks directory found. are you inside a git repository?")]
     NotAGitRepo,
 
     /// An existing non-cocoa hook was found during uninstall and we have no
@@ -159,13 +159,13 @@ pub fn install(
             let existing = fs::read_to_string(&hook_path)?;
 
             if existing.contains(COCOA_MARKER) {
-                // already ours — safe to overwrite
+                // already ours. Safe to overwrite
                 if !dry_run {
                     write_hook(&hook_path, script)?;
                 }
                 InstallOutcome::Updated { hook_path }
             } else {
-                // belongs to someone else — back it up first
+                // belongs to someone else. Back it up first
                 if !dry_run {
                     fs::copy(&hook_path, &backup_path)?;
                     write_hook(&hook_path, script)?;

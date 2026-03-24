@@ -255,8 +255,8 @@ fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
 /// Removes two kinds of noise that git writes into `COMMIT_EDITMSG`:
 ///
 /// 1. The scissors line (any `#`-prefixed line containing `>8`) and everything
-///    below it — including verbose diffs added by `git commit --verbose`.
-/// 2. Comment lines — any line whose first non-whitespace character is `#`.
+///    below it; including verbose diffs added by `git commit --verbose`.
+/// 2. Comment lines; any line whose first non-whitespace character is `#`.
 ///
 /// This mirrors git's own cleanup behavior so that only the user-authored
 /// content is returned. The result is trimmed of leading and trailing

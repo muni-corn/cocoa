@@ -74,7 +74,7 @@ pub fn handle_bump(
                 Ok(Some(tag)) => git_ops
                     .get_commits_in_range(&tag.target, "HEAD")
                     .unwrap_or_default(),
-                // no tags yet — scan all commits reachable from HEAD
+                // no tags yet; scan all commits reachable from HEAD
                 Ok(None) | Err(_) => git_ops.get_commits_in_range("", "HEAD").unwrap_or_default(),
             };
             let detected = version::detect_bump_type(&commits);

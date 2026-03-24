@@ -8,9 +8,9 @@ harness the powers of semantic or calendar versioning with me!
 
 version format: `MAJOR.MINOR.PATCH`
 
-- **MAJOR** (1.0.0 → 2.0.0) — breaking changes
-- **MINOR** (1.0.0 → 1.1.0) — new features (backward compatible)
-- **PATCH** (1.0.0 → 1.0.1) — bug fixes only
+- **MAJOR** (1.0.0 → 2.0.0): breaking changes
+- **MINOR** (1.0.0 → 1.1.0): new features (backward compatible)
+- **PATCH** (1.0.0 → 1.0.1): bug fixes only
 
 **examples:**
 

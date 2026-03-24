@@ -140,16 +140,16 @@ BREAKING CHANGE: Authentication endpoints now require 2FA setup
 
 **common footers:**
 
-- `Closes #123` — link to issue (auto-closes it!)
-- `Refs #123` — reference without closing
-- `BREAKING CHANGE:` — indicate breaking changes
-- `Co-authored-by:` — credit collaborators
+- `Closes #123`: link to issue (auto-closes it!)
+- `Refs #123`: reference without closing
+- `BREAKING CHANGE:`: indicate breaking changes
+- `Co-authored-by:`: credit collaborators
 
 ## three ways to create commits
 
 ### method 1: interactive mode (best for learning)
 
-perfect for beginners or when you want guided input:
+perfect for starting out or when you want interactivity:
 
 ```bash
 cocoa commit
@@ -159,7 +159,7 @@ you'll be prompted for each part of the commit.
 
 ### method 2: AI-powered generation (best for speed)
 
-let AI draft your commit from your changes:
+let me draft your commit from your changes:
 
 ```bash
 # stage your changes
@@ -176,10 +176,10 @@ then, i'll suggest something like:
 ```gitcommit
 feat(database): add user caching with Redis
 
-implement redis-backed caching for user queries to reduce database load.
-cache entries expire after 1 hour and are invalidated on user updates.
-
-Closes #234
+- implement redis-backed caching for user queries
+- reduces database load
+- cache entries expire after 1 hour
+- entries are invalidated on user updates
 ```
 
 edit if needed, then approve to commit!

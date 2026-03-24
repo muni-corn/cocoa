@@ -51,7 +51,7 @@ fn make_git_repo() -> (TempDir, PathBuf) {
     let hooks_dir = path.join(".git").join("hooks");
     fs::create_dir_all(&hooks_dir).unwrap();
 
-    // keep home_dir alive by leaking — TempDir drops on scope exit
+    // keep home_dir alive by leaking; TempDir drops on scope exit
     std::mem::forget(home_dir);
 
     (dir, hooks_dir)
@@ -336,7 +336,7 @@ fn test_unhook_restores_backup() {
 fn test_unhook_not_installed_exits_with_warning() {
     let (dir, _hooks_dir) = make_git_repo();
 
-    // no hooks installed — should succeed with a warning message
+    // no hooks installed; should succeed with a warning message
     cocoa_in(&dir).arg("unhook").assert().success();
 }
 

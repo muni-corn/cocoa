@@ -196,7 +196,7 @@ pub fn update_version_files(
         updates.push((path.clone(), original, updated));
     }
 
-    // phase 2: write atomically — roll back on the first failure
+    // phase 2: write atomically; roll back on the first failure
     let mut written: Vec<(String, String)> = Vec::new(); // (path, original) for rollback
 
     for (path, original, updated) in &updates {

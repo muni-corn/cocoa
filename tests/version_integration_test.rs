@@ -193,7 +193,7 @@ fn test_update_version_files_rollback_on_failure() {
     let result = update_version_files(&files, "1.0.0", "2.0.0");
     assert!(result.is_err());
 
-    // the first file should be unchanged (or rolled back) — since the second
+    // the first file should be unchanged (or rolled back); since the second
     // file fails at the read phase, the first file was never written to
     let contents = fs::read_to_string(&real_path).unwrap();
     assert_eq!(contents, "version = 1.0.0\n");

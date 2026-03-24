@@ -134,9 +134,9 @@ pub enum Command {
     /// Install cocoa git hooks.
     ///
     /// Writes hook scripts into .git/hooks. Available hooks:
-    ///   - lint     — commit-msg: lints messages through `cocoa lint`
-    ///   - generate — prepare-commit-msg: pre-fills messages via AI
-    ///   - all      — installs both hooks (default)
+    ///   - lint:      commit-msg: lints messages through `cocoa lint`
+    ///   - generate:  prepare-commit-msg: pre-fills messages via AI
+    ///   - all:       installs both hooks (default)
     ///
     /// If a non-cocoa hook already exists it is backed up before being
     /// replaced. Use `cocoa unhook` to remove installed hooks.

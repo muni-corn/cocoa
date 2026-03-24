@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_breaking_flag_without_description() {
-        // breaking: true but no description — header gets `!` but no footer
+        // breaking: true but no description; header gets `!` but no footer
         let parts = CommitParts {
             commit_type: "chore".into(),
             scope: None,

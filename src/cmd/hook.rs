@@ -17,9 +17,9 @@ use crate::{
 pub struct HookArgs {
     /// Which hooks to install.
     ///
-    /// - `lint`     — `commit-msg` hook (lints messages with `cocoa lint`)
-    /// - `generate` — `prepare-commit-msg` hook (generates messages with AI)
-    /// - `all`      — both hooks (default)
+    /// - `lint`:      `commit-msg` hook (lints messages with `cocoa lint`)
+    /// - `generate`:  `prepare-commit-msg` hook (generates messages with AI)
+    /// - `all`:       both hooks (default)
     #[arg(value_enum, default_value_t = HookKind::All)]
     pub kind: HookKind,
 }
