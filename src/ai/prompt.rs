@@ -120,9 +120,10 @@ pub fn build_prompt(
     // final requirements
     requirements.append(&mut vec![
         "- use lowercase for the summary".into(),
-        "- be concise and descriptive".into(),
-        "- lowercase bullet points are preferred over paragraphs for message body".into(),
+        "- be concise and specific".into(),
         r#"- focus more on "why" than "what" and "how""#.into(),
+        "- lowercase bullet points are preferred over paragraphs for message body".into(),
+        "- proper nouns are exceptions to lowercase rules".into(),
         "- respond with only the commit message, nothing else".into(),
     ]);
 
