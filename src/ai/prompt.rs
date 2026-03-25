@@ -122,6 +122,7 @@ pub fn build_prompt(
         "- use lowercase for the summary".into(),
         "- be concise and descriptive".into(),
         "- lowercase bullet points are preferred over paragraphs for message body".into(),
+        r#"- focus more on "why" than "what" and "how""#.into(),
         "- respond with only the commit message, nothing else".into(),
     ]);
 
