@@ -177,3 +177,55 @@ fn negative_rule_to_must_should(
         String::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use super::*;
+
+    // serialise tests that mutate env vars to prevent parallel-test race conditions
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn test_build_prompt_with_context() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        let context = CommitContext {
+            branch_name: Some("feature/test".to_string()),
+            recent_commits: vec!["feat: previous commit".to_string()],
+            repository_name: Some("test-repo".to_string()),
+            is_merge: false,
+            is_rebase: false,
+        };
+
+        let prompt = build_prompt("test diff", &context, &CommitConfig::default());
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+
+        assert!(prompt.contains("test diff"));
+        assert!(prompt.contains("feature/test"));
+        assert!(prompt.contains("feat: previous commit"));
+        assert!(prompt.contains("conventional commits"));
+    }
+
+    #[test]
+    fn test_build_prompt_without_branch() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        let context = CommitContext::default();
+
+        let prompt = build_prompt("test diff", &context, &CommitConfig::default());
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+
+        assert!(prompt.contains("test diff"));
+        assert!(!prompt.contains("branch name:"));
+    }
+}
