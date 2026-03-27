@@ -2,8 +2,10 @@
 /target
 
 # exclude direnv and devenv
-.direnv
+.direnv/
 .devenv*
+devenv.local.nix
+devenv.local.yaml
 
 # backup files
 *.orig
