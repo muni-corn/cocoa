@@ -207,7 +207,7 @@ fn test_changelog_shows_breaking_changes() {
         .args(["--dry-run", "changelog"])
         .assert()
         .success()
-        .stdout(predicates::str::contains("Breaking Changes"))
+        .stdout(predicates::str::contains("Breaking changes"))
         .stdout(predicates::str::contains("breaking api change"));
 }
 

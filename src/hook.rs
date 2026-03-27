@@ -290,7 +290,7 @@ mod tests {
         assert!(hook_path.exists());
         let contents = fs::read_to_string(&hook_path).unwrap();
         assert!(contents.contains(COCOA_MARKER));
-        assert!(contents.contains("cocoa lint --stdin"));
+        assert!(contents.contains(r#"cocoa lint "$1""#));
     }
 
     #[test]
@@ -347,7 +347,7 @@ mod tests {
         assert!(hook_path.exists());
         let contents = fs::read_to_string(&hook_path).unwrap();
         assert!(contents.contains(COCOA_MARKER));
-        assert!(contents.contains("cocoa generate --hook"));
+        assert!(contents.contains(r#"cocoa generate "$1" "$2" "$3""#));
     }
 
     // --- install (all) ---

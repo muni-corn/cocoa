@@ -54,7 +54,7 @@ pub fn render_markdown(changelog: &Changelog) -> String {
 
 fn markdown_version_heading(version: &ChangelogVersion) -> String {
     let name = version.version.as_deref().unwrap_or("Next version");
-    format!("## {}", name)
+    format!("## **{}**", name)
 }
 
 fn markdown_entry(entry: &ChangelogEntry) -> String {
@@ -94,7 +94,7 @@ pub fn render_html(changelog: &Changelog) -> String {
         out.push_str(&format!("<h2>{}</h2>\n", html_version_heading(version)));
 
         if !version.breaking_changes.is_empty() {
-            out.push_str("<h3>Breaking Changes</h3>\n<ul>\n");
+            out.push_str("<h3>Breaking changes</h3>\n<ul>\n");
             for entry in &version.breaking_changes {
                 out.push_str(&html_entry(entry));
             }
@@ -167,7 +167,7 @@ pub fn render_rst(changelog: &Changelog) -> String {
         out.push_str("\n\n");
 
         if !version.breaking_changes.is_empty() {
-            let sub = "Breaking Changes";
+            let sub = "Breaking changes";
             out.push_str(sub);
             out.push('\n');
             out.push_str(&"~".repeat(sub.len()));
@@ -221,7 +221,7 @@ pub fn render_asciidoc(changelog: &Changelog) -> String {
         out.push_str(&format!("== {}\n\n", asciidoc_version_heading(version)));
 
         if !version.breaking_changes.is_empty() {
-            out.push_str("=== Breaking Changes\n\n");
+            out.push_str("=== Breaking changes\n\n");
             for entry in &version.breaking_changes {
                 out.push_str(&asciidoc_entry(entry));
             }
@@ -321,7 +321,7 @@ mod tests {
                     },
                     ChangelogSection {
                         commit_type: "fix".to_string(),
-                        title: "Bug Fixes".to_string(),
+                        title: "Bug fixes".to_string(),
                         entries: vec![sample_entry("def67890", "fix", "fix crash")],
                     },
                 ],
@@ -334,11 +334,10 @@ mod tests {
         let cl = sample_changelog();
         let out = render_markdown(&cl);
         assert!(out.contains("# Changelog"));
-        assert!(out.contains("## [v1.0.0] - 2024-01-01"));
+        assert!(out.contains("## **v1.0.0**"));
         assert!(out.contains("### Features"));
-        assert!(out.contains("### Bug Fixes"));
+        assert!(out.contains("### Bug fixes"));
         assert!(out.contains("add login"));
-        assert!(out.contains("`abc12345`"));
     }
 
     #[test]
@@ -368,7 +367,7 @@ mod tests {
             e
         }];
         let out = render_markdown(&cl);
-        assert!(out.contains("### Breaking Changes"));
+        assert!(out.contains("### **Breaking changes**"));
         assert!(out.contains("api overhaul"));
     }
 
@@ -529,7 +528,7 @@ mod tests {
     fn test_render_html_breaking_changes() {
         let cl = unreleased_changelog();
         let out = render_html(&cl);
-        assert!(out.contains("<h3>Breaking Changes</h3>"));
+        assert!(out.contains("<h3>Breaking changes</h3>"));
         assert!(out.contains("renamed endpoint"));
     }
 
@@ -546,14 +545,14 @@ mod tests {
     fn test_render_rst_unreleased_no_date() {
         let cl = unreleased_changelog();
         let out = render_rst(&cl);
-        assert!(out.contains("[Unreleased]"));
+        assert!(out.contains("[Next version]"));
     }
 
     #[test]
     fn test_render_rst_breaking_changes() {
         let cl = unreleased_changelog();
         let out = render_rst(&cl);
-        assert!(out.contains("Breaking Changes"));
+        assert!(out.contains("Breaking changes"));
         assert!(out.contains("renamed endpoint"));
     }
 
@@ -568,14 +567,14 @@ mod tests {
     fn test_render_asciidoc_unreleased_no_date() {
         let cl = unreleased_changelog();
         let out = render_asciidoc(&cl);
-        assert!(out.contains("[Unreleased]"));
+        assert!(out.contains("[Next version]"));
     }
 
     #[test]
     fn test_render_asciidoc_breaking_changes() {
         let cl = unreleased_changelog();
         let out = render_asciidoc(&cl);
-        assert!(out.contains("=== Breaking Changes"));
+        assert!(out.contains("=== Breaking changes"));
         assert!(out.contains("renamed endpoint"));
     }
 

@@ -133,8 +133,8 @@ fn test_hook_lint_script_calls_cocoa_lint() {
 
     let contents = fs::read_to_string(hooks_dir.join("commit-msg")).unwrap();
     assert!(
-        contents.contains("cocoa lint --stdin"),
-        "commit-msg hook should invoke cocoa lint --stdin"
+        contents.contains(r#"cocoa lint "$1""#),
+        "commit-msg hook should invoke cocoa lint with the filename argument"
     );
     assert!(
         contents.contains("managed by cocoa"),
@@ -150,8 +150,8 @@ fn test_hook_generate_script_calls_cocoa_generate() {
 
     let contents = fs::read_to_string(hooks_dir.join("prepare-commit-msg")).unwrap();
     assert!(
-        contents.contains("cocoa generate --hook"),
-        "prepare-commit-msg hook should invoke cocoa generate --hook"
+        contents.contains(r#"cocoa generate "$1" "$2" "$3""#),
+        "prepare-commit-msg hook should invoke cocoa generate with 3 arguments"
     );
     assert!(
         contents.contains("managed by cocoa"),
