@@ -53,7 +53,7 @@ pub fn render_markdown(changelog: &Changelog) -> String {
 }
 
 fn markdown_version_heading(version: &ChangelogVersion) -> String {
-    let name = version.version.as_deref().unwrap_or("Unreleased");
+    let name = version.version.as_deref().unwrap_or("Next version");
     format!("## {}", name)
 }
 
@@ -117,7 +117,7 @@ pub fn render_html(changelog: &Changelog) -> String {
 }
 
 fn html_version_heading(version: &ChangelogVersion) -> String {
-    let name = html_escape(version.version.as_deref().unwrap_or("Unreleased"));
+    let name = html_escape(version.version.as_deref().unwrap_or("Next version"));
     match &version.date {
         Some(date) => format!("{} &mdash; {}", name, html_escape(date)),
         None => name,
@@ -194,7 +194,7 @@ pub fn render_rst(changelog: &Changelog) -> String {
 }
 
 fn rst_version_heading(version: &ChangelogVersion) -> String {
-    let name = version.version.as_deref().unwrap_or("Unreleased");
+    let name = version.version.as_deref().unwrap_or("Next version");
     match &version.date {
         Some(date) => format!("[{}] - {}", name, date),
         None => format!("[{}]", name),
@@ -241,7 +241,7 @@ pub fn render_asciidoc(changelog: &Changelog) -> String {
 }
 
 fn asciidoc_version_heading(version: &ChangelogVersion) -> String {
-    let name = version.version.as_deref().unwrap_or("Unreleased");
+    let name = version.version.as_deref().unwrap_or("Next version");
     match &version.date {
         Some(date) => format!("[{}] - {}", name, date),
         None => format!("[{}]", name),
@@ -356,7 +356,7 @@ mod tests {
             }],
         };
         let out = render_markdown(&cl);
-        assert!(out.contains("## [Unreleased]"));
+        assert!(out.contains("## **Next version**"));
     }
 
     #[test]
@@ -521,8 +521,8 @@ mod tests {
     fn test_render_html_unreleased_no_date() {
         let cl = unreleased_changelog();
         let out = render_html(&cl);
-        // should contain "Unreleased" as the heading text
-        assert!(out.contains("Unreleased"));
+        // should contain "Next version" as the heading text
+        assert!(out.contains("Next version"));
     }
 
     #[test]

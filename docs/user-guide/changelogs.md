@@ -60,7 +60,7 @@ This generates changes since the last version tag:
 ```markdown
 # Changelog
 
-## Unreleased
+## Next version
 
 ### Features
 

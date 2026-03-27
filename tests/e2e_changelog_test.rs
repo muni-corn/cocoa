@@ -53,7 +53,7 @@ fn test_changelog_writes_markdown_file() {
     );
     let contents = std::fs::read_to_string(&output_file).unwrap();
     assert!(contents.contains("# Changelog"));
-    assert!(contents.contains("## [Unreleased]"));
+    assert!(contents.contains("## **Next version**"));
 }
 
 // ─── JSON format
@@ -176,7 +176,7 @@ fn test_changelog_with_tags_shows_versions() {
         .assert()
         .success()
         .stdout(predicates::str::contains("v1.0.0"))
-        .stdout(predicates::str::contains("Unreleased"));
+        .stdout(predicates::str::contains("Next version"));
 }
 
 // ─── Range argument
