@@ -191,7 +191,7 @@ fn default_commit_types() -> HashSet<String> {
 fn default_warn_rule_level() -> RuleLevel {
     RuleLevel {
         subject_length: Some(50),
-        body_length: Some(250),
+        body_length: Some(500),
         no_scope: Some(true),
         no_body: None,
         no_type: None,
@@ -203,7 +203,7 @@ fn default_warn_rule_level() -> RuleLevel {
 fn default_deny_rule_level() -> RuleLevel {
     RuleLevel {
         subject_length: Some(72),
-        body_length: Some(500),
+        body_length: Some(1000),
         no_scope: None,
         no_body: None,
         no_type: Some(true),
