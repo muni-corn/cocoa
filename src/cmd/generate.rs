@@ -78,10 +78,6 @@ pub async fn handle_generate(
         .as_ref()
         .is_some_and(|s| !s.is_empty() && s != "template");
 
-    eprintln!("debug: message_file {message_file:?}");
-    eprintln!("debug: message_source {message_source:?}");
-    eprintln!("debug: aborting? {source_warrants_abort}");
-
     // exit now, silently
     if source_warrants_abort {
         return Ok(());
