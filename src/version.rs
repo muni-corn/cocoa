@@ -271,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn test_detect_bump_type_unparseable_treated_as_patch() {
+    fn test_detect_bump_type_unparsable_treated_as_patch() {
         let commits = vec![make_commit("WIP not conventional")];
         assert_eq!(detect_bump_type(&commits), BumpType::Patch);
     }

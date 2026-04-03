@@ -747,7 +747,7 @@ mod tests {
     // --- format error path ---
 
     #[test]
-    fn test_unparseable_message_returns_format_error() {
+    fn test_unparsable_message_returns_format_error() {
         let config = create_test_config();
         let linter = Linter::new(&config);
         // "feat(bad: something" has a colon but unclosed scope paren → parse fails
