@@ -101,18 +101,17 @@ impl SemVer {
     }
 
     /// Return a copy with the given pre-release identifier (e.g. `"alpha.1"`).
-    pub fn with_pre_release(&self, pre: &str) -> Result<Self, SemVerError> {
-        let mut v = self.0.clone();
-        v.pre = sv::Prerelease::new(pre).map_err(|_| SemVerError::Parse(pre.to_string()))?;
-        Ok(SemVer(v))
+    pub fn with_pre_release(mut self, pre: &str) -> Result<Self, SemVerError> {
+        self.0.pre = sv::Prerelease::new(pre).map_err(|_| SemVerError::Parse(pre.to_string()))?;
+        Ok(self)
     }
 
     /// Return a copy with the given build-metadata identifier (e.g.
     /// `"20240316"`).
-    pub fn with_build_metadata(&self, meta: &str) -> Result<Self, SemVerError> {
-        let mut v = self.0.clone();
-        v.build = sv::BuildMetadata::new(meta).map_err(|_| SemVerError::Parse(meta.to_string()))?;
-        Ok(SemVer(v))
+    pub fn with_build_metadata(mut self, meta: &str) -> Result<Self, SemVerError> {
+        self.0.build =
+            sv::BuildMetadata::new(meta).map_err(|_| SemVerError::Parse(meta.to_string()))?;
+        Ok(self)
     }
 
     /// Return a reference to the inner `semver::Version`.
