@@ -58,21 +58,36 @@ impl SemVer {
     /// Build metadata is also cleared per the SemVer spec.
     pub fn bump_major(&self) -> Self {
         let mut v = self.0.clone();
-        v.major += 1;
-        v.minor = 0;
-        v.patch = 0;
-        v.pre = sv::Prerelease::EMPTY;
-        v.build = sv::BuildMetadata::EMPTY;
+        // in major version 0, only bump the minor version for breaking changes
+        if self.major() == 0 {
+            v.minor += 1;
+            v.patch = 0;
+            v.pre = sv::Prerelease::EMPTY;
+            v.build = sv::BuildMetadata::EMPTY;
+        } else {
+            v.major += 1;
+            v.minor = 0;
+            v.patch = 0;
+            v.pre = sv::Prerelease::EMPTY;
+            v.build = sv::BuildMetadata::EMPTY;
+        }
         SemVer(v)
     }
 
     /// Bump the minor version, resetting patch and pre-release.
     pub fn bump_minor(&self) -> Self {
         let mut v = self.0.clone();
-        v.minor += 1;
-        v.patch = 0;
-        v.pre = sv::Prerelease::EMPTY;
-        v.build = sv::BuildMetadata::EMPTY;
+        // in major version 0, only bump the patch version for minor releases
+        if self.major() == 0 {
+            v.patch += 1;
+            v.pre = sv::Prerelease::EMPTY;
+            v.build = sv::BuildMetadata::EMPTY;
+        } else {
+            v.minor += 1;
+            v.patch = 0;
+            v.pre = sv::Prerelease::EMPTY;
+            v.build = sv::BuildMetadata::EMPTY;
+        }
         SemVer(v)
     }
 
