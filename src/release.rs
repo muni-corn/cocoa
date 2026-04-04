@@ -87,19 +87,19 @@ pub struct ReleaseOutcome {
 /// 8. Create an annotated version tag.
 pub fn execute<G: GitOperations>(
     ops: &G,
-    v_config: &VersionConfig,
-    cl_config: &ChangelogConfig,
-    opts: &ReleaseArgs,
+    version_config: &VersionConfig,
+    changelog_config: &ChangelogConfig,
+    args: &ReleaseArgs,
     dry_run: bool,
 ) -> Result<ReleaseOutcome, ReleaseError> {
     // ── step 1: detect current version ───────────────────────────────────────
-    let current = match version::detect_current_semver(ops, &v_config.tag_prefix)? {
+    let current = match version::detect_current_semver(ops, &version_config.tag_prefix)? {
         Some(v) => v,
         None => SemVer::parse("0.0.0").expect("0.0.0 is always valid semver"),
     };
 
     // ── step 2: collect commits since last tag ────────────────────────────────
-    let latest_tag = version::detect_latest_tag(ops, &v_config.tag_prefix)?;
+    let latest_tag = version::detect_latest_tag(ops, &version_config.tag_prefix)?;
     let commits = match &latest_tag {
         Some(tag) => ops
             .get_commits_in_range(&tag.target, "HEAD")
@@ -108,7 +108,7 @@ pub fn execute<G: GitOperations>(
     };
 
     // ── step 3: resolve bump type ─────────────────────────────────────────────
-    let bump_type = if let Some(bt) = opts.bump_type {
+    let bump_type = if let Some(bt) = args.bump_type {
         bt
     } else {
         version::detect_bump_type(&commits)
@@ -123,24 +123,28 @@ pub fn execute<G: GitOperations>(
 
     let old_str = current.to_string();
     let new_str = new_version.to_string();
-    let tag_name = format!("{}{}", v_config.tag_prefix, new_version);
+    let tag_name = format!("{}{}", version_config.tag_prefix, new_version);
 
     // ── step 5: update version files ─────────────────────────────────────────
-    let files: Vec<String> = v_config.commit_version_files.clone().unwrap_or_default();
+    let files: Vec<String> = version_config
+        .commit_version_files
+        .clone()
+        .unwrap_or_default();
 
     if !files.is_empty() && !dry_run {
         version::update_version_files(&files, &old_str, &new_str)?;
     }
 
     // ── step 6: generate and write changelog ──────────────────────────────────
-    let changelog_path = cl_config.output_file.clone();
+    let changelog_path = changelog_config.output_file.clone();
 
-    if !opts.skip_changelog {
+    if !args.skip_changelog {
         let range = latest_tag.as_ref().map(|t| format!("{}..HEAD", t.name));
-        let cl = changelog::parser::parse_history(ops, range.as_deref(), cl_config)?;
+        let cl = changelog::parser::parse_history(ops, range.as_deref(), changelog_config)?;
 
         if !dry_run {
-            let rendered = changelog::renderer::render(&cl, &OutputFormat::Markdown, cl_config)?;
+            let rendered =
+                changelog::renderer::render(&cl, &OutputFormat::Markdown, changelog_config)?;
             std::fs::write(&changelog_path, rendered).map_err(|e| {
                 ReleaseError::File(format!("failed to write '{}': {}", changelog_path, e))
             })?;
@@ -148,14 +152,14 @@ pub fn execute<G: GitOperations>(
     }
 
     // ── step 7: stage files and create version commit ─────────────────────────
-    if !opts.skip_commit && !dry_run {
+    if !args.skip_commit && !dry_run {
         // stage version files and changelog with git add
         let repo_root = ops
             .get_repo_root()
             .map_err(|e| ReleaseError::Git(e.to_string()))?;
 
         let mut to_stage: Vec<String> = files.clone();
-        if !opts.skip_changelog {
+        if !args.skip_changelog {
             to_stage.push(changelog_path.clone());
         }
 
@@ -169,14 +173,14 @@ pub fn execute<G: GitOperations>(
 
         let commit_message = format!(
             "chore(release): bump version to {}{}",
-            v_config.tag_prefix, new_version
+            version_config.tag_prefix, new_version
         );
         ops.create_commit(&commit_message)?;
     }
 
     // ── step 8: create version tag ────────────────────────────────────────────
-    if !opts.skip_tag {
-        tag::create_version_tag(ops, &new_version, v_config, cl_config, dry_run)?;
+    if !args.skip_tag {
+        tag::create_version_tag(ops, &new_version, version_config, changelog_config, dry_run)?;
     }
 
     Ok(ReleaseOutcome {
