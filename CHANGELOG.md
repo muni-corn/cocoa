@@ -1,5 +1,13 @@
 # Changelog
 
+## **v0.2.2**
+
+### Bug fixes
+
+- **release:** remove range from changelog generation
+
+---
+
 ## **v0.2.1**
 
 ### Features
