@@ -119,7 +119,7 @@ pub fn build_tag_message<G: GitOperations>(
         return Ok(format!("Release {}{}", v_config.tag_prefix, version));
     }
 
-    let rendered = changelog::renderer::render(&cl, &OutputFormat::Markdown, cl_config)?;
+    let rendered = changelog::renderer::render(&cl, &OutputFormat::Markdown)?;
     Ok(rendered)
 }
 

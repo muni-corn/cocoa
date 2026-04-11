@@ -1,16 +1,9 @@
 //! Changelog output format renderers.
 
-use crate::{
-    changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat},
-    config::ChangelogConfig,
-};
+use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
 /// Render a `Changelog` in the requested output format.
-pub fn render(
-    changelog: &Changelog,
-    format: &OutputFormat,
-    _config: &ChangelogConfig,
-) -> Result<String, ChangelogError> {
+pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, ChangelogError> {
     match format {
         OutputFormat::Markdown => Ok(render_markdown(changelog)),
         OutputFormat::Json => render_json(changelog),
@@ -454,47 +447,37 @@ mod tests {
 
     #[test]
     fn test_render_dispatch_markdown() {
-        use crate::config::ChangelogConfig;
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Markdown, &ChangelogConfig::default()).unwrap();
+        let out = render(&cl, &OutputFormat::Markdown).unwrap();
         assert!(out.contains("# Changelog"));
     }
 
     #[test]
     fn test_render_dispatch_json() {
-        use crate::config::ChangelogConfig;
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Json, &ChangelogConfig::default()).unwrap();
+        let out = render(&cl, &OutputFormat::Json).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(v["versions"].is_array());
     }
 
     #[test]
     fn test_render_dispatch_html() {
-        use crate::config::ChangelogConfig;
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Html, &ChangelogConfig::default()).unwrap();
+        let out = render(&cl, &OutputFormat::Html).unwrap();
         assert!(out.contains("<!DOCTYPE html>"));
     }
 
     #[test]
     fn test_render_dispatch_rst() {
-        use crate::config::ChangelogConfig;
         let cl = sample_changelog();
-        let out = render(
-            &cl,
-            &OutputFormat::ReStructuredText,
-            &ChangelogConfig::default(),
-        )
-        .unwrap();
+        let out = render(&cl, &OutputFormat::ReStructuredText).unwrap();
         assert!(out.contains("Changelog"));
     }
 
     #[test]
     fn test_render_dispatch_asciidoc() {
-        use crate::config::ChangelogConfig;
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::AsciiDoc, &ChangelogConfig::default()).unwrap();
+        let out = render(&cl, &OutputFormat::AsciiDoc).unwrap();
         assert!(out.starts_with("= Changelog"));
     }
 

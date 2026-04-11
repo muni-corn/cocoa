@@ -148,8 +148,7 @@ pub fn execute<G: GitOperations>(
         )?;
 
         if !dry_run {
-            let rendered =
-                changelog::renderer::render(&cl, &OutputFormat::Markdown, changelog_config)?;
+            let rendered = changelog::renderer::render(&cl, &OutputFormat::Markdown)?;
             std::fs::write(&changelog_path, rendered).map_err(|e| {
                 ReleaseError::File(format!("failed to write '{}': {}", changelog_path, e))
             })?;
