@@ -123,7 +123,7 @@ pub fn detect_bump_type(commits: &[CommitInfo]) -> BumpType {
             if msg.breaking {
                 return BumpType::Major;
             }
-            if msg.commit_type == "feat" {
+            if msg.commit_type.is_some_and(|t| t == "feat") {
                 has_feat = true;
             }
         }

@@ -34,7 +34,7 @@ pub enum ParseError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitMessage {
     /// Commit type like `feat`, `fix`, `docs`, `chore`, etc.
-    pub commit_type: String,
+    pub commit_type: Option<String>,
     /// Optional scope in parentheses from the header.
     pub scope: Option<String>,
     /// True when `!` is present after type/scope or when a breaking footer
@@ -123,7 +123,7 @@ impl CommitMessage {
                 .map(|(_, r)| r)
                 .map_err(|_| ParseError::InvalidFormat)?
         } else {
-            (String::new(), None, false, header)
+            (None, None, false, header)
         };
 
         let body = if body_lines.is_empty() {
@@ -149,12 +149,12 @@ impl CommitMessage {
 
     /// Returns true when the commit is a `fixup:` commit (by type).
     pub fn is_fixup(&self) -> bool {
-        self.commit_type == "fixup"
+        self.commit_type.as_ref().is_some_and(|t| t == "fixup")
     }
 
     /// Returns true when the commit is a `squash:` commit (by type).
     pub fn is_squash(&self) -> bool {
-        self.commit_type == "squash"
+        self.commit_type.as_ref().is_some_and(|t| t == "squash")
     }
 
     /// Returns true for likely merge commits (subject starts with `Merge`).
@@ -165,7 +165,8 @@ impl CommitMessage {
     /// Returns true for revert commits (`revert:` type or subject starts with
     /// `Revert`).
     pub fn is_revert(&self) -> bool {
-        self.commit_type == "revert" || self.subject.starts_with("Revert")
+        self.commit_type.as_ref().is_some_and(|t| t == "revert")
+            || self.subject.starts_with("Revert")
     }
 
     /// Returns the Unicode scalar count of the subject line.
@@ -187,20 +188,27 @@ fn is_ident_char(c: char) -> bool {
 
 /// Represents parsed commit header components: type, scope, breaking flag, and
 /// subject.
-type CommitHeader = (String, Option<String>, bool, String);
+type CommitHeader = (Option<String>, Option<String>, bool, String);
 
 /// Parses a header into `(type, scope, breaking, subject)` components.
 fn parse_header(input: &str) -> IResult<&str, CommitHeader> {
     let (input, commit_type) =
-        map(take_while1(is_ident_char), |s: &str| s.to_string()).parse(input)?;
-    let (input, scope) = opt(delimited(
-        char('('),
-        map(is_not(")"), |s: &str| s.to_string()),
-        char(')'),
-    ))
-    .parse(input)?;
+        opt(map(take_while1(is_ident_char), |s: &str| s.to_string())).parse(input)?;
+
+    let (input, scope) = if input.starts_with("(") {
+        delimited(
+            char('('),
+            map(is_not(")"), |s: &str| s.to_string()),
+            char(')'),
+        )
+        .map(Some)
+        .parse(input)?
+    } else {
+        (input, None)
+    };
+
     let (input, bang) = opt(char('!')).parse(input)?;
-    let (input, _) = (char(':'), space0).parse(input)?;
+    let (input, _) = opt((char(':'), space0)).parse(input)?;
     let (input, subject) = map(rest, |s: &str| s.trim().to_string()).parse(input)?;
     let breaking = bang.is_some();
     Ok((input, (commit_type, scope, breaking, subject)))
@@ -300,7 +308,7 @@ mod tests {
         let message = "feat: add new feature";
         let commit = CommitMessage::parse(message).unwrap();
 
-        assert_eq!(commit.commit_type, "feat");
+        assert_eq!(commit.commit_type.unwrap(), "feat");
         assert_eq!(commit.scope, None);
         assert!(!commit.breaking);
         assert_eq!(commit.subject, "add new feature");
@@ -313,7 +321,7 @@ mod tests {
         let message = "fix(api): resolve authentication issue";
         let commit = CommitMessage::parse(message).unwrap();
 
-        assert_eq!(commit.commit_type, "fix");
+        assert_eq!(commit.commit_type.unwrap(), "fix");
         assert_eq!(commit.scope, Some("api".to_string()));
         assert!(!commit.breaking);
         assert_eq!(commit.subject, "resolve authentication issue");
@@ -324,7 +332,7 @@ mod tests {
         let message = "feat!: remove deprecated API";
         let commit = CommitMessage::parse(message).unwrap();
 
-        assert_eq!(commit.commit_type, "feat");
+        assert_eq!(commit.commit_type.unwrap(), "feat");
         assert_eq!(commit.scope, None);
         assert!(commit.breaking);
         assert_eq!(commit.subject, "remove deprecated API");
@@ -339,7 +347,7 @@ for all API endpoints."#;
 
         let commit = CommitMessage::parse(message).unwrap();
 
-        assert_eq!(commit.commit_type, "feat");
+        assert_eq!(commit.commit_type.unwrap(), "feat");
         assert_eq!(commit.subject, "add user authentication");
         assert_eq!(
             commit.body,
@@ -393,7 +401,7 @@ index 4bf40a1..88b9714 100644
 
         let commit = CommitMessage::parse(message).unwrap();
 
-        assert_eq!(commit.commit_type, "fix");
+        assert_eq!(commit.commit_type.unwrap(), "fix");
         assert_eq!(commit.scope, Some("commit".to_string()));
         assert_eq!(
             commit.subject,
@@ -452,7 +460,7 @@ being done by `cargo test`
 
         let commit = CommitMessage::parse(message).unwrap();
 
-        assert_eq!(commit.commit_type, "test");
+        assert_eq!(commit.commit_type.unwrap(), "test");
         assert_eq!(commit.scope, None);
         assert_eq!(
             commit.subject,

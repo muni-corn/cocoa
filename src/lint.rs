@@ -109,7 +109,7 @@ impl<'a> Linter<'a> {
         let warn_no_type = self.rules.warn.get_no_type();
         let deny_no_type = self.rules.deny.get_no_type();
 
-        if commit.commit_type.is_empty() {
+        if commit.commit_type.as_ref().is_none_or(|t| t.is_empty()) {
             if deny_no_type {
                 violations.push(LintViolation {
                     rule: "no-type".to_string(),
@@ -127,14 +127,16 @@ impl<'a> Linter<'a> {
         }
 
         let allowed_types = self.config.get_allowed_types();
-        if !allowed_types.contains(&commit.commit_type) {
+        if let Some(ref t) = commit.commit_type
+            && !allowed_types.contains(t)
+        {
             let allowed_list = allowed_types.iter().cloned().collect::<Vec<_>>().join(", ");
             violations.push(LintViolation {
                 rule: "type-enum".to_string(),
                 severity: Severity::Error,
                 message: t!(
                     "lint.error.invalid_type",
-                    commit_type = commit.commit_type,
+                    commit_type = t,
                     allowed_types = allowed_list
                 )
                 .to_string(),

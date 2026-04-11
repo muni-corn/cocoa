@@ -85,7 +85,7 @@ fn build_entries(
 
             Some(ChangelogEntry {
                 id: short_id,
-                commit_type: msg.commit_type.clone(),
+                commit_type: msg.commit_type.unwrap_or_default(),
                 scope: msg.scope.clone(),
                 breaking: msg.breaking,
                 subject: msg.subject.clone(),
