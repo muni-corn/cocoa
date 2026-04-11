@@ -253,13 +253,13 @@ fn test_git2ops_get_tags_empty() {
 fn test_git2ops_get_tags_lightweight() {
     let repo = TestRepo::new();
     repo.create_commit("init.txt", "init", "feat: initial");
-    repo.create_lightweight_tag("v0.1.0");
+    repo.create_lightweight_tag("v0.0.1");
 
     let git2_ops = Git2Ops::open_at(&repo.path).unwrap();
     let tags = git2_ops.get_tags().unwrap();
 
     assert_eq!(tags.len(), 1);
-    assert_eq!(tags[0].name, "v0.1.0");
+    assert_eq!(tags[0].name, "v0.0.1");
     assert!(
         tags[0].message.is_none(),
         "lightweight tags have no message"
@@ -288,12 +288,12 @@ fn test_git2ops_get_tags_annotated() {
 fn test_git2ops_get_commits_in_range() {
     let repo = TestRepo::new();
     repo.create_commit("a.txt", "a", "feat: alpha");
-    repo.create_lightweight_tag("v0.1.0");
+    repo.create_lightweight_tag("v0.0.1");
     repo.create_commit("b.txt", "b", "fix: beta");
     repo.create_commit("c.txt", "c", "docs: gamma");
 
     let git2_ops = Git2Ops::open_at(&repo.path).unwrap();
-    let commits = git2_ops.get_commits_in_range("v0.1.0", "HEAD").unwrap();
+    let commits = git2_ops.get_commits_in_range("v0.0.1", "HEAD").unwrap();
 
     // should include beta and gamma but not alpha (which is at the tag)
     assert_eq!(commits.len(), 2);

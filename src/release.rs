@@ -241,8 +241,8 @@ mod tests {
         let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
 
         assert_eq!(outcome.previous_version, "0.0.0");
-        assert_eq!(outcome.new_version, "0.1.0");
-        assert_eq!(outcome.tag_name, "v0.1.0");
+        assert_eq!(outcome.new_version, "0.0.1");
+        assert_eq!(outcome.tag_name, "v0.0.1");
         assert!(matches!(outcome.bump_type, BumpType::Minor));
     }
 

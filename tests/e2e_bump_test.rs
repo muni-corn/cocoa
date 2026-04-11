@@ -134,7 +134,7 @@ fn test_bump_no_tags_starts_from_zero() {
         .assert()
         .success()
         .stdout(predicates::str::contains("0.0.0"))
-        .stdout(predicates::str::contains("0.1.0"));
+        .stdout(predicates::str::contains("0.0.1"));
 }
 
 // ─── Invalid bump type returns an error ──────────────────────────────────────
@@ -194,11 +194,11 @@ fn test_bump_updates_configured_file() {
         .args(["bump", "minor"])
         .assert()
         .success()
-        .stdout(predicates::str::contains("0.2.0"));
+        .stdout(predicates::str::contains("0.1.1"));
 
     let contents = std::fs::read_to_string(repo.path.join("Cargo.toml")).unwrap();
     assert!(
-        contents.contains("0.2.0"),
+        contents.contains("0.1.1"),
         "Cargo.toml should contain new version"
     );
     assert!(

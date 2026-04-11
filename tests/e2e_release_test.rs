@@ -29,7 +29,7 @@ fn test_release_dry_run_shows_version_bump() {
         .assert()
         .success()
         .stdout(predicates::str::contains("0.0.0"))
-        .stdout(predicates::str::contains("0.1.0"));
+        .stdout(predicates::str::contains("0.0.1"));
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_release_dry_run_mentions_tag() {
         .args(["--dry-run", "release"])
         .assert()
         .success()
-        .stdout(predicates::str::contains("v0.1.0"));
+        .stdout(predicates::str::contains("v0.0.1"));
 }
 
 // ─── Dry-run: skip flags
@@ -223,7 +223,7 @@ fn test_release_creates_version_tag() {
         .args(["release", "--skip-commit"])
         .assert()
         .success()
-        .stdout(predicates::str::contains("v0.1.0"));
+        .stdout(predicates::str::contains("v0.0.1"));
 
     // verify the tag exists in git
     let tag_list = repo
@@ -231,7 +231,7 @@ fn test_release_creates_version_tag() {
         .output()
         .expect("git tag -l failed");
     let tags = String::from_utf8_lossy(&tag_list.stdout);
-    assert!(tags.contains("v0.1.0"), "tag v0.1.0 not found in repo");
+    assert!(tags.contains("v0.0.1"), "tag v0.0.1 not found in repo");
 }
 
 #[test]

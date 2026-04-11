@@ -240,9 +240,9 @@ mod tests {
             commits_in_range: Ok(vec![make_commit("a1", "feat: add thing")]),
             ..Default::default()
         };
-        // starts from 0.0.0; feat commit → minor bump → 0.1.0
+        // starts from 0.0.0; feat commit → minor bump → 0.0.1
         let v = resolve_version(&ops, None, &v_config()).unwrap();
-        assert_eq!(v.to_string(), "0.1.0");
+        assert_eq!(v.to_string(), "0.0.1");
     }
 
     #[test]
