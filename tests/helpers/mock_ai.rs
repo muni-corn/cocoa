@@ -1,7 +1,6 @@
 //! mock ai client for testing commit generation without real api calls
 
-use cocoa::ai::config::SecretConfig;
-use cocoa::ai::{AiConfig, Provider};
+use cocoa::ai::{AiConfig, Provider, config::SecretConfig};
 
 /// mock ai response generator for testing
 pub struct MockAiClient {
@@ -41,7 +40,7 @@ impl MockAiClient {
 /// create a test ai configuration (does not require real api key)
 pub fn test_ai_config() -> AiConfig {
     AiConfig {
-        provider: Provider::OpenAi,
+        provider: Some(Provider(genai::adapter::AdapterKind::OpenAI)),
         model: "gpt-4".to_string(),
         temperature: 0.7,
         max_tokens: 500,
