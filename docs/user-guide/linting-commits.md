@@ -81,7 +81,7 @@ ignore_fixup_commits = true
 ignore_amend_commits = true
 ignore_merge_commits = true
 
-# Warnings: shown but don't fail commit
+# warnings: shown but don't fail commit
 [commit.rules.warn]
 subject_length = 72
 body_length = 500
@@ -90,7 +90,7 @@ no_body = false
 no_type = false
 regex_patterns = []
 
-# Denials: shown and fail commit
+# denials: shown and fail commit
 [commit.rules.deny]
 subject_length = 100
 body_length = 1000
