@@ -19,7 +19,7 @@ use crate::{
     generate::GenerateError,
     git_ops::GitOperations,
     tag::{self, TagError},
-    version::{self, BumpType, SemVer, VersionError},
+    version::{self, BumpType, VersionError},
 };
 
 /// Errors from the release orchestration.
@@ -93,10 +93,8 @@ pub fn execute<G: GitOperations>(
     dry_run: bool,
 ) -> Result<ReleaseOutcome, ReleaseError> {
     // ── step 1: detect current version ───────────────────────────────────────
-    let current = match version::detect_current_semver(ops, &version_config.tag_prefix)? {
-        Some(v) => v,
-        None => SemVer::parse("0.0.0").expect("0.0.0 is always valid semver"),
-    };
+    let current =
+        version::detect_current_semver(ops, &version_config.tag_prefix)?.unwrap_or_default();
 
     // ── step 2: collect commits since last tag ────────────────────────────────
     let latest_tag = version::detect_latest_tag(ops, &version_config.tag_prefix)?;

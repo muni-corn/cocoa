@@ -20,6 +20,12 @@ pub enum SemVerError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemVer(sv::Version);
 
+impl Default for SemVer {
+    fn default() -> Self {
+        Self(sv::Version::new(0, 0, 0))
+    }
+}
+
 impl SemVer {
     /// Parse a semver string such as `"1.2.3"` or `"1.0.0-alpha.1"`.
     pub fn parse(s: &str) -> Result<Self, SemVerError> {
