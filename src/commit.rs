@@ -147,14 +147,14 @@ impl CommitMessage {
         })
     }
 
-    /// Returns true when the commit is a `fixup:` commit (by type).
+    /// Returns true when the commit is a `fixup!` commit (by type).
     pub fn is_fixup(&self) -> bool {
-        self.commit_type.as_ref().is_some_and(|t| t == "fixup")
+        self.subject.starts_with("fixup!")
     }
 
-    /// Returns true when the commit is a `squash:` commit (by type).
+    /// Returns true when the commit is a `squash!` commit (by type).
     pub fn is_squash(&self) -> bool {
-        self.commit_type.as_ref().is_some_and(|t| t == "squash")
+        self.subject.starts_with("squash!")
     }
 
     /// Returns true for likely merge commits (subject starts with `Merge`).
@@ -165,7 +165,9 @@ impl CommitMessage {
     /// Returns true for revert commits (`revert:` type or subject starts with
     /// `Revert`).
     pub fn is_revert(&self) -> bool {
-        self.commit_type.as_ref().is_some_and(|t| t == "revert")
+        self.commit_type
+            .as_ref()
+            .is_some_and(|t| t.eq_ignore_ascii_case("revert"))
             || self.subject.starts_with("Revert")
     }
 
@@ -487,16 +489,19 @@ being done by `cargo test`
 
     #[test]
     fn test_special_commit_types() {
-        let fixup = CommitMessage::parse("fixup: fix typo").unwrap();
+        let fixup = CommitMessage::parse("fixup! fix typo").unwrap();
         assert!(fixup.is_fixup());
 
-        let squash = CommitMessage::parse("squash: combine commits").unwrap();
+        let squash = CommitMessage::parse("squash! combine commits").unwrap();
         assert!(squash.is_squash());
 
-        let revert = CommitMessage::parse("revert: undo previous change").unwrap();
+        let revert = CommitMessage::parse(
+            "Revert \"feat: introduce cockroaches\"\n\nThis reverts commit AAAAAAAAAAAAAAAAAAAAAA",
+        )
+        .unwrap();
         assert!(revert.is_revert());
 
-        let merge = CommitMessage::parse("feat: Merge branch 'feature'").unwrap();
+        let merge = CommitMessage::parse("Merge branch 'stinky' into 'yummy'").unwrap();
         assert!(merge.is_merge());
     }
 

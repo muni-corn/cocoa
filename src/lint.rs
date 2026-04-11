@@ -58,6 +58,13 @@ impl<'a> Linter<'a> {
     pub fn lint(&self, message: &str) -> LintResult {
         let mut violations = Vec::new();
 
+        if should_ignore_message(message, self.rules) {
+            return LintResult {
+                violations: vec![],
+                is_valid: true,
+            };
+        }
+
         let commit = match CommitMessage::parse(message) {
             Ok(commit) => commit,
             Err(_) => {
@@ -72,13 +79,6 @@ impl<'a> Linter<'a> {
                 };
             }
         };
-
-        if self.should_ignore_commit(&commit) {
-            return LintResult {
-                violations: vec![],
-                is_valid: true,
-            };
-        }
 
         if self.rules.enabled {
             self.check_type(&commit, &mut violations);
@@ -96,13 +96,6 @@ impl<'a> Linter<'a> {
             violations,
             is_valid,
         }
-    }
-
-    fn should_ignore_commit(&self, commit: &CommitMessage) -> bool {
-        (self.rules.ignore_fixup_commits && commit.is_fixup())
-            || (self.rules.ignore_squash_commits && commit.is_squash())
-            || (self.rules.ignore_merge_commits && commit.is_merge())
-            || (self.rules.ignore_revert_commits && commit.is_revert())
     }
 
     fn check_type(&self, commit: &CommitMessage, violations: &mut Vec<LintViolation>) {
@@ -332,6 +325,15 @@ impl<'a> Linter<'a> {
     }
 }
 
+/// Returns whether a git commit with the given summary should be ignored.
+pub fn should_ignore_message(summary: &str, rules: &CommitRules) -> bool {
+    (rules.ignore_fixup_commits && summary.starts_with("fixup!"))
+        || (rules.ignore_amend_commits && summary.starts_with("amend!"))
+        || (rules.ignore_squash_commits && summary.starts_with("squash!"))
+        || (rules.ignore_merge_commits && summary.starts_with("Merge"))
+        || (rules.ignore_revert_commits && summary.starts_with("Revert"))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -452,7 +454,7 @@ mod tests {
     fn test_ignore_fixup_commit() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        let result = linter.lint("fixup: fix typo");
+        let result = linter.lint("fixup! fix typo");
 
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
@@ -720,8 +722,8 @@ mod tests {
     fn test_ignore_squash_commit() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        // commit type "squash" triggers is_squash()
-        let result = linter.lint("squash: fix typo");
+
+        let result = linter.lint("squash! fix typo");
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
     }
@@ -740,8 +742,9 @@ mod tests {
     fn test_ignore_revert_commit() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        // no colon → commit_type is empty; subject starts with "Revert"
-        let result = linter.lint("Revert some previous change");
+
+        let result = linter
+            .lint("Revert \"feat: add sesame oil\"\n\nThis reverts commit badbadbadbadbadbadbad.");
         assert!(result.is_valid);
         assert!(result.violations.is_empty());
     }
