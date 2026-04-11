@@ -103,10 +103,12 @@ pub fn build_tag_message<G: GitOperations>(
     v_config: &VersionConfig,
     cl_config: &ChangelogConfig,
 ) -> Result<String, TagError> {
+    let tag_name = format!("{}{}", v_config.tag_prefix, version);
+
     let latest_tag = version::detect_latest_tag(ops, &v_config.tag_prefix)?;
     let range = latest_tag.as_ref().map(|t| format!("{}..HEAD", t.name));
 
-    let cl = changelog::parser::parse_history(ops, range.as_deref(), cl_config)?;
+    let cl = changelog::parser::parse_history(ops, range.as_deref(), cl_config, Some(&tag_name))?;
 
     let has_content = cl
         .versions

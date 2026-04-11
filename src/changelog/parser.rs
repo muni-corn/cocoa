@@ -167,18 +167,19 @@ fn build_version(
 
 /// Parse git history and produce a `Changelog`.
 ///
-/// When `range` is `Some("from..to")`, returns a single "Unreleased" version
+/// When `range` is `Some("from..to")`, returns a single "next" version
 /// containing the commits in that range. When `range` is `None`, tags are used
 /// to split history into per-version sections.
 pub fn parse_history<G: GitOperations>(
     git_ops: &G,
     range: Option<&str>,
     config: &ChangelogConfig,
+    next_version: Option<&str>,
 ) -> Result<Changelog, ChangelogError> {
     if let Some(r) = range {
-        parse_range_history(git_ops, r, config)
+        parse_range_history(git_ops, r, config, next_version)
     } else {
-        build_versioned_history(git_ops, config)
+        build_versioned_history(git_ops, config, next_version)
     }
 }
 
@@ -187,6 +188,7 @@ fn parse_range_history<G: GitOperations>(
     git_ops: &G,
     range: &str,
     config: &ChangelogConfig,
+    next_version: Option<&str>,
 ) -> Result<Changelog, ChangelogError> {
     let (from, to) = range.split_once("..").ok_or_else(|| {
         ChangelogError::Git(format!("invalid range '{}': expected from..to", range))
@@ -197,7 +199,12 @@ fn parse_range_history<G: GitOperations>(
         .map_err(|e| ChangelogError::Git(e.to_string()))?;
 
     let entries = build_entries(&commits, config);
-    let version = build_version("Next version", None, entries, config);
+    let version = build_version(
+        next_version.unwrap_or("Next version"),
+        None,
+        entries,
+        config,
+    );
     Ok(Changelog {
         versions: vec![version],
     })
@@ -208,6 +215,7 @@ fn parse_range_history<G: GitOperations>(
 fn build_versioned_history<G: GitOperations>(
     git_ops: &G,
     config: &ChangelogConfig,
+    next_version: Option<&str>,
 ) -> Result<Changelog, ChangelogError> {
     let all_commits = git_ops
         .get_commits_in_range("", "HEAD")
@@ -236,7 +244,7 @@ fn build_versioned_history<G: GitOperations>(
                 let entries = build_entries(&current_commits, config);
                 if !entries.is_empty() || current_version.is_some() {
                     versions.push(build_version(
-                        current_version.unwrap_or("Next version"),
+                        current_version.or(next_version).unwrap_or("Next version"),
                         current_date.clone(),
                         entries,
                         config,
@@ -257,7 +265,7 @@ fn build_versioned_history<G: GitOperations>(
         let entries = build_entries(&current_commits, config);
         if !entries.is_empty() {
             versions.push(build_version(
-                current_version.unwrap_or("Next version"),
+                current_version.or(next_version).unwrap_or("Next version"),
                 current_date,
                 entries,
                 config,
@@ -299,7 +307,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, None, &config).unwrap();
+        let cl = parse_history(&mock, None, &config, None).unwrap();
         assert!(cl.versions.is_empty());
     }
 
@@ -314,7 +322,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, None, &config).unwrap();
+        let cl = parse_history(&mock, None, &config, None).unwrap();
         assert_eq!(cl.versions.len(), 1);
         assert_eq!(cl.versions[0].version, "Next version"); // Unreleased
         assert_eq!(cl.versions[0].sections.len(), 2); // feat + fix
@@ -331,7 +339,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, Some("v1.0.0..HEAD"), &config).unwrap();
+        let cl = parse_history(&mock, Some("v1.0.0..HEAD"), &config, None).unwrap();
         assert_eq!(cl.versions.len(), 1);
         assert_eq!(cl.versions[0].version, "Next version"); // range output is unreleased
     }
@@ -340,7 +348,7 @@ mod tests {
     fn test_parse_history_invalid_range() {
         let mock = MockGitOps::default();
         let config = default_config();
-        assert!(parse_history(&mock, Some("notarange"), &config).is_err());
+        assert!(parse_history(&mock, Some("notarange"), &config, None).is_err());
     }
 
     #[test]
@@ -360,7 +368,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, None, &config).unwrap();
+        let cl = parse_history(&mock, None, &config, None).unwrap();
 
         // should produce: Unreleased[feat] and v1.0.0[chore, fix]
         assert_eq!(cl.versions.len(), 2);
@@ -379,7 +387,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, None, &config).unwrap();
+        let cl = parse_history(&mock, None, &config, None).unwrap();
         assert_eq!(cl.versions[0].breaking_changes.len(), 1);
         assert_eq!(
             cl.versions[0].breaking_changes[0].subject,
@@ -398,7 +406,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, None, &config).unwrap();
+        let cl = parse_history(&mock, None, &config, None).unwrap();
         // merge commit filtered out, only feat remains
         assert_eq!(cl.versions[0].sections.len(), 1);
         assert_eq!(cl.versions[0].sections[0].commit_type, "feat");
@@ -417,7 +425,7 @@ mod tests {
             ..Default::default()
         };
         let config = default_config();
-        let cl = parse_history(&mock, None, &config).unwrap();
+        let cl = parse_history(&mock, None, &config, None).unwrap();
         let types: Vec<&str> = cl.versions[0]
             .sections
             .iter()

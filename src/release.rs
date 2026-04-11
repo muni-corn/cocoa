@@ -140,7 +140,12 @@ pub fn execute<G: GitOperations>(
 
     if !args.skip_changelog {
         let range = latest_tag.as_ref().map(|t| format!("{}..HEAD", t.name));
-        let cl = changelog::parser::parse_history(ops, range.as_deref(), changelog_config)?;
+        let cl = changelog::parser::parse_history(
+            ops,
+            range.as_deref(),
+            changelog_config,
+            Some(&tag_name),
+        )?;
 
         if !dry_run {
             let rendered =

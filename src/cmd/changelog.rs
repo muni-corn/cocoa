@@ -80,7 +80,7 @@ pub fn handle_changelog(
         }
     };
 
-    let cl = match changelog::parser::parse_history(&git_ops, range, &cl_config) {
+    let cl = match changelog::parser::parse_history(&git_ops, range, &cl_config, None) {
         Ok(c) => c,
         Err(changelog::ChangelogError::Git(msg)) => {
             print_error_bold(t!("main.changelog.git_failed", error = msg));
