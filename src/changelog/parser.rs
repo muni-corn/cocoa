@@ -106,7 +106,7 @@ fn build_entries(
 /// newest-first with SHA as a tiebreaker, so identical input always produces
 /// identical output.
 fn build_version(
-    version: Option<String>,
+    version: &str,
     date: Option<String>,
     entries: Vec<ChangelogEntry>,
     config: &ChangelogConfig,
@@ -158,7 +158,7 @@ fn build_version(
     });
 
     ChangelogVersion {
-        version,
+        version: version.to_string(),
         date,
         breaking_changes,
         sections,
@@ -197,7 +197,7 @@ fn parse_range_history<G: GitOperations>(
         .map_err(|e| ChangelogError::Git(e.to_string()))?;
 
     let entries = build_entries(&commits, config);
-    let version = build_version(None, None, entries, config);
+    let version = build_version("Next version", None, entries, config);
     Ok(Changelog {
         versions: vec![version],
     })
@@ -226,7 +226,7 @@ fn build_versioned_history<G: GitOperations>(
 
     let mut versions = Vec::new();
     let mut current_commits: Vec<crate::git_ops::CommitInfo> = Vec::new();
-    let mut current_version: Option<String> = None;
+    let mut current_version: Option<&str> = None;
     let mut current_date: Option<String> = None;
 
     for commit in all_commits {
@@ -236,7 +236,7 @@ fn build_versioned_history<G: GitOperations>(
                 let entries = build_entries(&current_commits, config);
                 if !entries.is_empty() || current_version.is_some() {
                     versions.push(build_version(
-                        current_version.clone(),
+                        current_version.unwrap_or("Next version"),
                         current_date.clone(),
                         entries,
                         config,
@@ -244,7 +244,7 @@ fn build_versioned_history<G: GitOperations>(
                 }
             }
 
-            current_version = Some(tag_name.clone());
+            current_version = Some(tag_name);
             current_date = Some(format_date(commit.timestamp, &config.date_format));
             current_commits = vec![commit];
         } else {
@@ -257,13 +257,13 @@ fn build_versioned_history<G: GitOperations>(
         let entries = build_entries(&current_commits, config);
         if !entries.is_empty() {
             versions.push(build_version(
-                current_version,
+                current_version.unwrap_or("Next version"),
                 current_date,
                 entries,
                 config,
             ));
         }
-    } else if current_version.is_some() {
+    } else if let Some(current_version) = current_version {
         // tagged version with no parseable entries
         versions.push(build_version(current_version, current_date, vec![], config));
     }
@@ -316,7 +316,7 @@ mod tests {
         let config = default_config();
         let cl = parse_history(&mock, None, &config).unwrap();
         assert_eq!(cl.versions.len(), 1);
-        assert!(cl.versions[0].version.is_none()); // Unreleased
+        assert_eq!(cl.versions[0].version, "Next version"); // Unreleased
         assert_eq!(cl.versions[0].sections.len(), 2); // feat + fix
     }
 
@@ -333,7 +333,7 @@ mod tests {
         let config = default_config();
         let cl = parse_history(&mock, Some("v1.0.0..HEAD"), &config).unwrap();
         assert_eq!(cl.versions.len(), 1);
-        assert!(cl.versions[0].version.is_none()); // range output is Unreleased
+        assert_eq!(cl.versions[0].version, "Next version"); // range output is unreleased
     }
 
     #[test]
@@ -364,8 +364,8 @@ mod tests {
 
         // should produce: Unreleased[feat] and v1.0.0[chore, fix]
         assert_eq!(cl.versions.len(), 2);
-        assert!(cl.versions[0].version.is_none()); // Unreleased
-        assert_eq!(cl.versions[1].version.as_deref(), Some("v1.0.0"));
+        assert_eq!(cl.versions[0].version, "Next version"); // Unreleased
+        assert_eq!(cl.versions[1].version, "v1.0.0");
     }
 
     #[test]

@@ -53,8 +53,7 @@ pub fn render_markdown(changelog: &Changelog) -> String {
 }
 
 fn markdown_version_heading(version: &ChangelogVersion) -> String {
-    let name = version.version.as_deref().unwrap_or("Next version");
-    format!("## **{}**", name)
+    format!("## **{}**", version.version)
 }
 
 fn markdown_entry(entry: &ChangelogEntry) -> String {
@@ -117,7 +116,7 @@ pub fn render_html(changelog: &Changelog) -> String {
 }
 
 fn html_version_heading(version: &ChangelogVersion) -> String {
-    let name = html_escape(version.version.as_deref().unwrap_or("Next version"));
+    let name = html_escape(&version.version);
     match &version.date {
         Some(date) => format!("{} &mdash; {}", name, html_escape(date)),
         None => name,
@@ -194,7 +193,7 @@ pub fn render_rst(changelog: &Changelog) -> String {
 }
 
 fn rst_version_heading(version: &ChangelogVersion) -> String {
-    let name = version.version.as_deref().unwrap_or("Next version");
+    let name = &version.version;
     match &version.date {
         Some(date) => format!("[{}] - {}", name, date),
         None => format!("[{}]", name),
@@ -241,7 +240,7 @@ pub fn render_asciidoc(changelog: &Changelog) -> String {
 }
 
 fn asciidoc_version_heading(version: &ChangelogVersion) -> String {
-    let name = version.version.as_deref().unwrap_or("Next version");
+    let name = &version.version;
     match &version.date {
         Some(date) => format!("[{}] - {}", name, date),
         None => format!("[{}]", name),
@@ -310,7 +309,7 @@ mod tests {
     fn sample_changelog() -> Changelog {
         Changelog {
             versions: vec![ChangelogVersion {
-                version: Some("v1.0.0".to_string()),
+                version: "v1.0.0".to_string(),
                 date: Some("2024-01-01".to_string()),
                 breaking_changes: vec![],
                 sections: vec![
@@ -344,7 +343,7 @@ mod tests {
     fn test_render_markdown_unreleased() {
         let cl = Changelog {
             versions: vec![ChangelogVersion {
-                version: None,
+                version: "Next version".to_string(),
                 date: None,
                 breaking_changes: vec![],
                 sections: vec![ChangelogSection {
@@ -504,7 +503,7 @@ mod tests {
     fn unreleased_changelog() -> Changelog {
         Changelog {
             versions: vec![ChangelogVersion {
-                version: None,
+                version: "Next version".to_string(),
                 date: None,
                 breaking_changes: vec![{
                     let mut e = sample_entry("brk00001", "feat", "renamed endpoint");

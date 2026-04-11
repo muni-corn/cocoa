@@ -44,7 +44,7 @@ pub struct ChangelogSection {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangelogVersion {
     /// Tag name, or `None` for unreleased changes.
-    pub version: Option<String>,
+    pub version: String,
     /// Release date string, or `None` when not yet released.
     pub date: Option<String>,
     /// Breaking-change entries extracted across all sections.
