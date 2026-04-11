@@ -1,15 +1,42 @@
 # Changelog
 
-## Unreleased
+## **v0.2.1**
+
+### Features
+
+- **changelog:** add customizable next version label
+- **version:** handle 0.x.x versions in bump operations
+- **config:** increase default body length limits
+- **prompt:** emphasize reasoning in commit message guidelines
+- **cmd:** support message source from environment variable
+- **devenv:** add devenv module for cocoa git hooks configuration
 
 ### Bug fixes
 
+- **commit:** align fixup/squash/revert detection with git conventions
+- **commit:** make commit_type optional to handle non-conventional commits
+- **generate:** remove debug eprintln statements
+- **hook:** fix generate hook invocation
+- **devenv:** disable filename passing for cocoa commit hook
 - **cmd:** fix indentation for release command help
 - make breaking changes header sentence case in markdown
 
+### Tests
+
+- **helpers:** suppress dead_code warnings for test utilities
+- **helpers:** simplify mock ai imports and update provider config
+- correct version bump expectations in test cases
+- move helpers module declaration to fix structure issues
+- **prompt:** move build_prompt tests to prompt module
+
+### Documentation
+
+- **user-guide:** lowercase section headers in linting guide
+- standardize punctuation in comments and messages
+
 ---
 
-## v0.2.0
+## **v0.2.0**
 
 ### Features
 
@@ -30,7 +57,7 @@
 
 ---
 
-## v0.1.0
+## **v0.1.0**
 
 ### Features
 
