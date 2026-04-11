@@ -1,5 +1,8 @@
 //! Test helper for creating temporary git repositories.
 
+// this helper is actually used by other tests but cargo doesn't seem to care
+#![allow(dead_code)]
+
 use std::{
     path::{Path, PathBuf},
     process::Command,

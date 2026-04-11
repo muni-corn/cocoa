@@ -52,6 +52,9 @@ pub fn test_ai_config() -> AiConfig {
 
 /// common mock responses for testing
 pub mod responses {
+    // i'm sure we'll use these somewhere someday
+    #![allow(dead_code)]
+
     pub const VALID_FEAT: &str = "feat: add new feature";
     pub const VALID_FIX: &str = "fix: resolve bug in parser";
     pub const VALID_DOCS: &str = "docs: update readme";
