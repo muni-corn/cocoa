@@ -48,7 +48,7 @@ pub struct ChangelogConfig {
     pub include_merge_commits: bool,
 
     /// Whether to include revert commits in the changelog.
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub include_reverts: bool,
 
     /// Date format string used for version headings (strftime syntax).
