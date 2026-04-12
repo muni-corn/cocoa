@@ -163,7 +163,7 @@ fn convert(entries: Vec<TypeEntry>) -> Result<Config, MigrateError> {
         None
     } else {
         Some(ChangelogConfig {
-            sections: Some(sections),
+            sections,
             ..Default::default()
         })
     };
@@ -206,7 +206,7 @@ module.exports = {
         assert!(config.commit.types.contains("feat"));
         assert!(config.commit.types.contains("fix"));
         assert!(config.commit.types.contains("chore"));
-        let sections = config.changelog.unwrap().sections.unwrap();
+        let sections = config.changelog.unwrap().sections;
         assert_eq!(sections["feat"], "Features");
         assert_eq!(sections["fix"], "Bug Fixes");
         // hidden types have no section
@@ -224,7 +224,7 @@ module.exports = {
         let f = write_temp(content, ".json");
         let config = parse(f.path()).unwrap();
         assert!(config.commit.types.contains("feat"));
-        let sections = config.changelog.unwrap().sections.unwrap();
+        let sections = config.changelog.unwrap().sections;
         assert_eq!(sections["feat"], "Features");
     }
 

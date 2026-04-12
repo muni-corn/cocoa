@@ -47,12 +47,11 @@ fn section_order(commit_type: &str) -> usize {
 /// Resolve the section title for a commit type using config overrides first,
 /// then defaults.
 fn get_section_title(commit_type: &str, config: &ChangelogConfig) -> Option<String> {
-    if let Some(ref sections) = config.sections
-        && let Some(title) = sections.get(commit_type)
-    {
-        return Some(title.clone());
-    }
-    default_section_title(commit_type).map(|s| s.to_string())
+    config
+        .sections
+        .get(commit_type)
+        .cloned()
+        .or_else(|| default_section_title(commit_type).map(|s| s.to_string()))
 }
 
 /// Format a Unix timestamp using the given strftime format string.

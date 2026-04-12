@@ -59,7 +59,8 @@ pub struct ChangelogConfig {
     ///
     /// Only types listed here appear in the changelog. The special key
     /// `"breaking"` controls the section heading for breaking changes.
-    pub sections: Option<HashMap<String, String>>,
+    #[serde(default = "default_sections")]
+    pub sections: HashMap<String, String>,
 }
 
 impl Default for ChangelogConfig {
@@ -69,7 +70,7 @@ impl Default for ChangelogConfig {
             include_merge_commits: false,
             include_reverts: true,
             date_format: default_date_format(),
-            sections: None,
+            sections: default_sections(),
         }
     }
 }
@@ -210,6 +211,20 @@ fn default_deny_rule_level() -> RuleLevel {
         no_breaking_change_footer: Some(true),
         regex_patterns: None,
     }
+}
+
+fn default_sections() -> HashMap<String, String> {
+    [
+        ("feat", "Features"),
+        ("fix", "Bug fixes"),
+        ("perf", "Performance"),
+        ("docs", "Documentation"),
+        ("test", "Tests"),
+        ("build", "Build system"),
+        ("ci", "Continuous integration"),
+    ]
+    .map(|(ty, header)| (String::from(ty), String::from(header)))
+    .into()
 }
 
 // --- Default impls ---
@@ -729,7 +744,7 @@ subject_length = 50
         assert!(!cfg.include_merge_commits);
         assert!(cfg.include_reverts);
         assert_eq!(cfg.date_format, "%Y-%m-%d");
-        assert!(cfg.sections.is_none());
+        assert_eq!(cfg.sections.len(), 7);
     }
 
     // --- VersionConfig defaults ---

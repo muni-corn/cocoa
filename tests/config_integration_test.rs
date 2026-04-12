@@ -408,7 +408,7 @@ fn test_changelog_config_defaults() {
     assert!(!cl.include_merge_commits);
     assert!(cl.include_reverts);
     assert_eq!(cl.date_format, "%Y-%m-%d");
-    assert!(cl.sections.is_none());
+    assert_eq!(cl.sections.len(), 7);
 }
 
 #[test]
