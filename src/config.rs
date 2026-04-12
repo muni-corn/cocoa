@@ -55,6 +55,9 @@ pub struct ChangelogConfig {
     #[serde(default = "default_date_format")]
     pub date_format: String,
 
+    #[serde(default = "default_breaking_changes_header")]
+    pub breaking_changes_header: String,
+
     /// Mapping of commit type to human-readable section title.
     ///
     /// Only types listed here appear in the changelog. The special key
@@ -70,6 +73,7 @@ impl Default for ChangelogConfig {
             include_merge_commits: false,
             include_reverts: true,
             date_format: default_date_format(),
+            breaking_changes_header: default_breaking_changes_header(),
             sections: default_sections(),
         }
     }
@@ -211,6 +215,10 @@ fn default_deny_rule_level() -> RuleLevel {
         no_breaking_change_footer: Some(true),
         regex_patterns: None,
     }
+}
+
+fn default_breaking_changes_header() -> String {
+    "Breaking changes".to_string()
 }
 
 fn default_sections() -> HashMap<String, String> {
