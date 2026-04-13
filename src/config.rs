@@ -291,7 +291,8 @@ impl Config {
     /// 1. `/etc/cocoa/cocoa.toml` (system, lowest priority)
     /// 2. `$XDG_CONFIG_HOME/cocoa/cocoa.toml` or `~/.config/cocoa/cocoa.toml`
     ///    (user)
-    /// 3. `.cocoa.toml` in the current directory (repository, highest priority)
+    /// 3. `.cocoa.toml` or `cocoa.toml` in the current directory (repository,
+    ///    highest priority)
     pub fn discover() -> Vec<PathBuf> {
         let mut paths: Vec<PathBuf> = Vec::new();
 
@@ -310,6 +311,7 @@ impl Config {
 
         // repository config (highest priority)
         paths.push(PathBuf::from(".cocoa.toml"));
+        paths.push(PathBuf::from("cocoa.toml"));
 
         paths
     }
@@ -583,7 +585,8 @@ subject_length = 50
         assert_eq!(paths[0], PathBuf::from("/etc/cocoa/cocoa.toml"));
 
         // last path should be repo config
-        assert_eq!(paths[paths.len() - 1], PathBuf::from(".cocoa.toml"));
+        assert_eq!(paths[paths.len() - 2], PathBuf::from(".cocoa.toml"));
+        assert_eq!(paths[paths.len() - 1], PathBuf::from("cocoa.toml"));
     }
 
     #[test]
