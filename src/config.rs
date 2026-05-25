@@ -97,6 +97,134 @@ pub enum VersionStrategy {
     Calver,
 }
 
+/// How many occurrences of a pattern to replace in a file.
+///
+/// Used by the `plain` and `regex` file handler kinds.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Occurrences {
+    /// Replace all occurrences (default for `plain`).
+    Named(OccurrencesNamed),
+    /// Replace at most this many occurrences (1 = first only).
+    Count(usize),
+}
+
+/// Named occurrence modes for use in TOML config.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OccurrencesNamed {
+    /// Replace every occurrence.
+    All,
+    /// Replace only the first occurrence.
+    First,
+}
+
+impl Default for Occurrences {
+    fn default() -> Self {
+        Occurrences::Named(OccurrencesNamed::All)
+    }
+}
+
+/// The kind of handler to use for a version file entry.
+///
+/// `auto` (the default) detects the appropriate handler by basename.
+/// All other values pin the handler explicitly.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum FileEntryKind {
+    /// Detect the handler automatically from the file basename.
+    #[default]
+    Auto,
+    /// Structured update of a Cargo.toml package or workspace manifest.
+    Cargo,
+    /// Workspace-aware update of a Cargo.lock lockfile.
+    CargoLock,
+    /// Structured update of a package.json version field.
+    Npm,
+    /// Workspace-aware update of a package-lock.json lockfile.
+    NpmLock,
+    /// Update of a pnpm-lock.yaml lockfile (via command by default).
+    PnpmLock,
+    /// Update of a yarn.lock lockfile (via command by default).
+    YarnLock,
+    /// Structured update of a pyproject.toml `[project].version` field.
+    Pyproject,
+    /// Regex-based replacement targeting a named capture group `v`.
+    Regex,
+    /// Plain text: replace the version string literally (historical behavior).
+    Plain,
+}
+
+/// The update strategy to use for a file entry.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum FileEntryStrategy {
+    /// Update the file in-process (parse and edit directly).
+    #[default]
+    InProcess,
+    /// Shell out to a toolchain command to update the file.
+    Command,
+    /// Skip this file entirely (no update performed).
+    Skip,
+}
+
+/// A single entry in the `[[version.files]]` array.
+///
+/// Each entry describes one file and how cocoa should update its version.
+///
+/// # Example (in `.cocoa.toml`)
+/// ```toml
+/// [[version.files]]
+/// path = "Cargo.toml"
+/// kind = "cargo"
+///
+/// [[version.files]]
+/// path = "Cargo.lock"
+/// kind = "cargo-lock"
+///
+/// [[version.files]]
+/// path = "README.md"
+/// kind = "regex"
+/// pattern = '''badge/version-(?P<v>[^-]+)-'''
+/// occurrences = "first"
+/// ```
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VersionFileEntry {
+    /// Path to the file, relative to the repository root.
+    pub path: String,
+
+    /// How to detect the right handler.
+    ///
+    /// Defaults to `"auto"` which infers the kind from the file basename.
+    #[serde(default)]
+    pub kind: FileEntryKind,
+
+    /// Update strategy: `"in-process"`, `"command"`, or `"skip"`.
+    ///
+    /// Defaults to `"in-process"`. When set to `"command"`, the `command`
+    /// field must also be set.
+    #[serde(default)]
+    pub strategy: FileEntryStrategy,
+
+    /// Command to run when `strategy = "command"`.
+    ///
+    /// The command is run in the repository root with no substitutions.
+    /// Example: `["cargo", "update", "--workspace"]`
+    pub command: Option<Vec<String>>,
+
+    /// Regex pattern for `kind = "regex"` entries.
+    ///
+    /// Must contain exactly one named capture group `v` whose content will
+    /// be replaced with the new version string.
+    pub pattern: Option<String>,
+
+    /// How many occurrences to replace.
+    ///
+    /// Defaults to `"all"` for `plain` entries and `"first"` for `regex`
+    /// entries. Has no effect on structured handlers (cargo, npm, etc.).
+    pub occurrences: Option<Occurrences>,
+}
+
 /// Configuration for version management.
 ///
 /// Maps to the `[version]` section in `.cocoa.toml`.
@@ -114,8 +242,20 @@ pub struct VersionConfig {
     #[serde(default)]
     pub sign_tags: bool,
 
-    /// Files to search and update when bumping the version.
+    /// Files to search and update when bumping the version (legacy form).
+    ///
+    /// Entries in this list use the `plain` handler with `occurrences = "all"`,
+    /// which matches the historical behavior. Prefer `[[version.files]]` for
+    /// new configuration.
     pub commit_version_files: Option<Vec<String>>,
+
+    /// Rich per-file update rules (new form).
+    ///
+    /// When both `commit_version_files` and `files` are set, `files` takes
+    /// precedence for any path it covers; `commit_version_files` covers the
+    /// rest.
+    #[serde(default, rename = "files")]
+    pub version_files: Vec<VersionFileEntry>,
 }
 
 impl Default for VersionConfig {
@@ -125,6 +265,7 @@ impl Default for VersionConfig {
             tag_prefix: default_tag_prefix(),
             sign_tags: false,
             commit_version_files: None,
+            version_files: Vec::new(),
         }
     }
 }
@@ -767,6 +908,128 @@ subject_length = 50
         assert_eq!(cfg.tag_prefix, "v");
         assert!(!cfg.sign_tags);
         assert!(cfg.commit_version_files.is_none());
+        assert!(cfg.version_files.is_empty());
+    }
+
+    // --- [[version.files]] parsing ---
+
+    #[test]
+    fn test_version_files_plain_entry_parses() {
+        let toml = r#"
+[version]
+[[version.files]]
+path = "README.md"
+kind = "plain"
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let files = &cfg.version.unwrap().version_files;
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "README.md");
+        assert_eq!(files[0].kind, FileEntryKind::Plain);
+        assert_eq!(files[0].strategy, FileEntryStrategy::InProcess);
+        assert!(files[0].occurrences.is_none());
+    }
+
+    #[test]
+    fn test_version_files_regex_entry_parses() {
+        let toml = r#"
+[version]
+[[version.files]]
+path = "docs/install.md"
+kind = "regex"
+pattern = 'version-(?P<v>[^-]+)-'
+occurrences = "first"
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let files = &cfg.version.unwrap().version_files;
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].kind, FileEntryKind::Regex);
+        assert_eq!(files[0].pattern.as_deref(), Some("version-(?P<v>[^-]+)-"));
+        assert_eq!(
+            files[0].occurrences,
+            Some(Occurrences::Named(OccurrencesNamed::First))
+        );
+    }
+
+    #[test]
+    fn test_version_files_cargo_lock_with_command_strategy_parses() {
+        let toml = r#"
+[version]
+[[version.files]]
+path = "Cargo.lock"
+kind = "cargo-lock"
+strategy = "command"
+command = ["cargo", "update", "--workspace"]
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let files = &cfg.version.unwrap().version_files;
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].kind, FileEntryKind::CargoLock);
+        assert_eq!(files[0].strategy, FileEntryStrategy::Command);
+        let cmd = files[0].command.as_ref().unwrap();
+        assert_eq!(cmd, &["cargo", "update", "--workspace"]);
+    }
+
+    #[test]
+    fn test_version_files_multiple_entries_parse() {
+        let toml = r#"
+[version]
+[[version.files]]
+path = "Cargo.toml"
+kind = "cargo"
+
+[[version.files]]
+path = "Cargo.lock"
+kind = "cargo-lock"
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let files = &cfg.version.unwrap().version_files;
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "Cargo.toml");
+        assert_eq!(files[1].path, "Cargo.lock");
+    }
+
+    #[test]
+    fn test_version_files_auto_kind_is_default() {
+        let toml = r#"
+[version]
+[[version.files]]
+path = "some_file.txt"
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let files = &cfg.version.unwrap().version_files;
+        assert_eq!(files[0].kind, FileEntryKind::Auto);
+    }
+
+    #[test]
+    fn test_occurrences_count_parses() {
+        let toml = r#"
+[version]
+[[version.files]]
+path = "file.txt"
+kind = "plain"
+occurrences = 3
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let files = &cfg.version.unwrap().version_files;
+        assert_eq!(files[0].occurrences, Some(Occurrences::Count(3)));
+    }
+
+    #[test]
+    fn test_version_files_and_commit_version_files_coexist() {
+        let toml = r#"
+[version]
+commit_version_files = ["legacy.toml"]
+[[version.files]]
+path = "new.toml"
+kind = "cargo"
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let v = cfg.version.unwrap();
+        let cvf = v.commit_version_files.as_ref().unwrap();
+        assert_eq!(cvf.as_slice(), &["legacy.toml"]);
+        assert_eq!(v.version_files.len(), 1);
+        assert_eq!(v.version_files[0].path, "new.toml");
     }
 
     // --- CommitRules::validate body_length ---
