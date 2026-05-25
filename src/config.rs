@@ -157,7 +157,7 @@ pub enum FileEntryKind {
 
 /// The update strategy to use for a file entry.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum FileEntryStrategy {
     /// Update the file in-process (parse and edit directly).
     #[default]
@@ -256,6 +256,13 @@ pub struct VersionConfig {
     /// rest.
     #[serde(default, rename = "files")]
     pub version_files: Vec<VersionFileEntry>,
+
+    /// Global toolchain preferences.
+    ///
+    /// Override the default lockfile strategy for each supported toolchain
+    /// without having to enumerate every file explicitly.
+    #[serde(default)]
+    pub toolchains: ToolchainConfig,
 }
 
 impl Default for VersionConfig {
@@ -266,8 +273,58 @@ impl Default for VersionConfig {
             sign_tags: false,
             commit_version_files: None,
             version_files: Vec::new(),
+            toolchains: ToolchainConfig::default(),
         }
     }
+}
+
+/// Global toolchain strategy preferences.
+///
+/// Maps to the `[version.toolchains]` section in `.cocoa.toml`.
+///
+/// # Example
+/// ```toml
+/// [version.toolchains]
+/// cargo  = { lockfile = "command" }
+/// npm    = { lockfile = "skip" }
+/// ```
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct ToolchainConfig {
+    /// Cargo toolchain preferences.
+    #[serde(default)]
+    pub cargo: ToolchainEntry,
+
+    /// npm/Node.js toolchain preferences.
+    #[serde(default)]
+    pub npm: ToolchainEntry,
+
+    /// pnpm toolchain preferences.
+    #[serde(default)]
+    pub pnpm: ToolchainEntry,
+
+    /// Yarn toolchain preferences.
+    #[serde(default)]
+    pub yarn: ToolchainEntry,
+
+    /// Python (pyproject.toml) toolchain preferences.
+    #[serde(default)]
+    pub python: ToolchainEntry,
+}
+
+/// Per-toolchain configuration entry.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct ToolchainEntry {
+    /// How to update the lockfile for this toolchain.
+    ///
+    /// Possible values:
+    /// - `"in-process"` (default): parse and edit the lockfile directly.
+    /// - `"command"`: shell out to the toolchain's update command.
+    /// - `"skip"`: do not update the lockfile at all.
+    ///
+    /// When set to `"command"`, the default command for the toolchain is used
+    /// unless overridden by a `[[version.files]]` entry with an explicit
+    /// `command`.
+    pub lockfile: Option<FileEntryStrategy>,
 }
 
 fn default_version_strategy() -> VersionStrategy {
@@ -1030,6 +1087,42 @@ kind = "cargo"
         assert_eq!(cvf.as_slice(), &["legacy.toml"]);
         assert_eq!(v.version_files.len(), 1);
         assert_eq!(v.version_files[0].path, "new.toml");
+    }
+
+    // --- [version.toolchains] parsing ---
+
+    #[test]
+    fn test_toolchain_config_defaults_are_none() {
+        let cfg = VersionConfig::default();
+        assert!(cfg.toolchains.cargo.lockfile.is_none());
+        assert!(cfg.toolchains.npm.lockfile.is_none());
+        assert!(cfg.toolchains.pnpm.lockfile.is_none());
+        assert!(cfg.toolchains.yarn.lockfile.is_none());
+        assert!(cfg.toolchains.python.lockfile.is_none());
+    }
+
+    #[test]
+    fn test_toolchain_config_parses_lockfile_strategy() {
+        let toml = r#"
+[version.toolchains.cargo]
+lockfile = "command"
+
+[version.toolchains.npm]
+lockfile = "skip"
+"#;
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let tc = &cfg.version.unwrap().toolchains;
+        assert_eq!(tc.cargo.lockfile, Some(FileEntryStrategy::Command));
+        assert_eq!(tc.npm.lockfile, Some(FileEntryStrategy::Skip));
+        assert!(tc.pnpm.lockfile.is_none());
+    }
+
+    #[test]
+    fn test_toolchain_config_in_process_parses() {
+        let toml = "[version.toolchains.yarn]\nlockfile = \"in-process\"\n";
+        let cfg: Config = toml::from_str(toml).unwrap();
+        let tc = &cfg.version.unwrap().toolchains;
+        assert_eq!(tc.yarn.lockfile, Some(FileEntryStrategy::InProcess));
     }
 
     // --- CommitRules::validate body_length ---
