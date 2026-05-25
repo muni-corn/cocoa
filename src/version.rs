@@ -7,6 +7,7 @@
 pub mod calver;
 pub mod handlers;
 pub mod plain;
+pub mod regex_handler;
 pub mod semver;
 
 use std::fmt::Display;
@@ -99,6 +100,8 @@ pub enum FileKind {
     ///
     /// This matches the historical behavior of `update_version_files`.
     Plain,
+    /// Regex pattern targeting a named capture group `v`.
+    Regex,
 }
 
 /// A record of one file updated (or that would be updated) during a release.
@@ -272,29 +275,37 @@ pub fn update_version_files_rich(
 ) -> Result<Vec<UpdatedFile>, VersionError> {
     use handlers::{Handler, apply_updates};
     use plain::PlainHandler;
+    use regex_handler::RegexHandler;
 
     use crate::config::{FileEntryKind, FileEntryStrategy, Occurrences, OccurrencesNamed};
 
     let mut pending = Vec::new();
 
     for entry in entries {
-        // resolve the effective kind (auto → plain until more handlers exist)
-        let effective_kind = match &entry.kind {
-            FileEntryKind::Auto | FileEntryKind::Plain => FileEntryKind::Plain,
-            other => other.clone(),
-        };
-
         match entry.strategy {
             FileEntryStrategy::Skip => continue,
             FileEntryStrategy::Command => {
-                // command strategy is handled separately; for now skip
-                // (will be implemented in a later commit)
+                // command strategy is handled separately in the command module
+                // (implemented in a later commit)
                 continue;
             }
             FileEntryStrategy::InProcess => {}
         }
 
-        let handler_result = match effective_kind {
+        let handler_result = match &entry.kind {
+            FileEntryKind::Regex => {
+                let pattern = entry.pattern.as_deref().unwrap_or("");
+                let occurrences = entry
+                    .occurrences
+                    .clone()
+                    .unwrap_or(Occurrences::Named(OccurrencesNamed::First));
+                RegexHandler::new(&entry.path, pattern, occurrences)?.prepare(
+                    &entry.path,
+                    old_version,
+                    new_version,
+                )?
+            }
+            // plain and auto use the plain text handler
             FileEntryKind::Plain | FileEntryKind::Auto => {
                 let occurrences = entry
                     .occurrences
@@ -302,8 +313,8 @@ pub fn update_version_files_rich(
                     .unwrap_or(Occurrences::Named(OccurrencesNamed::All));
                 PlainHandler { occurrences }.prepare(&entry.path, old_version, new_version)?
             }
-            // all other kinds fall through to plain for now; they will be
-            // replaced by proper handlers in subsequent commits
+            // structured handlers fall through to plain for now; each will be
+            // replaced by its own handler in subsequent commits
             _ => PlainHandler::default().prepare(&entry.path, old_version, new_version)?,
         };
 
