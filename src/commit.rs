@@ -277,7 +277,8 @@ fn parse_footers(footer_lines: &[&str]) -> HashMap<String, String> {
 /// ```rust
 /// use cocoa::commit::strip_git_context;
 ///
-/// let raw = "feat: add cocoa\n\n# Please enter the commit message\n# On branch main\n# ------------------------ >8 ------------------------\ndiff --git a/foo b/foo\n";
+/// let raw = "feat: add cocoa\n\n# Please enter the commit message\n# On branch main\n# \
+///            ------------------------ >8 ------------------------\ndiff --git a/foo b/foo\n";
 /// assert_eq!(strip_git_context(raw), "feat: add cocoa");
 /// ```
 pub fn strip_git_context(message: &str) -> String {
@@ -411,7 +412,11 @@ index 4bf40a1..88b9714 100644
         );
         assert_eq!(
             commit.body,
-            Some("Fixes a problem where cocoa would count the entirety of a commit text file as its body.".to_string())
+            Some(
+                "Fixes a problem where cocoa would count the entirety of a commit text file as \
+                 its body."
+                    .to_string()
+            )
         );
     }
 
@@ -466,17 +471,25 @@ being done by `cargo test`
         assert_eq!(commit.scope, None);
         assert_eq!(
             commit.subject,
-            "test really long messages that break up over multiple lines and are really really annoying to deal with"
+            "test really long messages that break up over multiple lines and are really really \
+             annoying to deal with"
         );
         assert_eq!(
             commit.footers.get("BREAKING CHANGE"),
             Some(
-                &"this footer value is really really really long and hopefully won't actually break the stuff we so lovingly programmed into cocoa because i put a lot of passion into my work and i will be very sad when tests fail".to_string()
+                &"this footer value is really really really long and hopefully won't actually \
+                  break the stuff we so lovingly programmed into cocoa because i put a lot of \
+                  passion into my work and i will be very sad when tests fail"
+                    .to_string()
             )
         );
         assert_eq!(
             commit.footers.get("Reviewed-by"),
-            Some(&"municorn himself, probably, though honestly most of the work is just being done by `cargo test`".to_string())
+            Some(
+                &"municorn himself, probably, though honestly most of the work is just being done \
+                  by `cargo test`"
+                    .to_string()
+            )
         );
     }
 
@@ -526,13 +539,16 @@ being done by `cargo test`
 
     #[test]
     fn test_strip_git_context_strips_comment_lines() {
-        let msg = "fix: correct typo\n\n# On branch main\n# Changes to be committed:\n#\tmodified: foo.rs";
+        let msg = "fix: correct typo\n\n# On branch main\n# Changes to be \
+                   committed:\n#\tmodified: foo.rs";
         assert_eq!(strip_git_context(msg), "fix: correct typo");
     }
 
     #[test]
     fn test_strip_git_context_strips_scissors_and_diff() {
-        let msg = "feat: add cocoa\n\n# ------------------------ >8 ------------------------\ndiff --git a/foo b/foo\nindex abc..def 100644\n--- a/foo\n+++ b/foo";
+        let msg = "feat: add cocoa\n\n# ------------------------ >8 \
+                   ------------------------\ndiff --git a/foo b/foo\nindex abc..def 100644\n--- \
+                   a/foo\n+++ b/foo";
         assert_eq!(strip_git_context(msg), "feat: add cocoa");
     }
 
@@ -576,7 +592,8 @@ being done by `cargo test`
         );
         assert_eq!(
             strip_git_context(msg),
-            "fix(parser): correct off-by-one error\n\nThe tokenizer was counting from 1 instead of 0."
+            "fix(parser): correct off-by-one error\n\nThe tokenizer was counting from 1 instead \
+             of 0."
         );
     }
 

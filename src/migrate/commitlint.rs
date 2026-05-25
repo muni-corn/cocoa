@@ -56,9 +56,9 @@ pub fn parse(path: &Path) -> Result<Config, MigrateError> {
     // reject JS/TS; we can't statically evaluate these
     if matches!(ext.as_str(), "js" | "cjs" | "mjs" | "ts") {
         return Err(MigrateError::Parse(format!(
-            "'{}' is a JavaScript/TypeScript file. cocoa cannot statically parse it.\n\
-             export your config as JSON (.commitlintrc.json) or YAML (.commitlintrc.yaml) \
-             and run `cocoa migrate` again.",
+            "'{}' is a JavaScript/TypeScript file. cocoa cannot statically parse it.\nexport your \
+             config as JSON (.commitlintrc.json) or YAML (.commitlintrc.yaml) and run `cocoa \
+             migrate` again.",
             path.display()
         )));
     }
@@ -222,7 +222,8 @@ mod tests {
 
     #[test]
     fn test_parse_yaml_type_enum() {
-        let content = "rules:\n  type-enum:\n    - 2\n    - always\n    - [feat, fix, docs]\n  header-max-length:\n    - 2\n    - always\n    - 100\n";
+        let content = "rules:\n  type-enum:\n    - 2\n    - always\n    - [feat, fix, docs]\n  \
+                       header-max-length:\n    - 2\n    - always\n    - 100\n";
         let f = write_temp(content, ".yaml");
         let config = parse(f.path()).unwrap();
         assert!(config.commit.types.contains("feat"));

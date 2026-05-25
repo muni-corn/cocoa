@@ -128,8 +128,8 @@ fn parse_js_entries(content: &str, path: &Path) -> Result<Vec<TypeEntry>, Migrat
 
     if entries.is_empty() {
         return Err(MigrateError::Parse(format!(
-            "no commit type definitions found in '{}'\n\
-             expected a pattern like: {{ type: 'feat', section: 'Features' }}",
+            "no commit type definitions found in '{}'\nexpected a pattern like: {{ type: 'feat', \
+             section: 'Features' }}",
             path.display()
         )));
     }

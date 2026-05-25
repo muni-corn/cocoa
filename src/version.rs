@@ -60,15 +60,11 @@ pub enum BumpType {
 
 impl Display for BumpType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                BumpType::Major => "major",
-                BumpType::Minor => "minor",
-                BumpType::Patch => "patch",
-            }
-        )
+        write!(f, "{}", match self {
+            BumpType::Major => "major",
+            BumpType::Minor => "minor",
+            BumpType::Patch => "patch",
+        })
     }
 }
 

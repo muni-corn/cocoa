@@ -664,14 +664,8 @@ mod tests {
             index.write_tree().unwrap()
         };
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "chore: initial commit",
-            &tree,
-            &[],
-        )
+        repo.commit(Some("HEAD"), &sig, &sig, "chore: initial commit", &tree, &[
+        ])
         .unwrap();
 
         (dir, path)
@@ -845,14 +839,9 @@ mod tests {
         index.add_path(std::path::Path::new("second.txt")).unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "feat: second commit",
-            &tree,
-            &[&head],
-        )
+        repo.commit(Some("HEAD"), &sig, &sig, "feat: second commit", &tree, &[
+            &head,
+        ])
         .unwrap();
 
         let ops = Git2Ops::open_at(&path).unwrap();
@@ -931,14 +920,9 @@ mod tests {
         let tree = repo.find_tree(tree_id).unwrap();
         let sig = git2::Signature::now("Test", "test@example.com").unwrap();
         let parent = repo.head().unwrap().peel_to_commit().unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "chore: add file",
-            &tree,
-            &[&parent],
-        )
+        repo.commit(Some("HEAD"), &sig, &sig, "chore: add file", &tree, &[
+            &parent,
+        ])
         .unwrap();
 
         // now modify the file and stage it

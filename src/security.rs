@@ -109,9 +109,8 @@ mod tests {
 
     #[test]
     fn test_scan_diff_detects_aws_key() {
-        let diff = "diff --git a/config.env b/config.env\n\
-            +++ b/config.env\n\
-            +AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n";
+        let diff = "diff --git a/config.env b/config.env\n+++ \
+                    b/config.env\n+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n";
 
         let matches = scan_diff(diff);
         assert!(
@@ -124,10 +123,8 @@ mod tests {
 
     #[test]
     fn test_scan_diff_ignores_removed_lines() {
-        let diff = "diff --git a/config.env b/config.env\n\
-            --- a/config.env\n\
-            +++ b/config.env\n\
-            -AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n";
+        let diff = "diff --git a/config.env b/config.env\n--- a/config.env\n+++ \
+                    b/config.env\n-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n";
 
         let matches = scan_diff(diff);
         assert!(matches.is_empty(), "should not flag removed lines");
@@ -181,20 +178,15 @@ mod tests {
 
     #[test]
     fn test_scan_diff_no_matches_for_clean_diff() {
-        let diff = "diff --git a/src/lib.rs b/src/lib.rs\n\
-            +++ b/src/lib.rs\n\
-            +pub fn hello() -> &'static str {\n\
-            +    \"hello\"\n\
-            +}\n";
+        let diff = "diff --git a/src/lib.rs b/src/lib.rs\n+++ b/src/lib.rs\n+pub fn hello() -> \
+                    &'static str {\n+    \"hello\"\n+}\n";
         let matches = scan_diff(diff);
         assert!(matches.is_empty(), "clean diff should produce no matches");
     }
 
     #[test]
     fn test_scan_diff_reports_correct_line_number() {
-        let diff = "+clean line\n\
-            +another clean line\n\
-            +AWS_KEY=AKIAIOSFODNN7EXAMPLE\n";
+        let diff = "+clean line\n+another clean line\n+AWS_KEY=AKIAIOSFODNN7EXAMPLE\n";
         let matches = scan_diff(diff);
         let aws = matches
             .iter()

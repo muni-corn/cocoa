@@ -36,10 +36,11 @@ fn make_git_repo() -> (TempDir, PathBuf) {
     let readme = path.join("README.md");
     fs::write(&readme, "# test\n").unwrap();
 
-    for args in [
-        vec!["add", "."],
-        vec!["commit", "-m", "chore: initial commit"],
-    ] {
+    for args in [vec!["add", "."], vec![
+        "commit",
+        "-m",
+        "chore: initial commit",
+    ]] {
         std::process::Command::new("git")
             .args(&args)
             .current_dir(path)

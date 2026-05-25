@@ -61,7 +61,9 @@ pub mod responses {
     pub const WITH_SCOPE: &str = "feat(api): add new endpoint";
     pub const WITH_BREAKING: &str = "feat!: breaking change\n\nBREAKING CHANGE: removed old api";
     pub const INVALID: &str = "bad commit message format";
-    pub const LONG_SUBJECT: &str = "feat: this is a very long subject line that exceeds the maximum allowed length and should trigger a validation warning or error";
+    pub const LONG_SUBJECT: &str = "feat: this is a very long subject line that exceeds the \
+                                    maximum allowed length and should trigger a validation \
+                                    warning or error";
 }
 
 #[cfg(test)]

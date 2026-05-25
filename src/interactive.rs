@@ -329,10 +329,8 @@ mod tests {
             issue_refs: Some("Closes #200".into()),
         };
         let msg = parts.to_message();
-        let expected = "feat(payments)!: migrate to stripe v3\n\n\
-                        Replaces the legacy payment module.\n\n\
-                        BREAKING CHANGE: old payment API removed\n\
-                        Closes #200";
+        let expected = "feat(payments)!: migrate to stripe v3\n\nReplaces the legacy payment \
+                        module.\n\nBREAKING CHANGE: old payment API removed\nCloses #200";
         assert_eq!(msg, expected);
     }
 
@@ -530,8 +528,8 @@ pub(crate) mod prompts {
         let body = Editor::new()
             .require_save(true)
             .edit(
-                "# Enter commit body above. Lines starting with '#' are ignored.\n\
-                 # Save and close the editor to continue. Leave empty to skip.",
+                "# Enter commit body above. Lines starting with '#' are ignored.\n# Save and \
+                 close the editor to continue. Leave empty to skip.",
             )
             .map_err(|e| InteractiveError::Prompt(e.to_string()))?;
 
