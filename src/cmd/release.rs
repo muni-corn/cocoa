@@ -74,6 +74,18 @@ pub fn handle_release(
                 version::BumpType::Patch => "patch",
             };
             if json_output {
+                // serialize updated_files as an array of objects with path and kind
+                let files_json: Vec<serde_json::Value> = outcome
+                    .updated_files
+                    .iter()
+                    .map(|f| {
+                        serde_json::json!({
+                            "path": f.path,
+                            "kind": format!("{:?}", f.kind).to_lowercase(),
+                            "replacements": f.replacements,
+                        })
+                    })
+                    .collect();
                 let out = serde_json::json!({
                     "success": true,
                     "previous_version": outcome.previous_version,
@@ -81,7 +93,7 @@ pub fn handle_release(
                     "tag_name": outcome.tag_name,
                     "bump_type": bump_label,
                     "dry_run": dry_run,
-                    "updated_files": outcome.updated_files,
+                    "updated_files": files_json,
                     "changelog_path": outcome.changelog_path,
                 });
                 println!("{}", serde_json::to_string_pretty(&out)?);
@@ -95,7 +107,7 @@ pub fn handle_release(
                 if !outcome.updated_files.is_empty() {
                     print_info(t!("main.release.dry_run_update_files"));
                     for f in &outcome.updated_files {
-                        print_info(t!("main.release.dry_run_file", file = f));
+                        print_info(t!("main.release.dry_run_file", file = f.path));
                     }
                 }
                 if !skip_changelog {
@@ -121,7 +133,7 @@ pub fn handle_release(
                 ));
                 if !outcome.updated_files.is_empty() {
                     for f in &outcome.updated_files {
-                        print_info(t!("main.release.updated_file", file = f));
+                        print_info(t!("main.release.updated_file", file = f.path));
                     }
                 }
                 if !skip_changelog {

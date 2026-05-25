@@ -15,11 +15,11 @@ use thiserror::Error;
 use crate::{
     changelog::{self, ChangelogError, OutputFormat},
     cmd::release::ReleaseArgs,
-    config::{ChangelogConfig, VersionConfig},
+    config::{ChangelogConfig, FileEntryKind, FileEntryStrategy, VersionConfig, VersionFileEntry},
     generate::GenerateError,
     git_ops::GitOperations,
     tag::{self, TagError},
-    version::{self, BumpType, VersionError},
+    version::{self, BumpType, UpdatedFile, VersionError},
 };
 
 /// Errors from the release orchestration.
@@ -67,8 +67,9 @@ pub struct ReleaseOutcome {
     pub tag_name: String,
     /// Changelog file path that was written (or would be written).
     pub changelog_path: String,
-    /// Version files that were updated (or would be updated).
-    pub updated_files: Vec<String>,
+    /// Version files that were updated (or would be updated), with handler
+    /// details for each file.
+    pub updated_files: Vec<UpdatedFile>,
     /// Bump type that was applied.
     pub bump_type: BumpType,
 }
@@ -124,14 +125,55 @@ pub fn execute<G: GitOperations>(
     let tag_name = format!("{}{}", version_config.tag_prefix, new_version);
 
     // ── step 5: update version files ─────────────────────────────────────────
-    let files: Vec<String> = version_config
+    // merge legacy commit_version_files with [[version.files]] entries.
+    // rich entries take precedence; legacy paths that overlap are skipped.
+    let legacy_paths: Vec<String> = version_config
         .commit_version_files
         .clone()
         .unwrap_or_default();
 
-    if !files.is_empty() && !dry_run {
-        version::update_version_files(&files, &old_str, &new_str)?;
-    }
+    let legacy_entries: Vec<VersionFileEntry> = legacy_paths
+        .iter()
+        .map(|p| VersionFileEntry {
+            path: p.clone(),
+            kind: FileEntryKind::Auto,
+            strategy: FileEntryStrategy::InProcess,
+            command: None,
+            pattern: None,
+            occurrences: None,
+        })
+        .collect();
+
+    let rich_paths: std::collections::HashSet<String> = version_config
+        .version_files
+        .iter()
+        .map(|e| e.path.clone())
+        .collect();
+    let filtered_legacy: Vec<VersionFileEntry> = legacy_entries
+        .into_iter()
+        .filter(|e| !rich_paths.contains(&e.path))
+        .collect();
+
+    let all_entries: Vec<VersionFileEntry> = version_config
+        .version_files
+        .iter()
+        .cloned()
+        .chain(filtered_legacy)
+        .collect();
+
+    let updated_files: Vec<UpdatedFile> = if !all_entries.is_empty() && !dry_run {
+        version::update_version_files_rich(&all_entries, &old_str, &new_str)?
+    } else {
+        // dry-run: report what would be updated without touching disk
+        all_entries
+            .iter()
+            .map(|e| UpdatedFile {
+                path: e.path.clone(),
+                kind: version::FileKind::Plain,
+                replacements: 0,
+            })
+            .collect()
+    };
 
     // ── step 6: generate and write changelog ──────────────────────────────────
     let changelog_path = changelog_config.output_file.clone();
@@ -149,12 +191,11 @@ pub fn execute<G: GitOperations>(
 
     // ── step 7: stage files and create version commit ─────────────────────────
     if !args.skip_commit && !dry_run {
-        // stage version files and changelog with git add
         let repo_root = ops
             .get_repo_root()
             .map_err(|e| ReleaseError::Git(e.to_string()))?;
 
-        let mut to_stage: Vec<String> = files.clone();
+        let mut to_stage: Vec<String> = updated_files.iter().map(|f| f.path.clone()).collect();
         if !args.skip_changelog {
             to_stage.push(changelog_path.clone());
         }
@@ -184,7 +225,7 @@ pub fn execute<G: GitOperations>(
         new_version: new_str,
         tag_name,
         changelog_path,
-        updated_files: files,
+        updated_files,
         bump_type,
     })
 }

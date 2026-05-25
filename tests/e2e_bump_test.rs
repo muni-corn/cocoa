@@ -156,7 +156,11 @@ fn test_bump_invalid_type_exits_with_error() {
 #[test]
 fn test_bump_dry_run_does_not_modify_files() {
     let repo = TestRepo::new();
-    repo.create_commit("Cargo.toml", "version = \"1.0.0\"\n", "feat: initial");
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"c\"\nversion = \"1.0.0\"\n",
+        "feat: initial",
+    );
     repo.create_annotated_tag("v1.0.0", "release");
     repo.create_commit("x.txt", "x", "feat: add thing");
 
@@ -184,7 +188,12 @@ fn test_bump_dry_run_does_not_modify_files() {
 #[test]
 fn test_bump_updates_configured_file() {
     let repo = TestRepo::new();
-    repo.create_commit("Cargo.toml", "version = \"0.1.0\"\n", "feat: initial");
+    // use a proper [package] table so the CargoManifestHandler works correctly
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"\n",
+        "feat: initial",
+    );
     repo.create_annotated_tag("v0.1.0", "first release");
     repo.create_commit("new.txt", "new", "feat: add thing");
 
@@ -210,10 +219,15 @@ fn test_bump_updates_configured_file() {
 #[test]
 fn test_bump_updates_multiple_files() {
     let repo = TestRepo::new();
-    repo.create_commit("Cargo.toml", "version = \"1.0.0\"\n", "feat: initial");
+    // use a proper [package] table so the CargoManifestHandler works correctly
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"my-crate\"\nversion = \"1.0.0\"\n",
+        "feat: initial",
+    );
     repo.create_commit(
         "package.json",
-        "{\"version\":\"1.0.0\"}\n",
+        "{\n  \"name\": \"my-app\",\n  \"version\": \"1.0.0\"\n}\n",
         "chore: add package.json",
     );
     repo.create_annotated_tag("v1.0.0", "release");
@@ -255,7 +269,11 @@ fn test_bump_no_configured_files_warns_and_succeeds() {
 #[test]
 fn test_bump_dry_run_lists_target_files() {
     let repo = TestRepo::new();
-    repo.create_commit("Cargo.toml", "version = \"2.0.0\"\n", "feat: initial");
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"c\"\nversion = \"2.0.0\"\n",
+        "feat: initial",
+    );
     repo.create_annotated_tag("v2.0.0", "release");
     repo.create_commit("x.txt", "x", "feat: new thing");
 
@@ -273,7 +291,11 @@ fn test_bump_dry_run_lists_target_files() {
 #[test]
 fn test_bump_json_dry_run_output() {
     let repo = TestRepo::new();
-    repo.create_commit("Cargo.toml", "version = \"1.0.0\"\n", "feat: initial");
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"c\"\nversion = \"1.0.0\"\n",
+        "feat: initial",
+    );
     repo.create_annotated_tag("v1.0.0", "release");
     repo.create_commit("x.txt", "x", "feat: new feature");
 
