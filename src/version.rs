@@ -8,6 +8,7 @@ pub mod calver;
 pub mod cargo_lock;
 pub mod cargo_manifest;
 pub mod handlers;
+pub mod npm;
 pub mod plain;
 pub mod regex_handler;
 pub mod semver;
@@ -108,6 +109,10 @@ pub enum FileKind {
     CargoManifest,
     /// Workspace-aware update of a Cargo.lock lockfile.
     CargoLock,
+    /// Structured update of a package.json `"version"` field.
+    NpmManifest,
+    /// Root-entry-only update of a package-lock.json lockfile.
+    NpmLock,
 }
 
 /// A record of one file updated (or that would be updated) during a release.
@@ -282,6 +287,7 @@ pub fn update_version_files_rich(
     use cargo_lock::CargoLockHandler;
     use cargo_manifest::CargoManifestHandler;
     use handlers::{Handler, apply_updates};
+    use npm::{NpmLockHandler, NpmManifestHandler};
     use plain::PlainHandler;
     use regex_handler::RegexHandler;
 
@@ -306,6 +312,12 @@ pub fn update_version_files_rich(
             }
             FileEntryKind::CargoLock => {
                 CargoLockHandler::default().prepare(&entry.path, old_version, new_version)?
+            }
+            FileEntryKind::Npm => {
+                NpmManifestHandler.prepare(&entry.path, old_version, new_version)?
+            }
+            FileEntryKind::NpmLock => {
+                NpmLockHandler.prepare(&entry.path, old_version, new_version)?
             }
             FileEntryKind::Regex => {
                 let pattern = entry.pattern.as_deref().unwrap_or("");
