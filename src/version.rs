@@ -5,6 +5,7 @@
 //! version file updates.
 
 pub mod calver;
+pub mod cargo_manifest;
 pub mod handlers;
 pub mod plain;
 pub mod regex_handler;
@@ -102,6 +103,10 @@ pub enum FileKind {
     Plain,
     /// Regex pattern targeting a named capture group `v`.
     Regex,
+    /// Structured update of a Cargo.toml `[package].version` field.
+    CargoManifest,
+    /// Workspace-aware update of a Cargo.lock lockfile.
+    CargoLock,
 }
 
 /// A record of one file updated (or that would be updated) during a release.
@@ -273,6 +278,7 @@ pub fn update_version_files_rich(
     old_version: &str,
     new_version: &str,
 ) -> Result<Vec<UpdatedFile>, VersionError> {
+    use cargo_manifest::CargoManifestHandler;
     use handlers::{Handler, apply_updates};
     use plain::PlainHandler;
     use regex_handler::RegexHandler;
@@ -293,6 +299,9 @@ pub fn update_version_files_rich(
         }
 
         let handler_result = match &entry.kind {
+            FileEntryKind::Cargo => {
+                CargoManifestHandler.prepare(&entry.path, old_version, new_version)?
+            }
             FileEntryKind::Regex => {
                 let pattern = entry.pattern.as_deref().unwrap_or("");
                 let occurrences = entry
@@ -313,8 +322,8 @@ pub fn update_version_files_rich(
                     .unwrap_or(Occurrences::Named(OccurrencesNamed::All));
                 PlainHandler { occurrences }.prepare(&entry.path, old_version, new_version)?
             }
-            // structured handlers fall through to plain for now; each will be
-            // replaced by its own handler in subsequent commits
+            // remaining structured handlers fall through to plain for now;
+            // each will get its own handler in subsequent commits
             _ => PlainHandler::default().prepare(&entry.path, old_version, new_version)?,
         };
 
