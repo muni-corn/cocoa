@@ -7,6 +7,7 @@
 pub mod calver;
 pub mod cargo_lock;
 pub mod cargo_manifest;
+pub mod command;
 pub mod handlers;
 pub mod npm;
 pub mod plain;
@@ -113,6 +114,12 @@ pub enum FileKind {
     NpmManifest,
     /// Root-entry-only update of a package-lock.json lockfile.
     NpmLock,
+    /// pnpm lockfile update (typically via command strategy).
+    PnpmLock,
+    /// Yarn lockfile update (typically via command strategy).
+    YarnLock,
+    /// Structured update of a pyproject.toml version field.
+    Pyproject,
 }
 
 /// A record of one file updated (or that would be updated) during a release.
@@ -286,6 +293,7 @@ pub fn update_version_files_rich(
 ) -> Result<Vec<UpdatedFile>, VersionError> {
     use cargo_lock::CargoLockHandler;
     use cargo_manifest::CargoManifestHandler;
+    use command::run_command;
     use handlers::{Handler, apply_updates};
     use npm::{NpmLockHandler, NpmManifestHandler};
     use plain::PlainHandler;
@@ -296,14 +304,18 @@ pub fn update_version_files_rich(
     let mut pending = Vec::new();
 
     for entry in entries {
-        match entry.strategy {
-            FileEntryStrategy::Skip => continue,
-            FileEntryStrategy::Command => {
-                // command strategy is handled separately in the command module
-                // (implemented in a later commit)
-                continue;
-            }
-            FileEntryStrategy::InProcess => {}
+        if entry.strategy == FileEntryStrategy::Skip {
+            continue;
+        }
+
+        if entry.strategy == FileEntryStrategy::Command {
+            // resolve the FileKind from the entry kind so the UpdatedFile
+            // record carries the correct variant
+            let kind = entry_kind_to_file_kind(&entry.kind);
+            let cmd = entry.command.as_deref().unwrap_or(&[]);
+            let update = run_command(&entry.path, cmd, kind, None)?;
+            pending.push(update);
+            continue;
         }
 
         let handler_result = match &entry.kind {
@@ -350,6 +362,22 @@ pub fn update_version_files_rich(
     }
 
     apply_updates(pending)
+}
+
+/// Map a `FileEntryKind` config value to the corresponding `FileKind` enum.
+fn entry_kind_to_file_kind(kind: &crate::config::FileEntryKind) -> FileKind {
+    use crate::config::FileEntryKind;
+    match kind {
+        FileEntryKind::Cargo => FileKind::CargoManifest,
+        FileEntryKind::CargoLock => FileKind::CargoLock,
+        FileEntryKind::Npm => FileKind::NpmManifest,
+        FileEntryKind::NpmLock => FileKind::NpmLock,
+        FileEntryKind::PnpmLock => FileKind::PnpmLock,
+        FileEntryKind::YarnLock => FileKind::YarnLock,
+        FileEntryKind::Pyproject => FileKind::Pyproject,
+        FileEntryKind::Regex => FileKind::Regex,
+        FileEntryKind::Plain | FileEntryKind::Auto => FileKind::Plain,
+    }
 }
 
 #[cfg(test)]
