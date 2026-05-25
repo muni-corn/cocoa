@@ -297,6 +297,7 @@ dependencies = [
  "dialoguer",
  "genai",
  "git2",
+ "glob",
  "minijinja",
  "nom 8.0.0",
  "predicates",

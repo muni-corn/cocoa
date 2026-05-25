@@ -5,6 +5,7 @@
 //! version file updates.
 
 pub mod calver;
+pub mod cargo_lock;
 pub mod cargo_manifest;
 pub mod handlers;
 pub mod plain;
@@ -278,6 +279,7 @@ pub fn update_version_files_rich(
     old_version: &str,
     new_version: &str,
 ) -> Result<Vec<UpdatedFile>, VersionError> {
+    use cargo_lock::CargoLockHandler;
     use cargo_manifest::CargoManifestHandler;
     use handlers::{Handler, apply_updates};
     use plain::PlainHandler;
@@ -301,6 +303,9 @@ pub fn update_version_files_rich(
         let handler_result = match &entry.kind {
             FileEntryKind::Cargo => {
                 CargoManifestHandler.prepare(&entry.path, old_version, new_version)?
+            }
+            FileEntryKind::CargoLock => {
+                CargoLockHandler::default().prepare(&entry.path, old_version, new_version)?
             }
             FileEntryKind::Regex => {
                 let pattern = entry.pattern.as_deref().unwrap_or("");

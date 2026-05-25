@@ -34,6 +34,7 @@ semver = "1.0.27"
 rust-i18n = "3.1.5"
 serde_yml = "0.0.12"
 toml_edit = "0.25.11"
+glob = "0.3.3"
 
 [dev-dependencies]
 assert_cmd = "2.1.1"
