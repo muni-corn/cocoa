@@ -5,9 +5,11 @@
 //! version file updates.
 
 pub mod calver;
+pub mod handlers;
+pub mod plain;
 pub mod semver;
 
-use std::{fmt::Display, fs};
+use std::fmt::Display;
 
 pub use calver::{CalVer, CalVerError};
 use clap::ValueEnum;
@@ -45,6 +47,46 @@ pub enum VersionError {
     /// The version string was not found in a target file.
     #[error("version string '{version}' not found in '{path}'")]
     NotFound { version: String, path: String },
+
+    /// A regex pattern did not match any text in the file.
+    #[error("pattern '{pattern}' matched nothing in '{path}'")]
+    PatternNoMatch { pattern: String, path: String },
+
+    /// A regex pattern is missing the required named capture group `v`.
+    #[error(
+        "pattern '{pattern}' in '{path}' must contain a named capture group `v` (e.g. \
+         `(?P<v>...)`)"
+    )]
+    PatternMissingGroup { pattern: String, path: String },
+
+    /// A regex pattern could not be compiled.
+    #[error("invalid pattern '{pattern}' in '{path}': {source}")]
+    PatternInvalid {
+        pattern: String,
+        path: String,
+        #[source]
+        source: regex::Error,
+    },
+
+    /// A TOML or JSON manifest could not be parsed.
+    #[error("could not parse '{path}': {message}")]
+    ManifestParse { path: String, message: String },
+
+    /// A required field was not found in a manifest.
+    #[error("'{field}' not found in '{path}'")]
+    ManifestFieldMissing { field: String, path: String },
+
+    /// A toolchain command was not found on PATH.
+    #[error("toolchain command '{tool}' not found on PATH; {hint}")]
+    ToolchainNotFound { tool: String, hint: String },
+
+    /// A toolchain command exited with a non-zero status.
+    #[error("command '{command}' failed with status {status}:\n{stderr}")]
+    ToolchainFailed {
+        command: String,
+        status: i32,
+        stderr: String,
+    },
 }
 
 /// The kind of file handler used to update a version.
@@ -190,49 +232,87 @@ pub fn detect_latest_tag(
 ///
 /// Returns `VersionError::NotFound` if `old_version` does not appear in any
 /// of the target files.
+///
+/// This function dispatches to the appropriate handler for each file.
+/// Plain-text files use [`plain::PlainHandler`], which matches the historical
+/// behavior of replacing every occurrence of the version string.
 pub fn update_version_files(
     files: &[String],
     old_version: &str,
     new_version: &str,
 ) -> Result<(), VersionError> {
-    // phase 1: read every file and compute the updated content
-    let mut updates: Vec<(String, String, String)> = Vec::new(); // (path, original, updated)
+    use handlers::{Handler, apply_updates};
+    use plain::PlainHandler;
 
+    // phase 1: compute all updates via their handlers
+    let mut pending = Vec::new();
     for path in files {
-        let original = fs::read_to_string(path).map_err(|e| VersionError::File {
-            path: path.clone(),
-            source: e,
-        })?;
-
-        if !original.contains(old_version) {
-            return Err(VersionError::NotFound {
-                version: old_version.to_string(),
-                path: path.clone(),
-            });
+        let handler = PlainHandler::default();
+        if let Some(update) = handler.prepare(path, old_version, new_version)? {
+            pending.push(update);
         }
-
-        let updated = original.replace(old_version, new_version);
-        updates.push((path.clone(), original, updated));
     }
 
-    // phase 2: write atomically; roll back on the first failure
-    let mut written: Vec<(String, String)> = Vec::new(); // (path, original) for rollback
-
-    for (path, original, updated) in &updates {
-        if let Err(e) = fs::write(path, updated) {
-            // restore files that were already written
-            for (p, orig) in &written {
-                let _ = fs::write(p, orig);
-            }
-            return Err(VersionError::File {
-                path: path.clone(),
-                source: e,
-            });
-        }
-        written.push((path.clone(), original.clone()));
-    }
-
+    // phase 2: write atomically with rollback
+    apply_updates(pending)?;
     Ok(())
+}
+
+/// Update version files using rich per-file entries from `[[version.files]]`.
+///
+/// Each entry specifies a path and an optional handler kind, strategy, and
+/// extra options. Falls back to [`update_version_files`] for entries whose
+/// kind resolves to `Plain`.
+///
+/// Returns a list of [`UpdatedFile`] records describing each update applied.
+pub fn update_version_files_rich(
+    entries: &[crate::config::VersionFileEntry],
+    old_version: &str,
+    new_version: &str,
+) -> Result<Vec<UpdatedFile>, VersionError> {
+    use handlers::{Handler, apply_updates};
+    use plain::PlainHandler;
+
+    use crate::config::{FileEntryKind, FileEntryStrategy, Occurrences, OccurrencesNamed};
+
+    let mut pending = Vec::new();
+
+    for entry in entries {
+        // resolve the effective kind (auto → plain until more handlers exist)
+        let effective_kind = match &entry.kind {
+            FileEntryKind::Auto | FileEntryKind::Plain => FileEntryKind::Plain,
+            other => other.clone(),
+        };
+
+        match entry.strategy {
+            FileEntryStrategy::Skip => continue,
+            FileEntryStrategy::Command => {
+                // command strategy is handled separately; for now skip
+                // (will be implemented in a later commit)
+                continue;
+            }
+            FileEntryStrategy::InProcess => {}
+        }
+
+        let handler_result = match effective_kind {
+            FileEntryKind::Plain | FileEntryKind::Auto => {
+                let occurrences = entry
+                    .occurrences
+                    .clone()
+                    .unwrap_or(Occurrences::Named(OccurrencesNamed::All));
+                PlainHandler { occurrences }.prepare(&entry.path, old_version, new_version)?
+            }
+            // all other kinds fall through to plain for now; they will be
+            // replaced by proper handlers in subsequent commits
+            _ => PlainHandler::default().prepare(&entry.path, old_version, new_version)?,
+        };
+
+        if let Some(update) = handler_result {
+            pending.push(update);
+        }
+    }
+
+    apply_updates(pending)
 }
 
 #[cfg(test)]
