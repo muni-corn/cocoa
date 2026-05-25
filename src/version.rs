@@ -47,6 +47,29 @@ pub enum VersionError {
     NotFound { version: String, path: String },
 }
 
+/// The kind of file handler used to update a version.
+///
+/// Determines how cocoa replaces the version string in a file — from a
+/// fully naive plain-text replace up to structured TOML or JSON parsing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileKind {
+    /// Plain text: all occurrences of the old version string are replaced.
+    ///
+    /// This matches the historical behavior of `update_version_files`.
+    Plain,
+}
+
+/// A record of one file updated (or that would be updated) during a release.
+#[derive(Debug, Clone)]
+pub struct UpdatedFile {
+    /// Relative or absolute path of the file.
+    pub path: String,
+    /// Handler kind that was used.
+    pub kind: FileKind,
+    /// Number of textual replacements made (0 for command-driven updates).
+    pub replacements: usize,
+}
+
 /// The type of bump to apply to a version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum BumpType {
