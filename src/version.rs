@@ -13,6 +13,7 @@ pub mod handlers;
 pub mod npm;
 pub mod plain;
 pub mod pnpm;
+pub mod pyproject;
 pub mod regex_handler;
 pub mod semver;
 
@@ -306,6 +307,7 @@ pub fn update_version_files_rich(
     use npm::{NpmLockHandler, NpmManifestHandler};
     use plain::PlainHandler;
     use pnpm::{update_pnpm_lock, update_yarn_lock};
+    use pyproject::PyprojectHandler;
     use regex_handler::RegexHandler;
 
     use crate::config::{FileEntryKind, FileEntryStrategy, Occurrences, OccurrencesNamed};
@@ -387,9 +389,12 @@ pub fn update_version_files_rich(
                 pending.push(update);
                 continue;
             }
-            // pyproject: not yet implemented; fall back to plain until
-            // the pyproject handler lands in commit 12
-            FileEntryKind::Pyproject | FileEntryKind::Auto => {
+            FileEntryKind::Pyproject => {
+                PyprojectHandler.prepare(&entry.path, old_version, new_version)?
+            }
+            // auto should never reach here (already resolved above), but
+            // handle it defensively with plain
+            FileEntryKind::Auto => {
                 PlainHandler::default().prepare(&entry.path, old_version, new_version)?
             }
         };
