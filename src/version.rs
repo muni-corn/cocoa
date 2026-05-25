@@ -12,6 +12,7 @@ pub mod detect;
 pub mod handlers;
 pub mod npm;
 pub mod plain;
+pub mod pnpm;
 pub mod regex_handler;
 pub mod semver;
 
@@ -304,6 +305,7 @@ pub fn update_version_files_rich(
     use handlers::{Handler, apply_updates};
     use npm::{NpmLockHandler, NpmManifestHandler};
     use plain::PlainHandler;
+    use pnpm::{update_pnpm_lock, update_yarn_lock};
     use regex_handler::RegexHandler;
 
     use crate::config::{FileEntryKind, FileEntryStrategy, Occurrences, OccurrencesNamed};
@@ -370,12 +372,24 @@ pub fn update_version_files_rich(
                     .unwrap_or(Occurrences::Named(OccurrencesNamed::All));
                 PlainHandler { occurrences }.prepare(&entry.path, old_version, new_version)?
             }
-            // pnpm-lock, yarn-lock, pyproject: not yet implemented in-process;
-            // fall back to plain until their handlers land in later commits
-            FileEntryKind::PnpmLock
-            | FileEntryKind::YarnLock
-            | FileEntryKind::Pyproject
-            | FileEntryKind::Auto => {
+            // pnpm-lock and yarn-lock default to the command strategy since
+            // their file formats are complex; route them here when the user
+            // has chosen in-process (which is an explicit override)
+            FileEntryKind::PnpmLock => {
+                let cmd = entry.command.as_deref();
+                let update = update_pnpm_lock(&entry.path, cmd, None)?;
+                pending.push(update);
+                continue;
+            }
+            FileEntryKind::YarnLock => {
+                let cmd = entry.command.as_deref();
+                let update = update_yarn_lock(&entry.path, cmd, None)?;
+                pending.push(update);
+                continue;
+            }
+            // pyproject: not yet implemented; fall back to plain until
+            // the pyproject handler lands in commit 12
+            FileEntryKind::Pyproject | FileEntryKind::Auto => {
                 PlainHandler::default().prepare(&entry.path, old_version, new_version)?
             }
         };
