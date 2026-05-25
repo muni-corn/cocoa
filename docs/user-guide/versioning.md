@@ -1,104 +1,45 @@
-# version management
+# Version management
 
-harness the powers of semantic or calendar versioning with me!
+Harness the powers of semantic or calendar versioning with cocoa!
 
-## versioning strategies
+## Versioning strategies
 
-### semantic versioning (SemVer)
+### Semantic versioning (SemVer)
 
-version format: `MAJOR.MINOR.PATCH`
+Version format: `MAJOR.MINOR.PATCH`
 
 - **MAJOR** (1.0.0 → 2.0.0): breaking changes
 - **MINOR** (1.0.0 → 1.1.0): new features (backward compatible)
 - **PATCH** (1.0.0 → 1.0.1): bug fixes only
 
-**examples:**
+**Best for:** libraries, APIs, tools where compatibility matters.
 
-```
-1.0.0  → 1.0.1  (bug fix)
-1.0.0  → 1.1.0  (new feature)
-1.0.0  → 2.0.0  (breaking change)
-```
+### Calendar versioning (CalVer)
 
-**best for:** libraries, APIs, tools where compatibility matters.
+Version format: `YYYY.MM.PATCH` or custom patterns.
 
-### calendar versioning (CalVer)
+**Best for:** applications with regular release cadences.
 
-version format: `YYYY.MM.PATCH` or custom patterns
+## Bumping versions
 
-- **year:** `2024`
-- **month:** `03`
-- **patch:** sequential number
+### Automatic bumping
 
-**examples:**
-
-```
-2024.01.0  → 2024.01.1  (patch within month)
-2024.01.0  → 2024.02.0  (new month = new release)
-```
-
-**best for:** applications, products with regular release cadences.
-
-## Configure Your Strategy
-
-In `.cocoa.toml`:
-
-### Semantic Versioning
-
-```toml
-[version]
-strategy = "semver"
-tag_prefix = "v"
-sign_tags = true
-commit_version_files = ["package.json", "Cargo.toml"]
-```
-
-### Calendar Versioning
-
-```toml
-[version]
-strategy = "calver"
-calver_format = "YYYY.MM.0"  # Year.Month.Patch
-tag_prefix = "v"
-sign_tags = true
-```
-
-## bumping versions
-
-### automatic bumping
-
-i analyze commits since last version and bump appropriately:
+Cocoa analyzes commits since the last version tag and bumps appropriately:
 
 ```bash
 cocoa bump auto
 ```
 
-i look at commits and decide:
-
-| commits found    | version change | example       |
+| Commits found    | Version change | Example       |
 | ---------------- | -------------- | ------------- |
-| breaking changes | major          | 1.0.0 → 2.0.0 |
-| features (feat:) | minor          | 1.0.0 → 1.1.0 |
-| fixes (fix:)     | patch          | 1.0.0 → 1.0.1 |
-| chores/docs only | patch          | 1.0.0 → 1.0.1 |
+| Breaking changes | major          | 1.0.0 → 2.0.0 |
+| Features (feat:) | minor          | 1.0.0 → 1.1.0 |
+| Fixes (fix:)     | patch          | 1.0.0 → 1.0.1 |
+| Chores/docs only | patch          | 1.0.0 → 1.0.1 |
 
-```bash
-# example scenario:
-# current version: 1.0.0
-# commits since 1.0.0:
-#   feat(auth): add password reset
-#   feat(ui): redesign dashboard
-#   fix(api): timeout issue
-#   BREAKING CHANGE: API v1 removed
+### Manual bumping
 
-$ cocoa bump auto
-✓ detected breaking changes → bumping major
-✓ updating to version 2.0.0
-```
-
-### manual bumping
-
-force a specific bump:
+Force a specific bump:
 
 ```bash
 cocoa bump major    # 1.0.0 → 2.0.0
@@ -106,435 +47,221 @@ cocoa bump minor    # 1.0.0 → 1.1.0
 cocoa bump patch    # 1.0.0 → 1.0.1
 ```
 
-### pre-release versions
+## Full release workflow
 
 ```bash
-cocoa bump patch --pre-release alpha    # 1.0.0 → 1.0.1-alpha
-cocoa bump patch --pre-release beta     # 1.0.1-alpha → 1.0.1-beta
-cocoa bump patch --pre-release rc       # 1.0.1-beta → 1.0.1-rc
-cocoa bump patch                         # 1.0.1-rc → 1.0.1 (release)
-```
-
-great for testing releases before final push!
-
-## creating release tags
-
-### create a tag
-
-```bash
-cocoa tag
-```
-
-this does the following:
-
-1. reads current version from files or tags
-2. generates changelog for this version
-3. creates an annotated git tag with changelog
-4. signs tag (if `sign_tags = true`)
-
-output:
-
-```
-$ cocoa tag
-creating tag v1.2.0
-changelog:
-    - add password reset (feat)
-    - fix timeout issue (fix)
-tag created and signed
-```
-
-### tag already exists?
-
-```bash
-cocoa tag --force
-```
-
-**warning:** only do this if you haven't pushed yet!
-
-### push tags
-
-```bash
-git push --tags
-```
-
-or push everything:
-
-```bash
-git push --all --tags
-```
-
-## full release workflow
-
-### one-command release
-
-```bash
-cocoa release
-
-# output:
-detected 1 fix
-bumping: 1.5.2 → 1.5.3 (PATCH)
-creating tag v1.5.3
-ready to push
-```
-
-does everything automatically:
-
-1. analyzes commits since last tag
-2. decides version bump (major/minor/patch)
-3. updates version files
-4. generates changelog
-5. creates git commit with changes
-6. creates signed git tag
-7. ready to push!
-
-output:
-
-```
-$ cocoa release
-bumping version: 1.0.0 → 1.1.0
-updated: package.json, Cargo.toml
-generating changelog...
-committing changes
-creating tag v1.1.0
-ready to push! run: git push --all --tags
-```
-
-now push to remote:
-
-```bash
-git push --all --tags
-```
-
-### step-by-step release
-
-for more control, preview before releasing:
-
-```bash
-# 1. check what would happen
+# Preview without making any changes
 cocoa release --dry-run
 
-# 2. review the output (version, files, changelog)
-
-# 3. actually release
+# Run the full release
 cocoa release
 
-# 4. push when ready
+# Push to remote
 git push --all --tags
 ```
 
-## version files
+`cocoa release` does everything automatically:
 
-i automatically update version in your files:
+1. Analyzes commits since the last tag.
+2. Decides the version bump (major/minor/patch).
+3. Updates version files (see below).
+4. Generates the changelog.
+5. Creates a git commit with all changes.
+6. Creates an annotated git tag.
 
-```toml
-[version]
-commit_version_files = [
-  "package.json",
-  "Cargo.toml",
-  "pyproject.toml",
-  "src/version.rs"
-]
-```
+## Version files
 
-### supported formats
+Cocoa can update version strings in your files as part of every release. There are two ways to
+configure this.
 
-JSON (package.json):
+### Simple form (`commit_version_files`)
 
-```json
-{
-  "version": "1.0.0"
-}
-```
-
-↓ (after bump)
-
-```json
-{
-  "version": "1.1.0"
-}
-```
-
-TOML (Cargo.toml):
-
-```toml
-[package]
-version = "1.0.0"
-```
-
-↓ (after bump)
-
-```toml
-[package]
-version = "1.1.0"
-```
-
-Python (pyproject.toml):
-
-```toml
-[project]
-version = "1.0.0"
-```
-
-↓ (after bump)
-
-```toml
-[project]
-version = "1.1.0"
-```
-
-Rust (src/version.rs):
-
-```rust
-pub const VERSION: &str = "1.0.0";
-```
-
-↓ (after bump)
-
-```rust
-pub const VERSION: &str = "1.1.0";
-```
-
-### add custom files
-
-add any file where version appears:
+List file paths and cocoa will update them automatically. The handler is chosen by file basename:
 
 ```toml
 [version]
-commit_version_files = [
-  "package.json",
-  "docs/version.txt",
-  "README.md",
-  "_config.yml"
-]
+commit_version_files = ["Cargo.toml", "Cargo.lock", "package.json"]
 ```
 
-i'll find and replace version strings!
+**Auto-detected handlers by basename:**
 
-## Real-World Release Examples
+| File basename       | Handler                                                            |
+| ------------------- | ------------------------------------------------------------------ |
+| `Cargo.toml`        | Structured: updates `[package].version` only                       |
+| `Cargo.lock`        | Workspace-aware: updates only workspace member entries             |
+| `package.json`      | Structured: updates top-level `"version"` only                     |
+| `package-lock.json` | Structured: updates root entry only, not `node_modules/*`          |
+| `pnpm-lock.yaml`    | Command: runs `pnpm install --lockfile-only`                       |
+| `yarn.lock`         | Command: runs `yarn install --mode=update-lockfile`                |
+| `pyproject.toml`    | Structured: updates `[project].version` or `[tool.poetry].version` |
+| Any other file      | Plain: replaces every occurrence of the version string             |
 
-### Example 1: Simple Bug Fix
+### Rich form (`[[version.files]]`)
 
-```bash
-# Make and commit fixes
-git add .
-git commit -m "fix(api): resolve timeout issue"
-
-# Release
-cocoa release
-
-# Output:
-✓ Detected 1 fix
-✓ Bumping: 1.5.2 → 1.5.3 (PATCH)
-✓ Creating tag v1.5.3
-✓ Ready to push
-```
-
-### Example 2: Feature Release
-
-```bash
-# Make and commit features
-git add .
-git commit -m "feat(auth): add password reset"
-git commit -m "feat(dashboard): redesign UI"
-
-cocoa release
-
-# Output:
-Detected 2 features, 0 breaking changes
-Bumping: 1.5.2 → 1.6.0 (MINOR)
-Creating tag v1.6.0
-Ready to push
-```
-
-### Example 3: Major Release (Breaking Change)
-
-```bash
-# Make and commit changes
-git add .
-git commit -m "refactor(api): redesign endpoints
-
-BREAKING CHANGE: Old /auth endpoints removed in favor of /api/v2/auth"
-
-cocoa release
-
-# Output:
-Detected 1 breaking change
-Bumping: 1.5.2 → 2.0.0 (MAJOR)
-Creating tag v2.0.0
-Ready to push
-```
-
-## Pre-Release Workflow
-
-Release a beta/alpha/RC version:
-
-```bash
-# 1. Create a pre-release tag
-cocoa tag --pre-release beta
-
-# Tags: v2.0.0-beta, v2.0.0-beta.1, v2.0.0-beta.2, etc.
-
-# 2. Test extensively
-# ... run tests, manual testing, etc.
-
-# 3. Release final version
-cocoa bump patch        # v2.0.0-beta → v2.0.0
-cocoa tag
-git push --tags
-```
-
-## Troubleshooting
-
-### "No version found"
-
-```bash
-cocoa release
-# Error: No version tag found in repository
-```
-
-**Cause:** No tags exist yet.
-
-**Solution:** Create first tag manually:
+For precise control, use the `[[version.files]]` array:
 
 ```toml
-# In .cocoa.toml, update version first
+[[version.files]]
+path = "Cargo.toml"
+kind = "cargo"          # optional; auto-detected from basename if omitted
+
+[[version.files]]
+path = "Cargo.lock"
+kind = "cargo-lock"
+
+[[version.files]]
+path = "package.json"
+kind = "npm"
+
+[[version.files]]
+path = "package-lock.json"
+kind = "npm-lock"
 ```
 
-Then:
+The `kind` field accepts: `auto` (default), `cargo`, `cargo-lock`, `npm`, `npm-lock`, `pnpm-lock`,
+`yarn-lock`, `pyproject`, `regex`, `plain`.
 
-```bash
-cocoa tag
+Both forms can coexist. Rich `[[version.files]]` entries take precedence for any path they declare;
+`commit_version_files` entries fill in the rest.
+
+### Regex handler
+
+For files cocoa doesn't natively understand (badges in READMEs, helm charts, install scripts, etc.)
+use `kind = "regex"`:
+
+```toml
+[[version.files]]
+path = "README.md"
+kind = "regex"
+pattern = 'cocoa = "(?P<v>[^"]+)"'
+occurrences = "first"   # or "all" or a number; defaults to "first"
 ```
 
-Or create manually:
+The pattern must contain exactly one named capture group `v`. Cocoa replaces only the content of
+that group, leaving all surrounding context untouched.
 
-```bash
-git tag -a v1.0.0 -m "Initial release"
-git push --tags
+```toml
+[[version.files]]
+path = "helm/Chart.yaml"
+kind = "regex"
+pattern = 'appVersion: "(?P<v>[^"]+)"'
 ```
 
-### "Version not updated in files"
+### Plain handler
 
-```bash
-cocoa release
-# Says it updated, but files didn't change
+Use `kind = "plain"` to force the historical behavior: all occurrences of the old version string are
+replaced with the new one.
+
+```toml
+[[version.files]]
+path = "src/version.rs"
+kind = "plain"
+occurrences = 1   # limit to the first match (optional)
 ```
 
-**Cause:** File path is wrong or format isn't recognized.
+### Command strategy
 
-**Debug:**
+For any file, you can shell out to a toolchain command instead of editing in-process. This is the
+default for `pnpm-lock.yaml` and `yarn.lock`:
 
-```bash
-# Check what cocoa sees
-cocoa release --verbose
-
-# Verify file exists
-cat package.json | grep version
+```toml
+[[version.files]]
+path = "Cargo.lock"
+kind = "cargo-lock"
+strategy = "command"
+command = ["cargo", "update", "--workspace"]
 ```
 
-**Fix:** Update paths in `.cocoa.toml`:
+The command runs in the repository root after the manifest version has already been updated.
+
+Available strategies: `in-process` (default), `command`, `skip`.
+
+### Global toolchain preferences
+
+Override the default lockfile strategy for a whole toolchain without listing every file:
+
+```toml
+[version.toolchains]
+cargo  = { lockfile = "command" }   # use cargo update --workspace
+npm    = { lockfile = "skip" }      # do not touch package-lock.json
+pnpm   = { lockfile = "command" }
+```
+
+## Cargo workspace example
+
+A Rust workspace with multiple crates:
+
+```toml
+# .cocoa.toml
+[version]
+strategy = "semver"
+tag_prefix = "v"
+
+[[version.files]]
+path = "Cargo.toml"
+kind = "cargo"        # updates [workspace.package].version
+
+[[version.files]]
+path = "Cargo.lock"
+kind = "cargo-lock"   # updates only workspace member entries
+```
+
+After `cocoa release`:
+
+- `Cargo.toml` → only `[workspace.package].version` changes.
+- `Cargo.lock` → only `[[package]]` entries whose `name` matches a workspace member change.
+  Transient dependencies are untouched.
+
+## npm / Node.js example
 
 ```toml
 [version]
-commit_version_files = ["package.json", "src/lib.rs"]  # Correct paths
+[[version.files]]
+path = "package.json"
+kind = "npm"
+
+[[version.files]]
+path = "package-lock.json"
+kind = "npm-lock"   # updates root "version" and packages[""].version only
 ```
 
-### "Can't push because local tags differ"
+## Opting out of auto-detection
+
+If you need the historical "replace everything" behavior for a file that would otherwise be
+auto-detected (for example, a `Cargo.toml` that you maintain manually), use `kind = "plain"`:
+
+```toml
+[[version.files]]
+path = "Cargo.toml"
+kind = "plain"   # disables structured handler; replaces all occurrences
+```
+
+## Tips
+
+### Preview before releasing
 
 ```bash
-git push --tags
-# ERROR: refs/tags/v1.2.0 exists but has different object id
-```
-
-**Cause:** Tag was created locally but pushed differently.
-
-**Solution:** Use `--force` carefully!
-
-```bash
-# Delete local tag
-git tag -d v1.2.0
-
-# Pull from remote
-git fetch origin refs/tags/*:refs/tags/*
-
-# Or force if you own the repo
-git push --tags --force
-```
-
-## Tips and Tricks
-
-### 1. Automate in CI
-
-Release automatically on tag push:
-
-```yaml
-# .github/workflows/release.yml
-name: Release
-on:
-  push:
-    tags:
-      - "v*"
-
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: cargo install cocoa
-      - run: cocoa release
-      - run: git push
-```
-
-### 2. Validate Before Release
-
-```bash
-# Preview release without committing
+# Show what would change without touching any files
 cocoa release --dry-run
-
-# Check what version would be bumped
-cocoa bump auto --verbose
-
-# Lint recent commits
-cocoa lint HEAD~10...HEAD
 ```
 
-### 3. Sign Releases (GPG)
+### Sign releases (GPG)
 
 ```toml
 [version]
 sign_tags = true
 ```
 
-Requires GPG key setup. Tags are cryptographically signed!
-
-### 4. Custom Tag Prefix
+### Custom tag prefix
 
 ```toml
 [version]
-tag_prefix = "release-"
+tag_prefix = "release-"   # creates release-1.0.0, release-1.1.0, etc.
 ```
 
-Creates tags: `release-1.0.0`, `release-1.1.0`, etc.
+## Next steps
 
-### 5. Track Multiple Version Formats
-
-Some projects need multiple version files:
-
-```toml
-[version]
-commit_version_files = [
-  "package.json",         # npm version
-  "package-lock.json",    # npm lockfile
-  "Cargo.toml",           # Rust version
-  "docs/CHANGELOG.md",    # Documentation version
-]
-```
-
-all updated atomically!
-
-## next steps
-
-- **automate releases:** [CI/CD integration](./ci-cd.md)
-- **better commits:** [creating commits](./creating-commits.md)
-- **generate changelogs:** [changelogs](./changelogs.md)
-- **configure everything:** [configuration](./configuration.md)
+- **Automate releases:** [CI/CD integration](./ci-cd.md)
+- **Better commits:** [creating commits](./creating-commits.md)
+- **Generate changelogs:** [changelogs](./changelogs.md)
+- **Configure everything:** [configuration](./configuration.md)
