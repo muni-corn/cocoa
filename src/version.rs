@@ -8,6 +8,7 @@ pub mod calver;
 pub mod cargo_lock;
 pub mod cargo_manifest;
 pub mod command;
+pub mod detect;
 pub mod handlers;
 pub mod npm;
 pub mod plain;
@@ -246,36 +247,41 @@ pub fn detect_latest_tag(
 
 /// Update the version string in each of the given files atomically.
 ///
-/// Reads every file first, replaces all occurrences of `old_version` with
-/// `new_version`, then writes them all. If any write fails the already-written
-/// files are restored to their original content, so the set of files is either
-/// fully updated or left completely unchanged.
+/// Reads every file first, replaces the version string using the appropriate
+/// handler for each file, then writes them all. If any write fails the
+/// already-written files are restored to their original content, so the set of
+/// files is either fully updated or left completely unchanged.
 ///
-/// Returns `VersionError::NotFound` if `old_version` does not appear in any
-/// of the target files.
+/// Handler selection is automatic by file basename:
+/// - `Cargo.toml` → [`cargo_manifest::CargoManifestHandler`]
+/// - `Cargo.lock` → [`cargo_lock::CargoLockHandler`]
+/// - `package.json` → [`npm::NpmManifestHandler`]
+/// - `package-lock.json` → [`npm::NpmLockHandler`]
+/// - All other files → [`plain::PlainHandler`] (historical behavior)
 ///
-/// This function dispatches to the appropriate handler for each file.
-/// Plain-text files use [`plain::PlainHandler`], which matches the historical
-/// behavior of replacing every occurrence of the version string.
+/// Returns `VersionError::NotFound` for plain-text files that do not contain
+/// `old_version`.
 pub fn update_version_files(
     files: &[String],
     old_version: &str,
     new_version: &str,
 ) -> Result<(), VersionError> {
-    use handlers::{Handler, apply_updates};
-    use plain::PlainHandler;
+    use crate::config::{FileEntryKind, VersionFileEntry};
 
-    // phase 1: compute all updates via their handlers
-    let mut pending = Vec::new();
-    for path in files {
-        let handler = PlainHandler::default();
-        if let Some(update) = handler.prepare(path, old_version, new_version)? {
-            pending.push(update);
-        }
-    }
+    // convert the flat list into rich entries so we get auto-detection
+    let entries: Vec<VersionFileEntry> = files
+        .iter()
+        .map(|p| VersionFileEntry {
+            path: p.clone(),
+            kind: FileEntryKind::Auto,
+            strategy: crate::config::FileEntryStrategy::InProcess,
+            command: None,
+            pattern: None,
+            occurrences: None,
+        })
+        .collect();
 
-    // phase 2: write atomically with rollback
-    apply_updates(pending)?;
+    update_version_files_rich(&entries, old_version, new_version)?;
     Ok(())
 }
 
@@ -294,6 +300,7 @@ pub fn update_version_files_rich(
     use cargo_lock::CargoLockHandler;
     use cargo_manifest::CargoManifestHandler;
     use command::run_command;
+    use detect::infer_kind;
     use handlers::{Handler, apply_updates};
     use npm::{NpmLockHandler, NpmManifestHandler};
     use plain::PlainHandler;
@@ -311,14 +318,26 @@ pub fn update_version_files_rich(
         if entry.strategy == FileEntryStrategy::Command {
             // resolve the FileKind from the entry kind so the UpdatedFile
             // record carries the correct variant
-            let kind = entry_kind_to_file_kind(&entry.kind);
+            let effective_kind = if entry.kind == FileEntryKind::Auto {
+                infer_kind(&entry.path)
+            } else {
+                entry.kind.clone()
+            };
+            let kind = entry_kind_to_file_kind(&effective_kind);
             let cmd = entry.command.as_deref().unwrap_or(&[]);
             let update = run_command(&entry.path, cmd, kind, None)?;
             pending.push(update);
             continue;
         }
 
-        let handler_result = match &entry.kind {
+        // for in-process strategy, resolve auto kind from file basename
+        let effective_kind = if entry.kind == FileEntryKind::Auto {
+            infer_kind(&entry.path)
+        } else {
+            entry.kind.clone()
+        };
+
+        let handler_result = match &effective_kind {
             FileEntryKind::Cargo => {
                 CargoManifestHandler.prepare(&entry.path, old_version, new_version)?
             }
@@ -343,17 +362,22 @@ pub fn update_version_files_rich(
                     new_version,
                 )?
             }
-            // plain and auto use the plain text handler
-            FileEntryKind::Plain | FileEntryKind::Auto => {
+            // plain: use configured occurrences (default: all)
+            FileEntryKind::Plain => {
                 let occurrences = entry
                     .occurrences
                     .clone()
                     .unwrap_or(Occurrences::Named(OccurrencesNamed::All));
                 PlainHandler { occurrences }.prepare(&entry.path, old_version, new_version)?
             }
-            // remaining structured handlers fall through to plain for now;
-            // each will get its own handler in subsequent commits
-            _ => PlainHandler::default().prepare(&entry.path, old_version, new_version)?,
+            // pnpm-lock, yarn-lock, pyproject: not yet implemented in-process;
+            // fall back to plain until their handlers land in later commits
+            FileEntryKind::PnpmLock
+            | FileEntryKind::YarnLock
+            | FileEntryKind::Pyproject
+            | FileEntryKind::Auto => {
+                PlainHandler::default().prepare(&entry.path, old_version, new_version)?
+            }
         };
 
         if let Some(update) = handler_result {
@@ -554,9 +578,10 @@ mod tests {
     // ── update_version_files ──────────────────────────────────────────────────
 
     #[test]
-    fn test_update_version_files_single_file() {
+    fn test_update_version_files_single_file_plain() {
+        // uses a generic filename so the plain handler is selected
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("Cargo.toml");
+        let path = dir.path().join("version.txt");
         fs::write(&path, "version = \"1.0.0\"\n").unwrap();
 
         let files = vec![path.to_string_lossy().into_owned()];
@@ -564,6 +589,23 @@ mod tests {
 
         let contents = fs::read_to_string(&path).unwrap();
         assert_eq!(contents, "version = \"2.0.0\"\n");
+    }
+
+    #[test]
+    fn test_update_version_files_cargo_toml_uses_structured_handler() {
+        // with auto-detection, Cargo.toml gets the CargoManifestHandler
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Cargo.toml");
+        let toml = "[package]\nname = \"my-crate\"\nversion = \"1.0.0\"\n";
+        fs::write(&path, toml).unwrap();
+
+        let files = vec![path.to_string_lossy().into_owned()];
+        update_version_files(&files, "1.0.0", "2.0.0").unwrap();
+
+        let contents = fs::read_to_string(&path).unwrap();
+        assert!(contents.contains("version = \"2.0.0\""));
+        // name must be unchanged
+        assert!(contents.contains("name = \"my-crate\""));
     }
 
     #[test]
