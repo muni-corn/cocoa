@@ -1,8 +1,38 @@
 # Changelog
 
+## **v0.3.0**
+
+### **Breaking changes**
+
+- **config:** set `include_reverts` default to `false`
+
+### new features
+
+- **release:** expose Vec<UpdatedFile> in ReleaseOutcome
+- **version:** add PyprojectHandler for pyproject.toml
+- **version:** add pnpm/yarn lockfile handlers via command strategy
+- **version:** add [version.toolchains] global preferences table
+- **version:** basename-based auto-detection for handlers
+- **version:** add CommandStrategy for shelled-out toolchain updates
+- **version:** add NpmManifestHandler and NpmLockHandler
+- **version:** add CargoLockHandler (in-process workspace-aware)
+- **version:** add CargoManifestHandler using toml_edit
+- **version:** add RegexHandler with occurrences support
+- **config:** add [[version.files]] array-of-tables schema
+- **config:** support `cocoa.toml` as repository config filename
+- **config:** add customizable breaking changes header
+- **config:** set `include_reverts` default to `false`
+
+### documentation
+
+- **notes:** add lockfile-handlers design rationale
+- rewrite versioning guide for file-handlers model
+
+---
+
 ## **v0.2.2**
 
-### Bug fixes
+### bug fixes
 
 - **release:** remove range from changelog generation
 
@@ -10,7 +40,7 @@
 
 ## **v0.2.1**
 
-### Features
+### new features
 
 - **changelog:** add customizable next version label
 - **version:** handle 0.x.x versions in bump operations
@@ -19,7 +49,7 @@
 - **cmd:** support message source from environment variable
 - **devenv:** add devenv module for cocoa git hooks configuration
 
-### Bug fixes
+### bug fixes
 
 - **commit:** align fixup/squash/revert detection with git conventions
 - **commit:** make commit_type optional to handle non-conventional commits
@@ -29,7 +59,7 @@
 - **cmd:** fix indentation for release command help
 - make breaking changes header sentence case in markdown
 
-### Tests
+### tests
 
 - **helpers:** suppress dead_code warnings for test utilities
 - **helpers:** simplify mock ai imports and update provider config
@@ -37,7 +67,7 @@
 - move helpers module declaration to fix structure issues
 - **prompt:** move build_prompt tests to prompt module
 
-### Documentation
+### documentation
 
 - **user-guide:** lowercase section headers in linting guide
 - standardize punctuation in comments and messages
@@ -46,19 +76,19 @@
 
 ## **v0.2.0**
 
-### Features
+### new features
 
 - make commit message generation configurable via CommitConfig
 - **generate:** increase recent commits context from 5 to 10
 - add hook kind selection and generate hook support
 - add body to generated commit messages
 
-### Tests
+### tests
 
 - update assertions to match current behavior
 - expand hook tests for lint, generate, and all kinds
 
-### Documentation
+### documentation
 
 - simplify README description
 - add comprehensive README
@@ -67,7 +97,7 @@
 
 ## **v0.1.0**
 
-### Features
+### new features
 
 - **cli:** reintroduce help subcommand
 - **cli:** modify help messages a bit
@@ -152,7 +182,7 @@
 - implement configuration module
 - add core dependencies for CLI and configuration
 
-### Bug fixes
+### bug fixes
 
 - **commit:** strip git context and comments from commit messages
 - ensure CI/CD compatibility across all commands
@@ -164,7 +194,7 @@
 - **commit:** allow `is_ident_char` to take hyphens
 - change JSON output from pretty-printed to compact unstyled format
 
-### Tests
+### tests
 
 - **fixtures:** add `full_commit_message.txt`
 - add tests for commits with comments and git context
@@ -190,7 +220,7 @@
 - add comprehensive unit tests for cli, style, and ai modules
 - add dependencies and structure for CLI integration testing
 
-### Documentation
+### documentation
 
 - add user guide
 - add man page generation with clap_mangen
