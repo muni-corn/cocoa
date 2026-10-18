@@ -14,8 +14,7 @@ lint.error.scope_required: "commit scope is required"
 lint.warn.scope_missing: "commit scope is missing"
 lint.error.invalid_scope: "invalid scope '%{scope}'. allowed scopes: %{allowed_scopes}"
 lint.error.subject_too_long: "subject line too long (%{len} chars). maximum is %{max} chars"
-lint.warn.subject_long:
-  "subject line is long (%{len} chars). consider keeping it under %{max} chars"
+lint.warn.subject_long: "subject line is long (%{len} chars). consider keeping it under %{max} chars"
 lint.error.body_too_long: "body too long (%{len} chars). maximum is %{max} chars"
 lint.warn.body_long: "body is long (%{len} chars). consider keeping it under %{max} chars"
 lint.error.body_required: "body is required"
@@ -152,8 +151,7 @@ main.hook.no_ai: "ai is not configured: i can't install the generate hook withou
 main.hook.no_ai_hint: "add an [ai] section to your .cocoa.toml (run `cocoa init` to set it up)"
 main.hook.dry_run_install: "dry-run: would write %{hook} hook to %{path}"
 main.hook.dry_run_update: "dry-run: would update existing cocoa %{hook} hook at %{path}"
-main.hook.dry_run_replace:
-  "dry-run: would back up existing %{hook} hook to %{backup} and install cocoa hook"
+main.hook.dry_run_replace: "dry-run: would back up existing %{hook} hook to %{backup} and install cocoa hook"
 
 # ---------------------------------------------------------------------------
 # main.rs: unhook command
@@ -173,8 +171,7 @@ main.unhook.dry_run_restore: "dry-run: would restore %{hook} from backup %{backu
 # ---------------------------------------------------------------------------
 
 main.changelog.welcome: "cocoa changelog"
-main.changelog.unknown_format:
-  "unknown output format '%{format}': use: markdown, json, html, rst, asciidoc, or template:<path>"
+main.changelog.unknown_format: "unknown output format '%{format}': use: markdown, json, html, rst, asciidoc, or template:<path>"
 main.changelog.git_failed: "git error: %{error}"
 main.changelog.failed: "changelog generation failed: %{error}"
 main.changelog.empty: "no commits found: changelog is empty"
@@ -232,8 +229,7 @@ main.release.wrote_changelog: "wrote changelog to '%{path}'"
 main.release.created_tag: "created tag '%{name}'"
 main.release.invalid_bump: "unknown bump type '%{bump_type}': use: major, minor, patch, or auto"
 main.release.tag_exists: "tag '%{name}' already exists"
-main.release.tag_exists_hint:
-  "the version has already been released; bump commits or use --skip-tag"
+main.release.tag_exists_hint: "the version has already been released; bump commits or use --skip-tag"
 main.release.git_failed: "git error: %{error}"
 main.release.failed: "release failed: %{error}"
 
