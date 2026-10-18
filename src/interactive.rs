@@ -475,7 +475,8 @@ pub(crate) mod prompts {
         let warn_len = config.commit.rules.warn.subject_length.unwrap_or(50);
         let deny_len = config.commit.rules.deny.subject_length.unwrap_or(72);
 
-        // show a preview of the header prefix so the user can see the total length
+        // show a preview of the header prefix so the user can see the total
+        // length
         let prefix = match scope {
             Some(s) => format!("{}({}): ", commit_type, s),
             None => format!("{}: ", commit_type),

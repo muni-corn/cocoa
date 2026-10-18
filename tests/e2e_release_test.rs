@@ -15,8 +15,7 @@ fn cocoa(repo: &TestRepo) -> Command {
     cmd
 }
 
-// ─── Dry-run: version detection and output
-// ──────────────────────────────────────────
+// dry-run: version detection and output
 
 #[test]
 fn test_release_dry_run_shows_version_bump() {
@@ -91,8 +90,7 @@ fn test_release_dry_run_explicit_patch_bump() {
         .stdout(predicates::str::contains("0.9.1"));
 }
 
-// ─── Dry-run: mentions would-create-tag
-// ─────────────────────────────────────────
+// dry-run: mentions would-create-tag
 
 #[test]
 fn test_release_dry_run_mentions_tag() {
@@ -106,8 +104,7 @@ fn test_release_dry_run_mentions_tag() {
         .stdout(predicates::str::contains("v0.0.1"));
 }
 
-// ─── Dry-run: skip flags
-// ─────────────────────────────────────────────────────
+// dry-run: skip flags
 
 #[test]
 fn test_release_dry_run_skip_tag() {
@@ -148,8 +145,7 @@ fn test_release_dry_run_all_skips() {
         .success();
 }
 
-// ─── Invalid bump type
-// ───────────────────────────────────────────────────────
+// invalid bump type
 
 #[test]
 fn test_release_invalid_bump_type_exits_with_error() {
@@ -165,8 +161,7 @@ fn test_release_invalid_bump_type_exits_with_error() {
         ));
 }
 
-// ─── Duplicate tag rejection
-// ──────────────────────────────────────────────────
+// duplicate tag rejection
 
 #[test]
 fn test_release_duplicate_tag_exits_with_error() {
@@ -194,8 +189,7 @@ fn test_release_duplicate_tag_exits_with_error() {
         .stdout(predicates::str::contains("0.0.3"));
 }
 
-// ─── Full release (no dry-run): creates changelog and tag
-// ─────────────────────────────────────────
+// full release (no dry-run): creates changelog and tag
 
 #[test]
 fn test_release_creates_changelog_file() {

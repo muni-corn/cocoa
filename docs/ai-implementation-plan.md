@@ -27,10 +27,10 @@ following the requirements specified in SPEC.md.
 ```rust
 src/
 ├── ai/
-│   ├── mod.rs          // Public API exports
-│   ├── provider.rs     // Provider enum & error handling
-│   ├── config.rs       // AI configuration & secret management
-│   └── client.rs       // Generic client wrapper
+│   ├── mod.rs          // public api exports
+│   ├── provider.rs     // provider enum & error handling
+│   ├── config.rs       // ai configuration & secret management
+│   └── client.rs       // generic client wrapper
 ```
 
 **Features Implemented:**

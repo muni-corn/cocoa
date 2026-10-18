@@ -113,10 +113,10 @@ impl CommitMessage {
             }
         }
 
-        // parse the header into conventional commit data. if the header contains a
-        // colon, we'll assume the commit summary has a type and maybe a scope. if
-        // there's no colon at all, we assume the entire commit summary is just the
-        // subject.
+        // parse the header into conventional commit data. if the header
+        // contains a colon, we'll assume the commit summary has a type
+        // and maybe a scope. if there's no colon at all, we assume the
+        // entire commit summary is just the subject.
         let header = header_lines.join(" ");
         let (commit_type, scope, breaking, subject) = if header.contains(":") {
             parse_header(&header)
@@ -226,8 +226,8 @@ fn is_footer_line(line: &str) -> bool {
     };
 
     // allow alphanumeric chars, underscore, and hyphen for footer keys
-    // also allow "BREAKING CHANGE" as a key, because the space will not be picked
-    // up otherwise
+    // also allow "BREAKING CHANGE" as a key, because the space will not be
+    // picked up otherwise
     key == "BREAKING CHANGE" || key.chars().all(is_ident_char) && !key.is_empty() && !val.is_empty()
 }
 

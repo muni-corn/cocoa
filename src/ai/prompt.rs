@@ -6,7 +6,9 @@ use crate::{
 };
 
 pub fn build_system_prompt() -> String {
-    "you are an expert software engineer who writes excellent conventional commit messages. respond with only the commit message and body, no explanation or additional text.".to_string()
+    "you are an expert software engineer who writes excellent conventional commit messages. \
+     respond with only the commit message and body, no explanation or additional text."
+        .to_string()
 }
 
 /// Builds the prompt for commit generation.
@@ -186,7 +188,8 @@ mod tests {
 
     use super::*;
 
-    // serialise tests that mutate env vars to prevent parallel-test race conditions
+    // serialise tests that mutate env vars to prevent parallel-test race
+    // conditions
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]

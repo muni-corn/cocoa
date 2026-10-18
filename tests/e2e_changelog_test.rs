@@ -15,7 +15,7 @@ fn cocoa(repo: &TestRepo) -> Command {
     cmd
 }
 
-// ─── Dry-run generates output without writing a file ─────────────────────────
+// dry-run generates output without writing a file
 
 #[test]
 fn test_changelog_dry_run_prints_output() {
@@ -35,7 +35,7 @@ fn test_changelog_dry_run_prints_output() {
     assert!(!output_file.exists(), "dry-run must not write the file");
 }
 
-// ─── Writes CHANGELOG.md by default ──────────────────────────────────────────
+// writes CHANGELOG.md by default
 
 #[test]
 fn test_changelog_writes_markdown_file() {
@@ -56,8 +56,7 @@ fn test_changelog_writes_markdown_file() {
     assert!(contents.contains("## **Next version**"));
 }
 
-// ─── JSON format
-// ──────────────────────────────────────────────────────────────
+// json format
 
 #[test]
 fn test_changelog_json_format() {
@@ -83,8 +82,7 @@ fn test_changelog_json_format() {
     assert!(parsed["versions"].is_array());
 }
 
-// ─── HTML format
-// ──────────────────────────────────────────────────────────────
+// html format
 
 #[test]
 fn test_changelog_html_format() {
@@ -98,8 +96,7 @@ fn test_changelog_html_format() {
         .stdout(predicates::str::contains("<!DOCTYPE html>"));
 }
 
-// ─── RST format
-// ───────────────────────────────────────────────────────────────
+// rst format
 
 #[test]
 fn test_changelog_rst_format() {
@@ -113,8 +110,7 @@ fn test_changelog_rst_format() {
         .stdout(predicates::str::contains("Changelog\n========="));
 }
 
-// ─── AsciiDoc format
-// ──────────────────────────────────────────────────────────
+// asciiDoc format
 
 #[test]
 fn test_changelog_asciidoc_format() {
@@ -128,7 +124,7 @@ fn test_changelog_asciidoc_format() {
         .stdout(predicates::str::contains("= Changelog"));
 }
 
-// ─── Unknown format exits with error ─────────────────────────────────────────
+// unknown format exits with error
 
 #[test]
 fn test_changelog_unknown_format_fails() {
@@ -141,8 +137,7 @@ fn test_changelog_unknown_format_fails() {
         .failure();
 }
 
-// ─── Custom output path
-// ───────────────────────────────────────────────────────
+// custom output path
 
 #[test]
 fn test_changelog_custom_output_path() {
@@ -162,7 +157,7 @@ fn test_changelog_custom_output_path() {
     assert!(contents.contains("# Changelog"));
 }
 
-// ─── Versioned history with tags ─────────────────────────────────────────────
+// versioned history with tags
 
 #[test]
 fn test_changelog_with_tags_shows_versions() {
@@ -179,8 +174,7 @@ fn test_changelog_with_tags_shows_versions() {
         .stdout(predicates::str::contains("Next version"));
 }
 
-// ─── Range argument
-// ───────────────────────────────────────────────────────────
+// range argument
 
 #[test]
 fn test_changelog_with_range() {
@@ -196,7 +190,7 @@ fn test_changelog_with_range() {
         .stdout(predicates::str::contains("after tag"));
 }
 
-// ─── Breaking changes appear prominently ─────────────────────────────────────
+// breaking changes appear prominently
 
 #[test]
 fn test_changelog_shows_breaking_changes() {
@@ -211,7 +205,7 @@ fn test_changelog_shows_breaking_changes() {
         .stdout(predicates::str::contains("breaking api change"));
 }
 
-// ─── Template format ─────────────────────────────────────────────────────────
+// template format
 
 #[test]
 fn test_changelog_template_format() {
@@ -235,7 +229,7 @@ fn test_changelog_template_format() {
         .stdout(predicates::str::contains("VERSIONS:"));
 }
 
-// ─── JSON output ─────────────────────────────────────────────────────────────
+// json output
 
 #[test]
 fn test_changelog_json_dry_run_output() {

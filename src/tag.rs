@@ -185,7 +185,7 @@ mod tests {
         }
     }
 
-    // ── verify_tag_unique ─────────────────────────────────────────────────────
+    // verify_tag_unique
 
     #[test]
     fn test_verify_tag_unique_no_tags() {
@@ -212,7 +212,7 @@ mod tests {
         assert!(matches!(err, TagError::AlreadyExists(name) if name == "v1.0.0"));
     }
 
-    // ── resolve_version ───────────────────────────────────────────────────────
+    // resolve_version
 
     #[test]
     fn test_resolve_version_explicit_bare() {
@@ -269,7 +269,7 @@ mod tests {
         assert_eq!(v.to_string(), "2.0.0");
     }
 
-    // ── create_version_tag dry-run ────────────────────────────────────────────
+    // create_version_tag dry-run
 
     #[test]
     fn test_create_version_tag_dry_run_returns_name_and_message() {

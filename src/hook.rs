@@ -177,7 +177,8 @@ pub fn install(
             }
         } else {
             if !dry_run {
-                // ensure the hooks directory exists (git init may not create it)
+                // ensure the hooks directory exists (git init may not create
+                // it)
                 fs::create_dir_all(hooks_dir)?;
                 write_hook(&hook_path, script)?;
             }

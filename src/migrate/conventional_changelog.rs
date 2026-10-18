@@ -101,7 +101,8 @@ fn parse_json_entries(content: &str, path: &Path) -> Result<Vec<TypeEntry>, Migr
 /// { type: 'chore', hidden: true },
 /// ```
 fn parse_js_entries(content: &str, path: &Path) -> Result<Vec<TypeEntry>, MigrateError> {
-    // match individual type objects: { type: '...', section: '...', hidden: ... }
+    // match individual type objects: { type: '...', section: '...', hidden: ...
+    // }
     let type_re = Regex::new(r#"\{\s*type:\s*['"](\w+)['"]([^}]*)\}"#).unwrap();
     let section_re = Regex::new(r#"section:\s*['"]([^'"]+)['"]"#).unwrap();
     let hidden_re = Regex::new(r"hidden:\s*(true|false)").unwrap();

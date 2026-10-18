@@ -23,8 +23,7 @@ use crate::version::{
     handlers::{Handler, PendingUpdate, read_text},
 };
 
-// ── package.json handler
-// ──────────────────────────────────────────────────────
+// package.json handler
 
 /// Handler for `package.json` files.
 ///
@@ -82,8 +81,7 @@ impl Handler for NpmManifestHandler {
     }
 }
 
-// ── package-lock.json handler
-// ─────────────────────────────────────────────────
+// package-lock.json handler
 
 /// Handler for `package-lock.json` files.
 ///
@@ -156,8 +154,7 @@ impl Handler for NpmLockHandler {
     }
 }
 
-// ── helpers
-// ───────────────────────────────────────────────────────────────────
+// helpers
 
 /// Detect the indentation used in a JSON file.
 ///
@@ -203,7 +200,7 @@ mod tests {
         (dir, path.to_string_lossy().into_owned())
     }
 
-    // ── NpmManifestHandler tests ──────────────────────────────────────────────
+    // NpmManifestHandler tests
 
     #[test]
     fn test_npm_manifest_updates_version() {
@@ -269,7 +266,7 @@ mod tests {
         assert_eq!(update.updated_file.kind, FileKind::NpmManifest);
     }
 
-    // ── NpmLockHandler tests ──────────────────────────────────────────────────
+    // NpmLockHandler tests
 
     #[test]
     fn test_npm_lock_v1_updates_root_version() {

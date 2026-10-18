@@ -53,7 +53,7 @@ impl Handler for PyprojectHandler {
             replacements += 1;
         }
 
-        // Poetry: [tool.poetry].version (only if PEP 621 field not found)
+        // poetry: [tool.poetry].version (only if PEP 621 field not found)
         if replacements == 0
             && let Some(tool) = doc.get_mut("tool").and_then(|v| v.as_table_mut())
             && let Some(poetry) = tool.get_mut("poetry").and_then(|v| v.as_table_mut())

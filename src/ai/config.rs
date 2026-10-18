@@ -96,7 +96,8 @@ mod tests {
 
     use super::*;
 
-    // serialise tests that mutate env vars to prevent parallel-test race conditions
+    // serialise tests that mutate env vars to prevent parallel-test race
+    // conditions
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]

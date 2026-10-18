@@ -15,8 +15,7 @@ fn cocoa(repo: &TestRepo) -> Command {
     cmd
 }
 
-// ─── Dry-run behaviour
-// ────────────────────────────────────────────────────────
+// dry-run behaviour
 
 #[test]
 fn test_tag_dry_run_explicit_version_shows_tag_name() {
@@ -85,8 +84,7 @@ fn test_tag_dry_run_no_existing_tags_starts_from_zero() {
         .stdout(predicates::str::contains("v0.0.1"));
 }
 
-// ─── Duplicate tag rejection
-// ──────────────────────────────────────────────────
+// duplicate tag rejection
 
 #[test]
 fn test_tag_dry_run_duplicate_exits_with_error() {
@@ -102,8 +100,7 @@ fn test_tag_dry_run_duplicate_exits_with_error() {
         .stdout(predicates::str::contains("already exists"));
 }
 
-// ─── Actual tag creation
-// ──────────────────────────────────────────────────────
+// actual tag creation
 
 #[test]
 fn test_tag_creates_annotated_tag_in_repo() {
@@ -162,7 +159,7 @@ fn test_tag_duplicate_without_dry_run_fails() {
         .stdout(predicates::str::contains("already exists"));
 }
 
-// ─── JSON output ─────────────────────────────────────────────────────────────
+// JSON output
 
 #[test]
 fn test_tag_json_dry_run_output() {

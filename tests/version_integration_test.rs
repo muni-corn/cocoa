@@ -13,16 +13,14 @@ use cocoa::{
 };
 use helpers::git_repo::TestRepo;
 
-// ── helpers
-// ───────────────────────────────────────────────────────────────────
+// helpers
 
 /// Open a `Git2Ops` instance pointing at the given `TestRepo`.
 fn ops_for(repo: &TestRepo) -> Git2Ops {
     Git2Ops::open_at(&repo.path).expect("failed to open Git2Ops")
 }
 
-// ── semver detection
-// ──────────────────────────────────────────────────────────
+// semver detection
 
 #[test]
 fn test_detect_semver_from_real_tags() {
@@ -86,8 +84,7 @@ fn test_detect_latest_tag_info() {
     assert_eq!(tag.name, "v0.2.0");
 }
 
-// ── bump type detection
-// ───────────────────────────────────────────────────────
+// bump type detection
 
 #[test]
 fn test_detect_bump_type_from_real_commits() {
@@ -141,8 +138,7 @@ fn test_detect_bump_type_only_fix_gives_patch() {
     assert_eq!(detect_bump_type(&commits), BumpType::Patch);
 }
 
-// ── version file updates
-// ──────────────────────────────────────────────────────
+// version file updates
 
 #[test]
 fn test_update_version_files_in_real_project() {
@@ -199,8 +195,7 @@ fn test_update_version_files_rollback_on_failure() {
     assert_eq!(contents, "version = 1.0.0\n");
 }
 
-// ── semver engine round-trip
-// ──────────────────────────────────────────────────
+// semver engine round-trip
 
 #[test]
 fn test_semver_full_bump_workflow() {
@@ -214,7 +209,8 @@ fn test_semver_full_bump_workflow() {
     let pre = major.with_pre_release("rc.1").unwrap();
     assert_eq!(pre.to_string(), "2.0.0-rc.1");
 
-    // release candidate becomes the real release (bump patch clears pre-release)
+    // release candidate becomes the real release (bump patch clears
+    // pre-release)
     let release = pre.bump_patch();
     assert_eq!(release.to_string(), "2.0.1");
 }

@@ -187,8 +187,9 @@ fn test_lint_from_commit_editmsg_style_file() {
 fn test_lint_from_commit_editmsg_with_scissors_and_diff() {
     use std::io::Write;
 
-    // simulate `git commit --verbose`, which appends the diff below the scissors
-    // line; the linter must ignore everything from the scissors line downward
+    // simulate `git commit --verbose`, which appends the diff below the
+    // scissors line; the linter must ignore everything from the scissors
+    // line downward
     let mut tmp = tempfile::NamedTempFile::new().unwrap();
     writeln!(tmp, "feat: add cocoa").unwrap();
     writeln!(tmp).unwrap();

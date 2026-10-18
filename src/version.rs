@@ -594,7 +594,7 @@ mod tests {
         assert!(detect_latest_tag(&ops, "v").unwrap().is_none());
     }
 
-    // ── update_version_files ──────────────────────────────────────────────────
+    // update_version_files
 
     #[test]
     fn test_update_version_files_single_file_plain() {

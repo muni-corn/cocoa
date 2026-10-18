@@ -93,11 +93,11 @@ pub fn execute<G: GitOperations>(
     args: &ReleaseArgs,
     dry_run: bool,
 ) -> Result<ReleaseOutcome, ReleaseError> {
-    // ── step 1: detect current version ───────────────────────────────────────
+    // step 1: detect current version
     let current =
         version::detect_current_semver(ops, &version_config.tag_prefix)?.unwrap_or_default();
 
-    // ── step 2: collect commits since last tag ────────────────────────────────
+    // step 2: collect commits since last tag
     let latest_tag = version::detect_latest_tag(ops, &version_config.tag_prefix)?;
     let commits = match &latest_tag {
         Some(tag) => ops
@@ -106,14 +106,14 @@ pub fn execute<G: GitOperations>(
         None => ops.get_commits_in_range("", "HEAD").unwrap_or_default(),
     };
 
-    // ── step 3: resolve bump type ─────────────────────────────────────────────
+    // step 3: resolve bump type
     let bump_type = if let Some(bt) = args.bump_type {
         bt
     } else {
         version::detect_bump_type(&commits)
     };
 
-    // ── step 4: compute new version ───────────────────────────────────────────
+    // step 4: compute new version
     let new_version = match bump_type {
         BumpType::Major => current.bump_major(),
         BumpType::Minor => current.bump_minor(),
@@ -124,7 +124,7 @@ pub fn execute<G: GitOperations>(
     let new_str = new_version.to_string();
     let tag_name = format!("{}{}", version_config.tag_prefix, new_version);
 
-    // ── step 5: update version files ─────────────────────────────────────────
+    // step 5: update version files
     // merge legacy commit_version_files with [[version.files]] entries.
     // rich entries take precedence; legacy paths that overlap are skipped.
     let legacy_paths: Vec<String> = version_config
@@ -175,7 +175,7 @@ pub fn execute<G: GitOperations>(
             .collect()
     };
 
-    // ── step 6: generate and write changelog ──────────────────────────────────
+    // step 6: generate and write changelog
     let changelog_path = changelog_config.output_file.clone();
 
     if !args.skip_changelog {
@@ -189,7 +189,7 @@ pub fn execute<G: GitOperations>(
         }
     }
 
-    // ── step 7: stage files and create version commit ─────────────────────────
+    // step 7: stage files and create version commit
     if !args.skip_commit && !dry_run {
         let repo_root = ops
             .get_repo_root()
@@ -215,7 +215,7 @@ pub fn execute<G: GitOperations>(
         ops.create_commit(&commit_message)?;
     }
 
-    // ── step 8: create version tag ────────────────────────────────────────────
+    // step 8: create version tag
     if !args.skip_tag {
         tag::create_version_tag(ops, &new_version, version_config, changelog_config, dry_run)?;
     }
@@ -263,7 +263,7 @@ mod tests {
         }
     }
 
-    // ── dry-run with no prior tags ────────────────────────────────────────────
+    // dry-run with no prior tags
 
     #[test]
     fn test_execute_dry_run_no_tags_feat_commit() {
@@ -299,7 +299,7 @@ mod tests {
         assert!(matches!(outcome.bump_type, BumpType::Major));
     }
 
-    // ── explicit bump type ────────────────────────────────────────────────────
+    // explicit bump type
 
     #[test]
     fn test_execute_explicit_major_bump() {
@@ -353,7 +353,7 @@ mod tests {
         assert_eq!(outcome.new_version, "2.3.5");
     }
 
-    // ── tag name format ───────────────────────────────────────────────────────
+    // tag name format
 
     #[test]
     fn test_execute_tag_name_uses_prefix() {
@@ -372,7 +372,7 @@ mod tests {
         assert_eq!(outcome.tag_name, "release/0.0.1");
     }
 
-    // ── skip flags ────────────────────────────────────────────────────────────
+    // skip flags
 
     #[test]
     fn test_execute_dry_run_skip_tag_succeeds() {

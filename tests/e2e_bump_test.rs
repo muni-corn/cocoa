@@ -32,7 +32,7 @@ fn write_version_config(repo: &TestRepo, files: &[&str]) {
     std::fs::write(repo.path.join(".cocoa.toml"), toml).unwrap();
 }
 
-// ─── Dry-run with explicit bump types ────────────────────────────────────────
+// dry-run with explicit bump types
 
 #[test]
 fn test_bump_major_dry_run_shows_new_version() {
@@ -74,8 +74,7 @@ fn test_bump_patch_dry_run_shows_new_version() {
         .stdout(predicates::str::contains("2.0.1"));
 }
 
-// ─── Auto bump type detection
-// ─────────────────────────────────────────────────
+// auto bump type detection
 
 #[test]
 fn test_bump_auto_detects_minor_from_feat_commit() {
@@ -122,7 +121,7 @@ fn test_bump_auto_detects_patch_from_fix_only() {
         .stdout(predicates::str::contains("1.0.1"));
 }
 
-// ─── No version tag defaults to 0.0.0 ────────────────────────────────────────
+// no version tag defaults to 0.0.0
 
 #[test]
 fn test_bump_no_tags_starts_from_zero() {
@@ -137,7 +136,7 @@ fn test_bump_no_tags_starts_from_zero() {
         .stdout(predicates::str::contains("0.0.1"));
 }
 
-// ─── Invalid bump type returns an error ──────────────────────────────────────
+// invalid bump type returns an error
 
 #[test]
 fn test_bump_invalid_type_exits_with_error() {
@@ -151,7 +150,7 @@ fn test_bump_invalid_type_exits_with_error() {
         .stdout(predicates::str::contains("unknown bump type"));
 }
 
-// ─── Dry-run does not modify any files ───────────────────────────────────────
+// dry-run does not modify any files
 
 #[test]
 fn test_bump_dry_run_does_not_modify_files() {
@@ -182,8 +181,7 @@ fn test_bump_dry_run_does_not_modify_files() {
     );
 }
 
-// ─── File updates on real bump
-// ────────────────────────────────────────────────
+// file updates on real bump
 
 #[test]
 fn test_bump_updates_configured_file() {
@@ -247,7 +245,7 @@ fn test_bump_updates_multiple_files() {
     assert!(pkg.contains("1.0.1"));
 }
 
-// ─── No configured files emits a warning but succeeds ────────────────────────
+// no configured files emits a warning but succeeds
 
 #[test]
 fn test_bump_no_configured_files_warns_and_succeeds() {
@@ -264,7 +262,7 @@ fn test_bump_no_configured_files_warns_and_succeeds() {
         .stdout(predicates::str::contains("1.1.0"));
 }
 
-// ─── Dry-run lists files that would be updated ───────────────────────────────
+// dry-run lists files that would be updated
 
 #[test]
 fn test_bump_dry_run_lists_target_files() {
@@ -286,7 +284,7 @@ fn test_bump_dry_run_lists_target_files() {
         .stdout(predicates::str::contains("Cargo.toml"));
 }
 
-// ─── JSON output ─────────────────────────────────────────────────────────────
+// json output
 
 #[test]
 fn test_bump_json_dry_run_output() {

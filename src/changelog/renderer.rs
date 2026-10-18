@@ -14,7 +14,7 @@ pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, Ch
     }
 }
 
-// ─── Markdown ────────────────────────────────────────────────────────────────
+// Markdown
 
 /// Render the changelog as GitHub-flavored Markdown.
 pub fn render_markdown(changelog: &Changelog) -> String {
@@ -58,27 +58,27 @@ fn markdown_entry(entry: &ChangelogEntry) -> String {
     format!("- {}{}\n", scope, entry.subject)
 }
 
-// ─── JSON ─────────────────────────────────────────────────────────────────────
+// JSON
 
 /// Serialize the changelog to pretty-printed JSON.
 pub fn render_json(changelog: &Changelog) -> Result<String, ChangelogError> {
     serde_json::to_string_pretty(changelog).map_err(|e| ChangelogError::Render(e.to_string()))
 }
 
-// ─── HTML ─────────────────────────────────────────────────────────────────────
+// HTML
 
 /// Render the changelog as a standalone HTML document.
 pub fn render_html(changelog: &Changelog) -> String {
     let mut out = String::from(
-        "<!DOCTYPE html>\n\
-         <html lang=\"en\">\n\
-         <head>\n\
-         <meta charset=\"UTF-8\">\n\
-         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\
-         <title>Changelog</title>\n\
-         </head>\n\
-         <body>\n\
-         <h1>Changelog</h1>\n",
+        "<!DOCTYPE html>
+        <html lang=\"en\">
+        <head>
+        <meta charset=\"UTF-8\">
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+        <title>Changelog</title>
+        </head>
+        <body>
+        <h1>Changelog</h1>",
     );
 
     for version in &changelog.versions {
@@ -139,8 +139,7 @@ fn html_escape(s: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-// ─── reStructuredText
-// ─────────────────────────────────────────────────────────
+// reStructuredText
 
 /// Render the changelog as reStructuredText.
 pub fn render_rst(changelog: &Changelog) -> String {
@@ -202,8 +201,7 @@ fn rst_entry(entry: &ChangelogEntry) -> String {
     format!("* {}{} (``{}``)\n", scope, entry.subject, entry.id)
 }
 
-// ─── AsciiDoc
-// ─────────────────────────────────────────────────────────────────
+// AsciiDoc
 
 /// Render the changelog as AsciiDoc.
 pub fn render_asciidoc(changelog: &Changelog) -> String {
@@ -249,8 +247,7 @@ fn asciidoc_entry(entry: &ChangelogEntry) -> String {
     format!("* {}{} (`{}`)\n", scope, entry.subject, entry.id)
 }
 
-// ─── Template
-// ─────────────────────────────────────────────────────────────────
+// template
 
 /// Render using a Jinja2-compatible template loaded from `template_path`.
 ///

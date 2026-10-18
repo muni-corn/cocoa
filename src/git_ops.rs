@@ -335,13 +335,15 @@ impl GitOperations for Git2Ops {
 
             let (message, target) = match obj.into_tag() {
                 Ok(tag) => {
-                    // annotated tag: extract message and the object it points to
+                    // annotated tag: extract message and the object it points
+                    // to
                     let msg = tag.message().map(|s| s.to_string());
                     let target_id = tag.target_id().to_string();
                     (msg, target_id)
                 }
                 Err(obj) => {
-                    // lightweight tag: the ref points directly to the target object
+                    // lightweight tag: the ref points directly to the target
+                    // object
                     (None, obj.id().to_string())
                 }
             };
@@ -358,8 +360,9 @@ impl GitOperations for Git2Ops {
 
     fn create_tag(&self, name: &str, message: &str, sign: bool) -> Result<(), GenerateError> {
         if sign {
-            // libgit2 signing requires a custom callback; fall back to the git CLI which
-            // uses the user's configured GPG key transparently
+            // libgit2 signing requires a custom callback; fall back to the git
+            // cli which uses the user's configured gpg key
+            // transparently
             let workdir = self.repo.workdir().ok_or_else(|| {
                 GenerateError::GitContext(
                     "repository has no working directory (bare repo)".to_string(),
@@ -637,7 +640,7 @@ mod tests {
         assert_eq!(commits[1].author, "Bob");
     }
 
-    // ── Git2Ops unit tests ────────────────────────────────────────────────────
+    // Git2Ops unit tests
 
     /// Create a minimal git2 repo in a temp dir and return the path.
     ///

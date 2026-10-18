@@ -409,7 +409,7 @@ mod tests {
         let message = format!("feat: {}", long_subject);
         let result = linter.lint(&message);
 
-        assert!(result.is_valid); // Should be valid (only warning)
+        assert!(result.is_valid); // should be valid (only warning)
         assert_eq!(result.violations.len(), 1);
         assert_eq!(result.violations[0].rule, "subject-max-length");
         assert_eq!(result.violations[0].severity, Severity::Warning);
@@ -423,7 +423,7 @@ mod tests {
         let message = format!("feat: {}", very_long_subject);
         let result = linter.lint(&message);
 
-        assert!(!result.is_valid); // Should be invalid (error)
+        assert!(!result.is_valid); // should be invalid (error)
         assert_eq!(result.violations.len(), 1);
         assert_eq!(result.violations[0].rule, "subject-max-length");
         assert_eq!(result.violations[0].severity, Severity::Error);
@@ -755,7 +755,8 @@ mod tests {
     fn test_unparsable_message_returns_format_error() {
         let config = create_test_config();
         let linter = Linter::new(&config);
-        // "feat(bad: something" has a colon but unclosed scope paren → parse fails
+        // "feat(bad: something" has a colon but unclosed scope paren → parse
+        // fails
         let result = linter.lint("feat(bad: something");
         assert!(!result.is_valid);
         assert_eq!(result.violations.len(), 1);

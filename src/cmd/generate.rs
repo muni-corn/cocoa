@@ -62,9 +62,10 @@ pub async fn handle_generate(
     // get the message file and message source from arguments or environment
     // variables.
     //
-    // in the case of pre-commit (prek), the second and third arguments of a typical
-    // `prepare-commit-hsg` hook call are omitted, but they are set through
-    // environment variables. so, we try to pick that up for `message_source` here.
+    // in the case of pre-commit (prek), the second and third arguments of a
+    // typical `prepare-commit-hsg` hook call are omitted, but they are set
+    // through environment variables. so, we try to pick that up for
+    // `message_source` here.
     let (message_file, message_source) = (
         iter.next(),
         iter.next().or(env::var_os("PRE_COMMIT_COMMIT_MSG_SOURCE")
@@ -72,8 +73,8 @@ pub async fn handle_generate(
             .and_then(Result::ok)),
     );
 
-    // check if the `source` argument can be parsed, and, if so, if it's a source we
-    // don't support and will exit immediately for
+    // check if the `source` argument can be parsed, and, if so, if it's a
+    // source we don't support and will exit immediately for
     let source_warrants_abort = message_source
         .as_ref()
         .is_some_and(|s| !s.is_empty() && s != "template");
@@ -239,12 +240,14 @@ async fn handle_generate_hook(config: &Config, hook_file: &PathBuf) -> Result<()
 
     match generate::generate_commit_message(config).await {
         Ok(GenerateResult { message, .. }) => {
-            // write the generated message; best-effort (don't block commit on write error)
+            // write the generated message; best-effort (don't block commit on
+            // write error)
             let new_message = format!("{message}\n{existing}");
             let _ = std::fs::write(hook_file, new_message);
         }
         Err(e) => {
-            // prepend the error as a comment so the user sees it in their editor
+            // prepend the error as a comment so the user sees it in their
+            // editor
             let comment = format!(
                 "
 

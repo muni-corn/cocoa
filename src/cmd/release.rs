@@ -74,7 +74,8 @@ pub fn handle_release(
                 version::BumpType::Patch => "patch",
             };
             if json_output {
-                // serialize updated_files as an array of objects with path and kind
+                // serialize updated_files as an array of objects with path and
+                // kind
                 let files_json: Vec<serde_json::Value> = outcome
                     .updated_files
                     .iter()

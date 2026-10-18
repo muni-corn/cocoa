@@ -110,7 +110,8 @@ fn build_version(
     entries: Vec<ChangelogEntry>,
     config: &ChangelogConfig,
 ) -> ChangelogVersion {
-    // collect breaking changes from all entries (sorted newest-first, then by id)
+    // collect breaking changes from all entries (sorted newest-first, then by
+    // id)
     let mut breaking_changes: Vec<ChangelogEntry> =
         entries.iter().filter(|e| e.breaking).cloned().collect();
     breaking_changes.sort_by(|a, b| b.timestamp.cmp(&a.timestamp).then(a.id.cmp(&b.id)));
@@ -131,7 +132,8 @@ fn build_version(
             .push(entry.clone());
     }
 
-    // sort entries within each section deterministically: newest-first, then by SHA
+    // sort entries within each section deterministically: newest-first, then by
+    // SHA
     for section_entries in type_groups.values_mut() {
         section_entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp).then(a.id.cmp(&b.id)));
     }
@@ -238,7 +240,8 @@ fn build_versioned_history<G: GitOperations>(
 
     for commit in all_commits {
         if let Some(tag_name) = tag_map.get(&commit.id) {
-            // this commit is tagged; close the running bucket and start a new version
+            // this commit is tagged; close the running bucket and start a new
+            // version
             if !current_commits.is_empty() || current_version.is_some() {
                 let entries = build_entries(&current_commits, config);
                 if !entries.is_empty() || current_version.is_some() {
