@@ -1,5 +1,17 @@
 # Changelog
 
+## **v0.4.0**
+
+### **Breaking changes**
+
+- **config:** make temperature optional, None by default
+
+### bug fixes
+
+- **config:** make temperature optional, None by default
+
+---
+
 ## **v0.3.0**
 
 ### **Breaking changes**
