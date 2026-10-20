@@ -20,7 +20,7 @@ clap = { version = "4", features = ["derive"] }
 clap_mangen = "0.2"
 console = "0.16"
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
-genai = "0.5"
+genai = "0.7"
 git2 = "0.20.2"
 glob = "0.3.3"
 minijinja = "2.18.0"

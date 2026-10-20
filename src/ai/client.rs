@@ -41,7 +41,9 @@ impl Client {
             })
         }
 
-        let client = client_builder.build();
+        let client = client_builder
+            .build()
+            .map_err(|e| ProviderError::Api(format!("client build error: {e}")))?;
 
         Ok(Self { config, client })
     }
