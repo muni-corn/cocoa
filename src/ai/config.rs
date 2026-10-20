@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{Provider, ProviderError};
 
-const DEFAULT_TEMPERATURE: f32 = 0.7;
 const DEFAULT_MAX_TOKENS: u32 = 500;
 
 /// AI configuration section from .cocoa.toml
@@ -18,8 +17,8 @@ pub struct AiConfig {
 
     pub model: String,
 
-    #[serde(default = "default_temperature")]
-    pub temperature: f32,
+    #[serde(default)]
+    pub temperature: Option<f32>,
 
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
@@ -32,7 +31,7 @@ impl Default for AiConfig {
         Self {
             provider: None,
             model: String::new(),
-            temperature: DEFAULT_TEMPERATURE,
+            temperature: None,
             max_tokens: DEFAULT_MAX_TOKENS,
             secret: SecretConfig::default(),
         }
@@ -82,10 +81,6 @@ impl SecretConfig {
     }
 }
 
-fn default_temperature() -> f32 {
-    DEFAULT_TEMPERATURE
-}
-
 fn default_max_tokens() -> u32 {
     DEFAULT_MAX_TOKENS
 }
@@ -105,7 +100,7 @@ mod tests {
         let config = AiConfig::default();
         assert_eq!(config.provider, None);
         assert_eq!(config.model, "");
-        assert_eq!(config.temperature, 0.7);
+        assert_eq!(config.temperature, None);
         assert_eq!(config.max_tokens, 500);
     }
 

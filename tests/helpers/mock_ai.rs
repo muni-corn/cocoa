@@ -42,7 +42,7 @@ pub fn test_ai_config() -> AiConfig {
     AiConfig {
         provider: Some(Provider(genai::adapter::AdapterKind::OpenAI)),
         model: "gpt-4".to_string(),
-        temperature: 0.7,
+        temperature: Some(0.7),
         max_tokens: 500,
         secret: SecretConfig::Env {
             env: "TEST_API_KEY".to_string(),
@@ -117,6 +117,6 @@ mod tests {
     fn test_ai_config_creation() {
         let config = test_ai_config();
         assert_eq!(config.model, "gpt-4");
-        assert_eq!(config.temperature, 0.7);
+        assert_eq!(config.temperature, Some(0.7));
     }
 }

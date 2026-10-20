@@ -147,7 +147,7 @@ env = "OPENAI_API_KEY"
     assert!(config.ai.is_some());
     let ai_config = config.ai.unwrap();
     assert_eq!(ai_config.model, "gpt-4");
-    assert_eq!(ai_config.temperature, 0.7);
+    assert_eq!(ai_config.temperature, Some(0.7));
     assert_eq!(ai_config.max_tokens, 500);
 }
 

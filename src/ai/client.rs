@@ -65,9 +65,11 @@ impl Client {
         ];
 
         let chat_request = ChatRequest::new(messages);
-        let chat_options = ChatOptions::default()
-            .with_temperature(self.config.temperature as f64)
-            .with_max_tokens(self.config.max_tokens);
+        let mut chat_options = ChatOptions::default().with_max_tokens(self.config.max_tokens);
+
+        if let Some(temperature) = self.config.temperature {
+            chat_options = chat_options.with_temperature(temperature as f64)
+        }
 
         let response = self
             .client
@@ -116,7 +118,7 @@ mod tests {
         AiConfig {
             provider: Some(Provider(AdapterKind::OpenAI)),
             model: "gpt-4".to_string(),
-            temperature: 0.7,
+            temperature: Some(0.7),
             max_tokens: 500,
             secret: SecretConfig::Env {
                 env: "TEST_API_KEY".to_string(),
