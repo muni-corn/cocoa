@@ -1,5 +1,7 @@
 //! Changelog output format renderers.
 
+use minijinja::value::Serde;
+
 use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
 /// Render a `Changelog` in the requested output format.
@@ -272,7 +274,7 @@ pub fn render_template(
         .get_template("changelog")
         .map_err(|e| ChangelogError::Template(format!("failed to load template: {}", e)))?;
 
-    let ctx = minijinja::Value::from_serialize(changelog);
+    let ctx = minijinja::Value::from(Serde(changelog));
     tmpl.render(minijinja::context! { changelog => ctx })
         .map_err(|e| ChangelogError::Template(format!("failed to render template: {}", e)))
 }
