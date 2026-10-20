@@ -109,8 +109,8 @@ impl GitOperations for Git2Ops {
             .map_err(|e| GenerateError::GitContext(format!("failed to get HEAD: {}", e)))?;
 
         if head.is_branch() {
-            let name = head.shorthand().ok_or_else(|| {
-                GenerateError::GitContext("branch name is not valid UTF-8".to_string())
+            let name = head.shorthand().map_err(|e| {
+                GenerateError::GitContext(format!("branch name is not valid UTF-8: {e}"))
             })?;
             Ok(name.to_string())
         } else {
@@ -144,7 +144,7 @@ impl GitOperations for Git2Ops {
             .filter_map(|oid_result| {
                 let oid = oid_result.ok()?;
                 let commit = self.repo.find_commit(oid).ok()?;
-                Some(commit.summary()?.to_string())
+                commit.summary().ok()?.map(str::to_string)
             })
             .collect();
 
@@ -298,7 +298,13 @@ impl GitOperations for Git2Ops {
             .filter_map(|oid_result| {
                 let oid = oid_result.ok()?;
                 let commit = self.repo.find_commit(oid).ok()?;
-                let summary = commit.summary().unwrap_or("").trim_end().to_string();
+                let summary = commit
+                    .summary()
+                    .ok()
+                    .flatten()
+                    .unwrap_or("")
+                    .trim_end()
+                    .to_string();
                 let author = commit.author().name().unwrap_or("").to_string();
                 let timestamp = commit.time().seconds();
                 Some(CommitInfo {
@@ -322,9 +328,9 @@ impl GitOperations for Git2Ops {
         let mut tags = Vec::new();
         for opt_name in tag_names.iter() {
             let name = match opt_name {
-                Some(n) => n,
+                Ok(Some(n)) => n,
                 // skip tags with non-UTF-8 names
-                None => continue,
+                _ => continue,
             };
 
             let refname = format!("refs/tags/{}", name);
@@ -337,7 +343,7 @@ impl GitOperations for Git2Ops {
                 Ok(tag) => {
                     // annotated tag: extract message and the object it points
                     // to
-                    let msg = tag.message().map(|s| s.to_string());
+                    let msg = tag.message().ok().flatten().map(|s| s.to_string());
                     let target_id = tag.target_id().to_string();
                     (msg, target_id)
                 }
