@@ -14,27 +14,27 @@ name = "cocoa"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1"
+chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 clap_mangen = "0.2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-toml = "1"
-regex = "1"
-thiserror = "2"
-anyhow = "1"
 console = "0.16"
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
-nom = "8"
 genai = "0.5"
-tokio = { version = "1", features = ["full"] }
 git2 = "0.20.2"
-chrono = "0.4"
-minijinja = "2.18.0"
-semver = "1.0.27"
-rust-i18n = "3.1.5"
-serde_yml = "0.0.12"
-toml_edit = "0.25.11"
 glob = "0.3.3"
+minijinja = "2.18.0"
+nom = "8"
+regex = "1"
+rust-i18n = "3.1.5"
+semver = "1.0.27"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yml = "0.0.12"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+toml = "1"
+toml_edit = "0.25.11"
 
 [dev-dependencies]
 assert_cmd = "2.1.1"
