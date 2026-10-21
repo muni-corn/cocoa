@@ -2,6 +2,7 @@ pub mod retry;
 
 use thiserror::Error;
 
+use self::retry::{RetryNotice, generate_with_retries};
 use crate::{
     ai::client::{Client as AiClient, CommitContext},
     config::Config,
@@ -36,6 +37,11 @@ pub enum GenerateError {
 pub struct GenerateResult {
     /// The generated conventional commit message.
     pub message: String,
+    /// How many times the model was asked, counting the first as 1.
+    ///
+    /// Greater than 1 when earlier messages failed validation and the model
+    /// was asked to try again.
+    pub attempts: u32,
     /// Human-readable warnings for sensitive content detected in the diff.
     ///
     /// Non-empty when the staged diff appears to contain secrets such as API
@@ -54,14 +60,28 @@ pub struct StagedChanges {
     pub total_deletions: usize,
 }
 
-pub async fn generate_commit_message(config: &Config) -> Result<GenerateResult, GenerateError> {
+/// Generates a commit message for the staged changes.
+///
+/// When the model's message fails validation, it is asked to try again, up to
+/// `max_retries` times from the AI configuration.
+///
+/// # Params
+///
+/// - `config`: The loaded cocoa configuration.
+/// - `on_retry`: Called just before each retry so callers can report it.
+pub async fn generate_commit_message(
+    config: &Config,
+    on_retry: impl FnMut(&RetryNotice),
+) -> Result<GenerateResult, GenerateError> {
     let git_ops = Git2Ops::open()?;
-    generate_commit_message_with_git(config, &git_ops).await
+    generate_commit_message_with_git(config, &git_ops, on_retry).await
 }
 
+/// Like [`generate_commit_message`], but reads from the given git backend.
 pub async fn generate_commit_message_with_git<G: GitOperations>(
     config: &Config,
     git_ops: &G,
+    on_retry: impl FnMut(&RetryNotice),
 ) -> Result<GenerateResult, GenerateError> {
     let staged_changes = analyze_staged_changes_with_git(git_ops)?;
 
@@ -92,16 +112,20 @@ pub async fn generate_commit_message_with_git<G: GitOperations>(
     let ai_client = AiClient::new(ai_config.clone())
         .map_err(|e| GenerateError::AiGeneration(format!("failed to create ai client: {}", e)))?;
 
-    let generated_message = ai_client
-        .generate_commit_message(&staged_changes.diff, &context, &config.commit)
-        .await
-        .map_err(|e| GenerateError::AiGeneration(e.to_string()))?;
+    let mut conversation =
+        ai_client.start_conversation(&staged_changes.diff, &context, &config.commit);
 
-    validate_generated_message(&generated_message, config)
-        .map_err(|violations| GenerateError::Validation(violations.join("; ")))?;
+    let outcome = generate_with_retries(
+        &mut conversation,
+        ai_config.max_retries,
+        |message| validate_generated_message(message, config),
+        on_retry,
+    )
+    .await?;
 
     Ok(GenerateResult {
-        message: generated_message,
+        message: outcome.message,
+        attempts: outcome.attempts,
         sensitive_warnings,
     })
 }

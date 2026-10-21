@@ -12,7 +12,7 @@ use rust_i18n::t;
 
 use crate::{
     Config,
-    generate::{self, GenerateResult},
+    generate::{self, GenerateResult, retry::RetryNotice},
     style::{
         goodbye_with_death, goodbye_with_success, print_error, print_error_bold, print_info,
         print_success_bold, print_warning, print_warning_bold,
@@ -126,9 +126,20 @@ pub async fn handle_generate(
         print_info(t!("main.generate.calling_provider"));
     }
 
-    match generate::generate_commit_message(config).await {
+    // json consumers read stdout, and quiet means quiet, so only chatty runs
+    // get to see retry notices
+    let report_retries = !quiet && !json_output;
+
+    let on_retry = |notice: &RetryNotice| {
+        if report_retries {
+            print_retry_notice(notice);
+        }
+    };
+
+    match generate::generate_commit_message(config, on_retry).await {
         Ok(GenerateResult {
             message,
+            attempts,
             sensitive_warnings,
         }) => {
             // surface sensitive-content warnings before showing the message so
@@ -144,6 +155,7 @@ pub async fn handle_generate(
                 let json_result = serde_json::json!({
                     "success": true,
                     "message": message,
+                    "attempts": attempts,
                     "sensitive_warnings": sensitive_warnings,
                 });
                 println!("{}", serde_json::to_string_pretty(&json_result)?);
@@ -237,6 +249,19 @@ pub async fn handle_generate(
     Ok(())
 }
 
+/// Tells the user their message was rejected and that cocoa is asking again.
+fn print_retry_notice(notice: &RetryNotice) {
+    print_warning(t!(
+        "main.generate.retrying",
+        attempt = notice.attempt,
+        max = notice.max_attempts
+    ));
+
+    for violation in &notice.violations {
+        print_info(violation);
+    }
+}
+
 /// Handles `cocoa generate --hook <file>` (non-interactive `prepare-commit-msg`
 /// mode).
 ///
@@ -263,7 +288,8 @@ async fn handle_generate_hook(config: &Config, hook_file: &PathBuf) -> Result<()
         return Ok(());
     }
 
-    match generate::generate_commit_message(config).await {
+    // the hook writes into an editor buffer, so retries stay silent
+    match generate::generate_commit_message(config, |_| {}).await {
         Ok(GenerateResult { message, .. }) => {
             // write the generated message; best-effort (don't block commit on
             // write error)

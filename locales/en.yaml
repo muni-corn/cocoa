@@ -134,7 +134,8 @@ main.generate.no_staged_hint2: "then run `cocoa generate` again"
 main.generate.ai_failed: "generation failed"
 main.generate.git_failed: "git operation failed"
 main.generate.validation_failed: "generated message failed validation"
-main.generate.validation_hint: "this may indicate an issue with your ai configuration"
+main.generate.validation_hint: "try raising `max_retries` in your [ai] config or passing `--max-retries`, or check your ai configuration"
+main.generate.retrying: "that message failed validation, asking for another try (attempt %{attempt} of %{max})..."
 main.generate.check_ai: "check your ai configuration and api key"
 
 # ---------------------------------------------------------------------------
