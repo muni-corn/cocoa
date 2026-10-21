@@ -2,9 +2,11 @@
 
 pub mod client;
 pub mod config;
+pub mod conversation;
 mod prompt;
 pub mod provider;
 
 pub use client::Client;
 pub use config::{AiConfig, SecretConfig};
+pub use conversation::Conversation;
 pub use provider::{Provider, ProviderError};

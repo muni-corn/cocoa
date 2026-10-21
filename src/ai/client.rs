@@ -7,7 +7,7 @@ use genai::{
     chat::{ChatMessage, ChatOptions, ChatRequest},
 };
 
-use super::{AiConfig, ProviderError};
+use super::{AiConfig, Conversation, ProviderError};
 use crate::{
     ai::prompt::{build_prompt, build_system_prompt},
     config::CommitConfig,
@@ -48,6 +48,25 @@ impl Client {
         Ok(Self { config, client })
     }
 
+    /// Starts a conversation seeded with the prompts for the given changes.
+    ///
+    /// The returned conversation has not contacted the model yet; call
+    /// [`Conversation::send`] to get the first reply.
+    pub fn start_conversation(
+        &self,
+        staged_changes: &str,
+        context: &CommitContext,
+        config: &CommitConfig,
+    ) -> Conversation<'_> {
+        let system_prompt = build_system_prompt();
+        let prompt = build_prompt(staged_changes, context, config);
+
+        Conversation::new(self, vec![
+            ChatMessage::system(system_prompt),
+            ChatMessage::user(prompt),
+        ])
+    }
+
     /// Generates a commit message from the given context.
     pub async fn generate_commit_message(
         &self,
@@ -55,15 +74,17 @@ impl Client {
         context: &CommitContext,
         config: &CommitConfig,
     ) -> Result<String, ProviderError> {
+        self.start_conversation(staged_changes, context, config)
+            .send()
+            .await
+    }
+
+    /// Sends the given messages to the model and returns the trimmed reply.
+    pub(super) async fn complete(
+        &self,
+        messages: Vec<ChatMessage>,
+    ) -> Result<String, ProviderError> {
         let model_name = &self.config.model;
-        let system_prompt = build_system_prompt();
-        let prompt = build_prompt(staged_changes, context, config);
-
-        let messages = vec![
-            ChatMessage::system(system_prompt),
-            ChatMessage::user(prompt),
-        ];
-
         let chat_request = ChatRequest::new(messages);
         let mut chat_options = ChatOptions::default().with_max_tokens(self.config.max_tokens);
 
@@ -194,6 +215,22 @@ mod tests {
             std::env::remove_var("TEST_API_KEY");
             std::env::remove_var("ANTHROPIC_API_KEY");
         }
+    }
+
+    #[test]
+    fn test_start_conversation_seeds_system_and_user_messages() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let client = Client::new(test_config()).unwrap();
+
+        let conversation =
+            client.start_conversation("diff", &CommitContext::default(), &CommitConfig::default());
+
+        unsafe {
+            std::env::remove_var("TEST_API_KEY");
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+
+        assert_eq!(conversation.len(), 2);
     }
 
     #[test]
