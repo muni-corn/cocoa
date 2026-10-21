@@ -47,6 +47,28 @@ pub struct GenerateArgs {
     /// the commit is never blocked.
     #[arg()]
     pub hook_args: Vec<String>,
+
+    /// How many times to ask the AI to try again when its commit message fails
+    /// validation.
+    ///
+    /// Overrides `max_retries` from the `[ai]` section of the configuration.
+    /// Use 0 to disable retrying.
+    #[arg(long, value_name = "N")]
+    pub max_retries: Option<u32>,
+}
+
+/// Returns a copy of `config` with the AI retry count overridden, if given.
+///
+/// Leaves the config untouched when no override is provided or when no AI
+/// provider is configured.
+fn with_max_retries(config: &Config, max_retries: Option<u32>) -> Config {
+    let mut config = config.clone();
+
+    if let (Some(retries), Some(ai)) = (max_retries, config.ai.as_mut()) {
+        ai.max_retries = retries;
+    }
+
+    config
 }
 
 pub async fn handle_generate(
@@ -57,6 +79,9 @@ pub async fn handle_generate(
     verbose: bool,
     _dry_run: bool,
 ) -> Result<()> {
+    // apply the cli override up front so interactive and hook modes agree
+    let config = &with_max_retries(config, args.max_retries);
+
     let mut iter = args.hook_args.into_iter();
 
     // get the message file and message source from arguments or environment
@@ -265,4 +290,41 @@ async fn handle_generate_hook(config: &Config, hook_file: &PathBuf) -> Result<()
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ai::AiConfig;
+
+    fn config_with_ai() -> Config {
+        Config {
+            ai: Some(AiConfig::default()),
+            ..Config::default()
+        }
+    }
+
+    #[test]
+    fn test_with_max_retries_overrides_config() {
+        let config = with_max_retries(&config_with_ai(), Some(7));
+        assert_eq!(config.ai.unwrap().max_retries, 7);
+    }
+
+    #[test]
+    fn test_with_max_retries_allows_zero() {
+        let config = with_max_retries(&config_with_ai(), Some(0));
+        assert_eq!(config.ai.unwrap().max_retries, 0);
+    }
+
+    #[test]
+    fn test_with_max_retries_none_keeps_config_value() {
+        let config = with_max_retries(&config_with_ai(), None);
+        assert_eq!(config.ai.unwrap().max_retries, 3);
+    }
+
+    #[test]
+    fn test_with_max_retries_without_ai_is_noop() {
+        let config = with_max_retries(&Config::default(), Some(5));
+        assert!(config.ai.is_none());
+    }
 }

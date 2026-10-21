@@ -204,6 +204,26 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_generate_max_retries() {
+        let cli = Cli::try_parse_from(["cocoa", "generate", "--max-retries", "5"]).unwrap();
+
+        match cli.command {
+            Command::Generate(args) => assert_eq!(args.max_retries, Some(5)),
+            _ => panic!("expected generate command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_generate_max_retries_defaults_to_none() {
+        let cli = Cli::try_parse_from(["cocoa", "generate"]).unwrap();
+
+        match cli.command {
+            Command::Generate(args) => assert_eq!(args.max_retries, None),
+            _ => panic!("expected generate command"),
+        }
+    }
+
+    #[test]
     fn test_parse_with_config_flag() {
         let args = vec!["cocoa", "--config", "custom.toml", "lint", "--stdin"];
         let cli = Cli::try_parse_from(args).unwrap();
