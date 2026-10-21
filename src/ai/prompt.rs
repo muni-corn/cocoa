@@ -165,8 +165,8 @@ fn length_rule_to_must_should(name: &str, deny: Option<usize>, warn: Option<usiz
 }
 
 /// Translates a rule like `no_scope` into one of:
-/// - "{area} MUST have {name}", or
-/// - "{area} should have {name}"
+/// - "- {area} MUST have {name}", or
+/// - "- {area} should have {name}"
 fn negative_rule_to_must_should(
     area: &str,
     name: &str,
@@ -174,9 +174,9 @@ fn negative_rule_to_must_should(
     warn: Option<bool>,
 ) -> String {
     if deny.unwrap_or(false) {
-        format!("{area} MUST have {name}")
+        format!("- {area} MUST have {name}")
     } else if warn.unwrap_or(false) {
-        format!("{area} should have {area}")
+        format!("- {area} should have {name}")
     } else {
         String::new()
     }
@@ -232,5 +232,23 @@ mod tests {
 
         assert!(prompt.contains("test diff"));
         assert!(!prompt.contains("branch name:"));
+    }
+
+    #[test]
+    fn test_negative_rule_deny_is_must() {
+        let line = negative_rule_to_must_should("summary", "scope", Some(true), None);
+        assert_eq!(line, "- summary MUST have scope");
+    }
+
+    #[test]
+    fn test_negative_rule_warn_is_should() {
+        let line = negative_rule_to_must_should("summary", "scope", None, Some(true));
+        assert_eq!(line, "- summary should have scope");
+    }
+
+    #[test]
+    fn test_negative_rule_unset_is_empty() {
+        let line = negative_rule_to_must_should("summary", "scope", None, None);
+        assert!(line.is_empty());
     }
 }
