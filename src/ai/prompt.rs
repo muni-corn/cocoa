@@ -144,6 +144,26 @@ pub fn build_prompt(
     .join("\n\n")
 }
 
+/// Builds the follow-up message sent when a generated commit message failed
+/// validation.
+///
+/// # Params
+///
+/// - `violations`: Human-readable descriptions of each rule the previous
+///   message broke, such as `type-enum: type must be one of feat, fix`.
+pub fn build_retry_prompt(violations: &[String]) -> String {
+    let mut lines = vec!["that commit message failed validation with these problems:".to_string()];
+    lines.extend(violations.iter().map(|v| format!("- {v}")));
+    lines.push(String::new());
+    lines.push(
+        "fix every problem and try again. respond with only the corrected commit message, nothing \
+         else."
+            .to_string(),
+    );
+
+    lines.join("\n")
+}
+
 fn set_to_list_string(set: &HashSet<String>) -> String {
     set.iter()
         .map(String::as_str)
@@ -232,6 +252,25 @@ mod tests {
 
         assert!(prompt.contains("test diff"));
         assert!(!prompt.contains("branch name:"));
+    }
+
+    #[test]
+    fn test_build_retry_prompt_lists_every_violation() {
+        let prompt = build_retry_prompt(&[
+            "type-enum: bad type".to_string(),
+            "subject-length: too long".to_string(),
+        ]);
+
+        assert!(prompt.contains("- type-enum: bad type"));
+        assert!(prompt.contains("- subject-length: too long"));
+    }
+
+    #[test]
+    fn test_build_retry_prompt_asks_for_message_only() {
+        let prompt = build_retry_prompt(&["type-enum: bad type".to_string()]);
+
+        assert!(prompt.contains("try again"));
+        assert!(prompt.contains("only the corrected commit message"));
     }
 
     #[test]
