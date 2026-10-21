@@ -104,6 +104,10 @@ temperature = 0.7
 # max tokens in response
 max_tokens = 500
 
+# how many times to ask the AI to try again when its commit message
+# fails validation (0 disables retrying)
+max_retries = 3
+
 # API secret (see next section)
 [ai.secret]
 env = "OPENAI_API_KEY"

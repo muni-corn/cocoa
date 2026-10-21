@@ -154,6 +154,9 @@ i'm telling you your commit message doesn't pass the rules you configured.
 
 with `cocoa lint`, i'll tell you which rules are being violated.
 
+if this came from `cocoa generate`, i already asked the AI to try again a few times. see
+[AI providers](./ai-providers.md#generated-message-failed-validation) for how to tune that.
+
 ### "commit already created (hook too late)"
 
 the git hook didn't stop the commit.

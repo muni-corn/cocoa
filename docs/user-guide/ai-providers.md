@@ -19,6 +19,35 @@ messages are generated based on:
 
 then i'll show you the generated commit message for you to approve or refine!
 
+## when the AI breaks your rules
+
+i check every generated message against your [commit rules](./linting-commits.md). if one doesn't
+pass, i don't give up! i reply to the AI with the problems i found, ask it to try again, and tell it
+to respond with only the commit message.
+
+i'll try again up to 3 times by default. change that in `.cocoa.toml`:
+
+```toml
+[ai]
+max_retries = 5 # 0 turns retrying off
+```
+
+or just for one run:
+
+```bash
+cocoa generate --max-retries 5
+```
+
+each retry sends the whole conversation back to the AI (including your diff), so more retries means
+more tokens used.
+
+while i'm retrying, i'll tell you about it unless you pass `--quiet` or `--json`. with `--json`, the
+`attempts` field says how many tries it took. when i'm run by the `prepare-commit-msg` hook, i retry
+quietly.
+
+if the message is still invalid after the last retry, i'll show you the final problems and exit with
+code 3.
+
 **want to write messages yourself, but with a fancy TUI?** heck yeah! use interactive mode instead
 with `cocoa commit` :D
 
@@ -304,6 +333,17 @@ export OPENAI_API_KEY="sk-..."
 - OpenAI: [https://platform.openai.com/docs/models](https://platform.openai.com/docs/models)
 - Anthropic: [https://docs.anthropic.com/models](https://docs.anthropic.com/models)
 - Ollama: [https://ollama.com/models](https://ollama.com/models)
+
+### "generated message failed validation"
+
+the AI kept writing messages that break your rules, even after retrying.
+
+1. run `cocoa generate` again; AI replies vary
+2. raise the retry limit with `max_retries` in `[ai]` or `--max-retries`
+3. check your [commit rules](./linting-commits.md): are they strict enough that a model can't guess
+   them? i tell the AI about your types, scopes, and length limits up front, but custom
+   `regex_patterns` only reach it as feedback after a failed attempt
+4. try a more capable model
 
 ### "rate limited"
 

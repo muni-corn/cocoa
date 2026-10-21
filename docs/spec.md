@@ -97,6 +97,7 @@ provider = "openai" # or "anthropic", "ollama", "openrouter"
 model = "gpt-4"
 temperature = 0.7
 max_tokens = 500
+max_retries = 3 # retries when a generated message fails validation
 
 [ai.secret]
 # ai.secret is an externally-tagged serde enum
