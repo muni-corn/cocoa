@@ -135,6 +135,7 @@ provider = "OpenAi"
 model = "gpt-4"
 temperature = 0.7
 max_tokens = 500
+max_retries = 5
 
 [ai.secret]
 env = "OPENAI_API_KEY"
@@ -149,6 +150,7 @@ env = "OPENAI_API_KEY"
     assert_eq!(ai_config.model, "gpt-4");
     assert_eq!(ai_config.temperature, Some(0.7));
     assert_eq!(ai_config.max_tokens, 500);
+    assert_eq!(ai_config.max_retries, 5);
 }
 
 #[test]

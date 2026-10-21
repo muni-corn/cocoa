@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::{Provider, ProviderError};
 
 const DEFAULT_MAX_TOKENS: u32 = 500;
+const DEFAULT_MAX_RETRIES: u32 = 3;
 
 /// AI configuration section from .cocoa.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +24,11 @@ pub struct AiConfig {
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
 
+    /// How many times to ask the model to try again when its commit message
+    /// fails validation. Zero disables retrying.
+    #[serde(default = "default_max_retries")]
+    pub max_retries: u32,
+
     pub secret: SecretConfig,
 }
 
@@ -33,6 +39,7 @@ impl Default for AiConfig {
             model: String::new(),
             temperature: None,
             max_tokens: DEFAULT_MAX_TOKENS,
+            max_retries: DEFAULT_MAX_RETRIES,
             secret: SecretConfig::default(),
         }
     }
@@ -85,6 +92,10 @@ fn default_max_tokens() -> u32 {
     DEFAULT_MAX_TOKENS
 }
 
+fn default_max_retries() -> u32 {
+    DEFAULT_MAX_RETRIES
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -102,6 +113,32 @@ mod tests {
         assert_eq!(config.model, "");
         assert_eq!(config.temperature, None);
         assert_eq!(config.max_tokens, 500);
+        assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_ai_config_max_retries_defaults_when_omitted() {
+        let config: AiConfig = toml::from_str(
+            r#"
+model = "gpt-4"
+secret = { env = "KEY" }
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_ai_config_max_retries_parses() {
+        let config: AiConfig = toml::from_str(
+            r#"
+model = "gpt-4"
+max_retries = 0
+secret = { env = "KEY" }
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.max_retries, 0);
     }
 
     #[test]
