@@ -13,11 +13,11 @@
         "treefmt-nix": "treefmt-nix_2"
       },
       "locked": {
-        "lastModified": 1792624664,
-        "narHash": "sha256-uPtbhkX/PLrdGounvMB6ByIorhIXoYAqw7Bpi/PqTQs=",
+        "lastModified": 1792625111,
+        "narHash": "sha256-Ko0sKi0tbV62P0qhPmEJuChoZsZXQvsWRo5zfypaU1c=",
         "owner": "muni-corn",
         "repo": "cocoa",
-        "rev": "ce7bf7fb007684572afc88f5fe99fb9c06d4636d",
+        "rev": "3d4d81a76b5feb3caa976910fff8b905b8b11060",
         "type": "github"
       },
       "original": {
@@ -282,16 +282,15 @@
     "musicaloft-shell": {
       "flake": false,
       "locked": {
-        "lastModified": 1773925126,
-        "narHash": "sha256-BPlkr/5w3IAXhkvobKyJeGkCIXcsyHKHusApmf8lLz0=",
+        "lastModified": 1792284622,
+        "narHash": "sha256-Uv5FZXORW8X2bBl7pv2wa7+hiyGn4Ao6trgfr/OFKhw=",
         "owner": "musicaloft",
         "repo": "musicaloft-shell",
-        "rev": "9776bc4c9334f9a0a9908ee68a52c8bee300d2ac",
+        "rev": "f50968e5855026c30e599fd0c695f32e51cd38c7",
         "type": "github"
       },
       "original": {
         "owner": "musicaloft",
-        "ref": "devenv",
         "repo": "musicaloft-shell",
         "type": "github"
       }
