@@ -95,7 +95,8 @@ pub async fn generate_commit_message_with_git<G: GitOperations>(
         .await
         .map_err(|e| GenerateError::AiGeneration(e.to_string()))?;
 
-    validate_generated_message(&generated_message, config)?;
+    validate_generated_message(&generated_message, config)
+        .map_err(|violations| GenerateError::Validation(violations.join("; ")))?;
 
     Ok(GenerateResult {
         message: generated_message,
@@ -171,7 +172,13 @@ fn count_diff_changes(diff: &str) -> (usize, usize) {
     (additions, deletions)
 }
 
-fn validate_generated_message(message: &str, config: &Config) -> Result<(), GenerateError> {
+/// Lints a generated message against the configured commit rules.
+///
+/// # Returns
+///
+/// `Ok` when the message has no error-level violations. Otherwise, every
+/// violation, warnings included, formatted as `rule: message`.
+fn validate_generated_message(message: &str, config: &Config) -> Result<(), Vec<String>> {
     // use existing lint module to validate the message
     let linter = Linter::new(config);
     let result = linter.lint(message);
@@ -179,12 +186,11 @@ fn validate_generated_message(message: &str, config: &Config) -> Result<(), Gene
     if result.is_valid {
         Ok(())
     } else {
-        let error_messages: Vec<String> = result
+        Err(result
             .violations
             .iter()
             .map(|v| format!("{}: {}", v.rule, v.message))
-            .collect();
-        Err(GenerateError::Validation(error_messages.join("; ")))
+            .collect())
     }
 }
 
@@ -348,9 +354,19 @@ diff --git a/test.rs b/test.rs
     fn test_validate_generated_message_invalid_type() {
         let config = Config::default();
         let result = validate_generated_message("badtype: do something", &config);
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("validation"));
+        let violations = result.unwrap_err();
+        assert!(!violations.is_empty());
+        assert!(violations.iter().any(|v| v.contains("type")));
+    }
+
+    #[test]
+    fn test_validate_generated_message_reports_each_violation() {
+        let config = Config::default();
+        let violations = validate_generated_message("not a commit", &config).unwrap_err();
+
+        assert!(violations.iter().any(|v| v.starts_with("no-type: ")));
+        // warnings are included alongside errors so retries can fix both
+        assert!(violations.iter().any(|v| v.starts_with("no-scope: ")));
     }
 
     // --- GenerateError display ---
