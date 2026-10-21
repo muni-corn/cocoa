@@ -1,3 +1,5 @@
+pub mod retry;
+
 use thiserror::Error;
 
 use crate::{
