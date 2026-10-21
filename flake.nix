@@ -17,7 +17,7 @@
     };
 
     musicaloft-shell = {
-      url = "github:musicaloft/musicaloft-shell/devenv";
+      url = "github:musicaloft/musicaloft-shell";
       flake = false;
     };
 
