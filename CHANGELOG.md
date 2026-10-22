@@ -1,5 +1,29 @@
 # Changelog
 
+## **v0.5.0**
+
+### **Breaking changes**
+
+- **config:** make max_tokens optional, None by default
+
+### new features
+
+- **ai:** send reasoning effort to provider
+- **ai:** add reasoning option to ai config
+- **ai:** add errors for exhausted token budgets and empty replies
+- **ai:** add reasoning effort config type
+
+### bug fixes
+
+- **ai:** fail early when replies are truncated or empty
+- **config:** make max_tokens optional, None by default
+
+### documentation
+
+- document reasoning option and optional max_tokens
+
+---
+
 ## **v0.4.1**
 
 ### new features
