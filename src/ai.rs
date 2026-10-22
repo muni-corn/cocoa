@@ -7,6 +7,7 @@ mod options;
 mod prompt;
 pub mod provider;
 pub mod reasoning;
+mod reply;
 
 pub use client::Client;
 pub use config::{AiConfig, SecretConfig};

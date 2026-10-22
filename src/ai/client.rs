@@ -7,7 +7,9 @@ use genai::{
     chat::{ChatMessage, ChatRequest},
 };
 
-use super::{AiConfig, Conversation, ProviderError, options::build_chat_options};
+use super::{
+    AiConfig, Conversation, ProviderError, options::build_chat_options, reply::extract_reply,
+};
 use crate::{
     ai::prompt::{build_prompt, build_system_prompt},
     config::CommitConfig,
@@ -80,6 +82,12 @@ impl Client {
     }
 
     /// Sends the given messages to the model and returns the trimmed reply.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the request fails, when the model hit its token limit, or
+    /// when the reply has no text, so callers never receive an unusable
+    /// message.
     pub(super) async fn complete(
         &self,
         messages: Vec<ChatMessage>,
@@ -97,9 +105,7 @@ impl Client {
             // authentication details or other sensitive content
             .map_err(|e| ProviderError::Api(security::redact(&format!("genai error: {e}"))))?;
 
-        let content = response.texts().join("");
-
-        Ok(content.trim().to_string())
+        extract_reply(&response)
     }
 }
 

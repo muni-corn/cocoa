@@ -282,6 +282,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_exhausted_token_budget_fails_without_retrying() {
+        let mut source = Scripted::new(vec![
+            Err(ProviderError::MaxTokensReached),
+            Ok("good".to_string()),
+        ]);
+        let mut notices = Vec::new();
+
+        let error = generate_with_retries(&mut source, 3, only_good, |n| notices.push(n.clone()))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, GenerateError::AiGeneration(msg) if msg.contains("max_tokens")));
+        assert_eq!(source.calls, 1);
+        assert!(notices.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_empty_reply_fails_without_retrying() {
+        let mut source =
+            Scripted::new(vec![Err(ProviderError::EmptyReply), Ok("good".to_string())]);
+
+        let error = generate_with_retries(&mut source, 3, only_good, |_| {})
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, GenerateError::AiGeneration(msg) if msg.contains("no text")));
+        assert_eq!(source.calls, 1);
+    }
+
+    #[tokio::test]
     async fn test_provider_error_during_retry_is_ai_error() {
         let mut source = Scripted::new(vec![
             Ok("bad".to_string()),
