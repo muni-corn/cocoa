@@ -79,7 +79,7 @@ in `.cocoa.toml`:
 provider = "openai"
 model = "gpt-4"
 temperature = 0.7
-max_tokens = 500
+reasoning = "auto"   # gpt-4 can't reason, so send no reasoning setting
 
 [ai.secret]
 env = "OPENAI_API_KEY"
@@ -131,8 +131,6 @@ in `.cocoa.toml`:
 [ai]
 provider = "anthropic"
 model = "claude-4-opus"
-temperature = 0.7
-max_tokens = 500
 
 [ai.secret]
 env = "ANTHROPIC_API_KEY"
@@ -198,7 +196,7 @@ in `.cocoa.toml`:
 provider = "ollama"
 model = "mistral"
 temperature = 0.7
-max_tokens = 500
+reasoning = "auto"   # mistral can't think, so send no reasoning setting
 
 [ai.secret]
 env = "OLLAMA_API_KEY"    # Can be blank or dummy value
@@ -232,7 +230,7 @@ model = "openai/gpt-4"           # OpenAI models
 # model = "mistralai/mistral-7b"  # Mistral
 
 temperature = 0.7
-max_tokens = 500
+reasoning = "auto"   # not every model on openrouter can reason
 
 [ai.secret]
 env = "OPENROUTER_API_KEY"
@@ -344,6 +342,27 @@ the AI kept writing messages that break your rules, even after retrying.
    them? i tell the AI about your types, scopes, and length limits up front, but custom
    `regex_patterns` only reach it as feedback after a failed attempt
 4. try a more capable model
+
+### "the model ran out of tokens" or "the model replied with no text"
+
+some newer models (like recent Claude models) think before they reply, and that thinking counts
+toward the token limit. if the model spends its whole budget thinking, there's no room left for a
+commit message, so i stop right away instead of guessing.
+
+1. lower `reasoning` in `[ai]` (it defaults to `"low"`; `"zero"` turns thinking off where the model
+   allows it)
+2. if you set `max_tokens`, raise it or remove it; unset means the provider's own limit
+3. run `cocoa generate` again
+
+### the provider rejects the reasoning setting
+
+models that can't reason may reject the reasoning setting i send by default. set
+`reasoning = "auto"` in `[ai]` and i won't send one.
+
+### the provider rejects `temperature` for a thinking model
+
+Anthropic doesn't allow a custom `temperature` while a model is thinking. remove `temperature` from
+`[ai]`, or turn thinking off with `reasoning = "zero"` (or `"auto"` for models that don't think).
 
 ### "rate limited"
 

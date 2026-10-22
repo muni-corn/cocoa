@@ -95,8 +95,9 @@ regex_patterns = []
 [ai]
 provider = "openai" # or "anthropic", "ollama", "openrouter"
 model = "gpt-4"
-temperature = 0.7
-max_tokens = 500
+temperature = 0.7 # optional
+reasoning = "low" # optional; "auto" sends no reasoning setting
+# max_tokens = 4096 # optional; unset means the provider's own limit
 max_retries = 3 # retries when a generated message fails validation
 
 [ai.secret]

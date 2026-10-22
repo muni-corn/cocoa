@@ -101,8 +101,14 @@ model = "gpt-4"
 # temperature: 0.0 = deterministic, 1.0 = creative
 temperature = 0.7
 
-# max tokens in response
-max_tokens = 500
+# reasoning: how much the model thinks before replying. one of
+# auto (send no setting), zero, low, medium, high, xhigh, max, or a token
+# budget. defaults to low. use auto for models that can't reason
+reasoning = "low"
+
+# optional: cap the length of the reply (thinking counts toward this cap).
+# unset by default, so the provider's own limit applies
+# max_tokens = 4096
 
 # how many times to ask the AI to try again when its commit message
 # fails validation (0 disables retrying)
