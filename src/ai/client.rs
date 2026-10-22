@@ -86,7 +86,11 @@ impl Client {
     ) -> Result<String, ProviderError> {
         let model_name = &self.config.model;
         let chat_request = ChatRequest::new(messages);
-        let mut chat_options = ChatOptions::default().with_max_tokens(self.config.max_tokens);
+        let mut chat_options = ChatOptions::default();
+
+        if let Some(max_tokens) = self.config.max_tokens {
+            chat_options = chat_options.with_max_tokens(max_tokens);
+        }
 
         if let Some(temperature) = self.config.temperature {
             chat_options = chat_options.with_temperature(temperature as f64)
@@ -140,7 +144,7 @@ mod tests {
             provider: Some(Provider(AdapterKind::OpenAI)),
             model: "gpt-4".to_string(),
             temperature: Some(0.7),
-            max_tokens: 500,
+            max_tokens: Some(500),
             reasoning: Reasoning::default(),
             max_retries: 3,
             secret: SecretConfig::Env {

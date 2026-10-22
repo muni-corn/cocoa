@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{Provider, ProviderError, Reasoning};
 
-const DEFAULT_MAX_TOKENS: u32 = 500;
 const DEFAULT_MAX_RETRIES: u32 = 3;
 
 /// AI configuration section from .cocoa.toml
@@ -21,8 +20,13 @@ pub struct AiConfig {
     #[serde(default)]
     pub temperature: Option<f32>,
 
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u32,
+    /// Caps the length of the model's reply. When unset, the provider's own
+    /// limit applies.
+    ///
+    /// Models that think count their thinking toward this cap, so a small value
+    /// can leave no room for a reply.
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
 
     /// How much the model should reason before replying. Use `auto` to send no
     /// reasoning setting, which models that cannot reason may require.
@@ -43,7 +47,7 @@ impl Default for AiConfig {
             provider: None,
             model: String::new(),
             temperature: None,
-            max_tokens: DEFAULT_MAX_TOKENS,
+            max_tokens: None,
             reasoning: Reasoning::default(),
             max_retries: DEFAULT_MAX_RETRIES,
             secret: SecretConfig::default(),
@@ -94,10 +98,6 @@ impl SecretConfig {
     }
 }
 
-fn default_max_tokens() -> u32 {
-    DEFAULT_MAX_TOKENS
-}
-
 fn default_max_retries() -> u32 {
     DEFAULT_MAX_RETRIES
 }
@@ -118,8 +118,33 @@ mod tests {
         assert_eq!(config.provider, None);
         assert_eq!(config.model, "");
         assert_eq!(config.temperature, None);
-        assert_eq!(config.max_tokens, 500);
+        assert_eq!(config.max_tokens, None);
         assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_ai_config_max_tokens_parses() {
+        let config: AiConfig = toml::from_str(
+            r#"
+model = "gpt-4"
+max_tokens = 2000
+secret = { env = "KEY" }
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.max_tokens, Some(2000));
+    }
+
+    #[test]
+    fn test_ai_config_max_tokens_unset_when_omitted() {
+        let config: AiConfig = toml::from_str(
+            r#"
+model = "gpt-4"
+secret = { env = "KEY" }
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.max_tokens, None);
     }
 
     #[test]

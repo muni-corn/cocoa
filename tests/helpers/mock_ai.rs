@@ -43,7 +43,7 @@ pub fn test_ai_config() -> AiConfig {
         provider: Some(Provider(genai::adapter::AdapterKind::OpenAI)),
         model: "gpt-4".to_string(),
         temperature: Some(0.7),
-        max_tokens: 500,
+        max_tokens: Some(500),
         reasoning: Reasoning::default(),
         max_retries: 3,
         secret: SecretConfig::Env {
