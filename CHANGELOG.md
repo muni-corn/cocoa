@@ -1,5 +1,29 @@
 # Changelog
 
+## **v0.4.1**
+
+### new features
+
+- **generate:** retry generation when validation fails
+- **generate:** add validation retry loop
+- **ai:** add retry prompt for failed validation
+- **cli:** add --max-retries flag to generate command
+- **ai:** add max_retries option to ai config
+
+### bug fixes
+
+- **ai:** correct warn-level rule wording in prompt
+
+### build system
+
+- **devenv:** switch build system to crane
+
+### documentation
+
+- document ai retry configuration
+
+---
+
 ## **v0.4.0**
 
 ### **Breaking changes**
