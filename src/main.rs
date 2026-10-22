@@ -1,6 +1,6 @@
 // initialize the binary-side translation backend (shares the same locales/ dir
 // as the library so all keys are available in both lib and bin code)
-rust_i18n::i18n!("locales");
+rust_i18n::i18n!();
 
 use anyhow::Result;
 use clap::FromArgMatches;
