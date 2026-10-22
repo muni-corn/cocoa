@@ -4,10 +4,10 @@ use std::fmt::Debug;
 
 use genai::{
     Client as GenaiClient, ModelName,
-    chat::{ChatMessage, ChatOptions, ChatRequest},
+    chat::{ChatMessage, ChatRequest},
 };
 
-use super::{AiConfig, Conversation, ProviderError};
+use super::{AiConfig, Conversation, ProviderError, options::build_chat_options};
 use crate::{
     ai::prompt::{build_prompt, build_system_prompt},
     config::CommitConfig,
@@ -86,15 +86,7 @@ impl Client {
     ) -> Result<String, ProviderError> {
         let model_name = &self.config.model;
         let chat_request = ChatRequest::new(messages);
-        let mut chat_options = ChatOptions::default();
-
-        if let Some(max_tokens) = self.config.max_tokens {
-            chat_options = chat_options.with_max_tokens(max_tokens);
-        }
-
-        if let Some(temperature) = self.config.temperature {
-            chat_options = chat_options.with_temperature(temperature as f64)
-        }
+        let chat_options = build_chat_options(&self.config);
 
         let response = self
             .client
