@@ -56,6 +56,18 @@ pub enum ProviderError {
 
     #[error("api error: {0}")]
     Api(String),
+
+    #[error(
+        "the model ran out of tokens before finishing its reply (it may have spent them thinking) \
+         - try raising `max_tokens` or lowering `reasoning` in your [ai] config"
+    )]
+    MaxTokensReached,
+
+    #[error(
+        "the model replied with no text - try lowering `reasoning` or raising `max_tokens` in \
+         your [ai] config, or try again"
+    )]
+    EmptyReply,
 }
 
 #[cfg(test)]
@@ -114,6 +126,20 @@ mod tests {
             serde_json::from_str::<Provider>(r#""Ollama""#).unwrap(),
             Provider(AdapterKind::Ollama)
         );
+    }
+
+    #[test]
+    fn test_max_tokens_reached_message_suggests_fixes() {
+        let message = ProviderError::MaxTokensReached.to_string();
+        assert!(message.contains("max_tokens"));
+        assert!(message.contains("reasoning"));
+    }
+
+    #[test]
+    fn test_empty_reply_message_suggests_fixes() {
+        let message = ProviderError::EmptyReply.to_string();
+        assert!(message.contains("no text"));
+        assert!(message.contains("reasoning"));
     }
 
     #[test]
