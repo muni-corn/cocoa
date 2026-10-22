@@ -7,7 +7,8 @@ use crate::{
 
 pub fn build_system_prompt() -> String {
     "you are an expert software engineer who writes excellent conventional commit messages. \
-     respond with only the commit message and body, no explanation or additional text."
+     respond with ONLY the commit message and body. do NOT add an explanation, additional text, or \
+     code fences (backticks)."
         .to_string()
 }
 
@@ -22,9 +23,9 @@ pub fn build_prompt(
 
     // diff
     let diff_paragraph = format!(
-        "```diff
+        "<diff>
 {staged_changes}
-```"
+</diff>"
     );
 
     // branch
@@ -36,12 +37,12 @@ pub fn build_prompt(
 
     // last 10 commits
     let recent_commits_paragraph = if !context.recent_commits.is_empty() {
-        let mut points = vec!["recent commit messages for context:".into()];
+        let mut lines = vec!["recent commit messages for context:".into()];
         for commit in context.recent_commits.iter().take(10) {
-            points.push(format!("- {}", commit));
+            lines.push(format!("<commit-message>{commit}</commit-message>"));
         }
 
-        points.join("\n")
+        lines.join("\n")
     } else {
         Default::default()
     };
@@ -54,6 +55,12 @@ pub fn build_prompt(
         "- use conventional commits format: `type(scope): summary`".into(),
         format!("- type MUST be one of {types_list}"),
     ];
+
+    // scope set
+    if let Some(scopes) = &config.scopes {
+        let scopes_list = set_to_list_string(scopes);
+        requirements.push(format!("- scope MUST be one of {scopes_list}"));
+    }
 
     // gather deny rules
     let RuleLevel {
@@ -83,12 +90,6 @@ pub fn build_prompt(
         warn_no_scope,
     ));
 
-    // scope set
-    if let Some(scopes) = &config.scopes {
-        let scopes_list = set_to_list_string(scopes);
-        requirements.push(format!("- scope MUST be one of {scopes_list}"));
-    }
-
     // summary length
     requirements.push(length_rule_to_must_should(
         "summary",
@@ -114,19 +115,21 @@ pub fn build_prompt(
     // breaking_change_footer presence
     requirements.push(negative_rule_to_must_should(
         "footers",
-        r#""BREAKING CHANGE:" footer"#,
+        r#""BREAKING CHANGE:" footer, ONLY IF the changes introduce a breaking change"#,
         deny_no_breaking_change_footer,
         warn_no_breaking_change_footer,
     ));
 
     // final requirements
     requirements.append(&mut vec![
-        "- use lowercase for the summary".into(),
+        r#"- IF the changes introduce a breaking change, there MUST be an exclamation point after \
+         the type and/or scope (e.g. "type(scope)!: message" or "type!: message")"#
+            .into(),
+        "- use lowercase for the summary, except for proper nouns and acronyms".into(),
         "- be concise and specific".into(),
         r#"- focus more on "why" than "what" and "how""#.into(),
         "- lowercase bullet points are preferred over paragraphs for message body".into(),
-        "- proper nouns are exceptions to lowercase rules".into(),
-        "- respond with only the commit message, nothing else".into(),
+        "- respond with ONLY the full commit message, nothing else".into(),
     ]);
 
     let requirements_paragraph = requirements.join("\n");
@@ -156,7 +159,7 @@ pub fn build_retry_prompt(violations: &[String]) -> String {
     lines.extend(violations.iter().map(|v| format!("- {v}")));
     lines.push(String::new());
     lines.push(
-        "fix every problem and try again. respond with only the corrected commit message, nothing \
+        "fix every problem and try again. respond with ONLY the corrected commit message, nothing \
          else."
             .to_string(),
     );
@@ -178,7 +181,10 @@ fn length_rule_to_must_should(name: &str, deny: Option<usize>, warn: Option<usiz
             format!("- {name} should be {warn_length} characters or less")
         }
         (Some(deny_length), Some(warn_length)) => {
-            format!("- {name} MUST be {deny_length} characters or less, {warn_length} preferred")
+            format!(
+                "- {name} MUST be {deny_length} characters or less ({warn_length} or less is \
+                 preferred)"
+            )
         }
         _ => String::new(),
     }
