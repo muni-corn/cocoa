@@ -124,7 +124,7 @@ mod tests {
     use genai::adapter::AdapterKind;
 
     use super::*;
-    use crate::ai::{Provider, config::SecretConfig};
+    use crate::ai::{Provider, Reasoning, config::SecretConfig};
 
     // serialise tests that mutate env vars to prevent parallel-test race
     // conditions
@@ -141,6 +141,7 @@ mod tests {
             model: "gpt-4".to_string(),
             temperature: Some(0.7),
             max_tokens: 500,
+            reasoning: Reasoning::default(),
             max_retries: 3,
             secret: SecretConfig::Env {
                 env: "TEST_API_KEY".to_string(),

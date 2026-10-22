@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{Provider, ProviderError};
+use super::{Provider, ProviderError, Reasoning};
 
 const DEFAULT_MAX_TOKENS: u32 = 500;
 const DEFAULT_MAX_RETRIES: u32 = 3;
@@ -24,6 +24,11 @@ pub struct AiConfig {
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
 
+    /// How much the model should reason before replying. Use `auto` to send no
+    /// reasoning setting, which models that cannot reason may require.
+    #[serde(default)]
+    pub reasoning: Reasoning,
+
     /// How many times to ask the model to try again when its commit message
     /// fails validation. Zero disables retrying.
     #[serde(default = "default_max_retries")]
@@ -39,6 +44,7 @@ impl Default for AiConfig {
             model: String::new(),
             temperature: None,
             max_tokens: DEFAULT_MAX_TOKENS,
+            reasoning: Reasoning::default(),
             max_retries: DEFAULT_MAX_RETRIES,
             secret: SecretConfig::default(),
         }
@@ -114,6 +120,44 @@ mod tests {
         assert_eq!(config.temperature, None);
         assert_eq!(config.max_tokens, 500);
         assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_ai_config_reasoning_defaults_to_low() {
+        let config: AiConfig = toml::from_str(
+            r#"
+model = "gpt-4"
+secret = { env = "KEY" }
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.reasoning, Reasoning::default());
+        assert_eq!(config.reasoning.to_string(), "low");
+    }
+
+    #[test]
+    fn test_ai_config_reasoning_parses() {
+        let config: AiConfig = toml::from_str(
+            r#"
+model = "gpt-4"
+reasoning = "auto"
+secret = { env = "KEY" }
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.reasoning, Reasoning::Auto);
+    }
+
+    #[test]
+    fn test_ai_config_reasoning_rejects_unknown_level() {
+        let result = toml::from_str::<AiConfig>(
+            r#"
+model = "gpt-4"
+reasoning = "bogus"
+secret = { env = "KEY" }
+"#,
+        );
+        assert!(result.is_err());
     }
 
     #[test]
