@@ -23,12 +23,15 @@ use super::{FileKind, UpdatedFile, VersionError};
 /// - `package-lock.json` → [`npm::NpmLockHandler`]
 /// - All other files → [`plain::PlainHandler`] (historical behavior)
 ///
+/// `options` controls how strictly handlers check for `old_version`.
+///
 /// Returns `VersionError::NotFound` for plain-text files that do not contain
 /// `old_version`.
 pub fn update_version_files(
     files: &[String],
     old_version: &str,
     new_version: &str,
+    options: &UpdateOptions,
 ) -> Result<(), VersionError> {
     use crate::config::{FileEntryKind, VersionFileEntry};
 
@@ -45,7 +48,7 @@ pub fn update_version_files(
         })
         .collect();
 
-    update_version_files_rich(&entries, old_version, new_version)?;
+    update_version_files_rich(&entries, old_version, new_version, options)?;
     Ok(())
 }
 
@@ -60,6 +63,7 @@ pub fn update_version_files_rich(
     entries: &[crate::config::VersionFileEntry],
     old_version: &str,
     new_version: &str,
+    options: &UpdateOptions,
 ) -> Result<Vec<UpdatedFile>, VersionError> {
     use super::{
         cargo_lock::CargoLockHandler,
@@ -105,12 +109,15 @@ pub fn update_version_files_rich(
         };
 
         let handler_result = match &effective_kind {
-            FileEntryKind::Cargo => {
-                CargoManifestHandler::default().prepare(&entry.path, old_version, new_version)?
+            FileEntryKind::Cargo => CargoManifestHandler {
+                verify_old_version: options.verify_old_version,
             }
-            FileEntryKind::CargoLock => {
-                CargoLockHandler::default().prepare(&entry.path, old_version, new_version)?
+            .prepare(&entry.path, old_version, new_version)?,
+            FileEntryKind::CargoLock => CargoLockHandler {
+                verify_old_version: options.verify_old_version,
+                ..Default::default()
             }
+            .prepare(&entry.path, old_version, new_version)?,
             FileEntryKind::Npm => {
                 NpmManifestHandler.prepare(&entry.path, old_version, new_version)?
             }
@@ -202,7 +209,7 @@ mod tests {
         fs::write(&path, "version = \"1.0.0\"\n").unwrap();
 
         let files = vec![path.to_string_lossy().into_owned()];
-        update_version_files(&files, "1.0.0", "2.0.0").unwrap();
+        update_version_files(&files, "1.0.0", "2.0.0", &UpdateOptions::default()).unwrap();
 
         let contents = fs::read_to_string(&path).unwrap();
         assert_eq!(contents, "version = \"2.0.0\"\n");
@@ -217,7 +224,7 @@ mod tests {
         fs::write(&path, toml).unwrap();
 
         let files = vec![path.to_string_lossy().into_owned()];
-        update_version_files(&files, "1.0.0", "2.0.0").unwrap();
+        update_version_files(&files, "1.0.0", "2.0.0", &UpdateOptions::default()).unwrap();
 
         let contents = fs::read_to_string(&path).unwrap();
         assert!(contents.contains("version = \"2.0.0\""));
@@ -232,7 +239,7 @@ mod tests {
         fs::write(&path, "version 1.0.0 and also 1.0.0\n").unwrap();
 
         let files = vec![path.to_string_lossy().into_owned()];
-        update_version_files(&files, "1.0.0", "1.1.0").unwrap();
+        update_version_files(&files, "1.0.0", "1.1.0", &UpdateOptions::default()).unwrap();
 
         let contents = fs::read_to_string(&path).unwrap();
         assert_eq!(contents, "version 1.1.0 and also 1.1.0\n");
@@ -250,7 +257,7 @@ mod tests {
             a.to_string_lossy().into_owned(),
             b.to_string_lossy().into_owned(),
         ];
-        update_version_files(&files, "0.1.0", "0.2.0").unwrap();
+        update_version_files(&files, "0.1.0", "0.2.0", &UpdateOptions::default()).unwrap();
 
         assert!(fs::read_to_string(&a).unwrap().contains("0.2.0"));
         assert!(fs::read_to_string(&b).unwrap().contains("0.2.0"));
@@ -263,7 +270,8 @@ mod tests {
         fs::write(&path, "some content\n").unwrap();
 
         let files = vec![path.to_string_lossy().into_owned()];
-        let err = update_version_files(&files, "9.9.9", "10.0.0").unwrap_err();
+        let err =
+            update_version_files(&files, "9.9.9", "10.0.0", &UpdateOptions::default()).unwrap_err();
 
         assert!(matches!(err, VersionError::NotFound { .. }));
     }
@@ -271,7 +279,27 @@ mod tests {
     #[test]
     fn test_update_version_files_missing_file_returns_error() {
         let files = vec!["/nonexistent/path/file.txt".to_string()];
-        let err = update_version_files(&files, "1.0.0", "2.0.0").unwrap_err();
+        let err =
+            update_version_files(&files, "1.0.0", "2.0.0", &UpdateOptions::default()).unwrap_err();
         assert!(matches!(err, VersionError::File { .. }));
+    }
+
+    #[test]
+    fn test_update_version_files_options_reach_cargo_handlers() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Cargo.toml");
+        fs::write(&path, "[package]\nname = \"c\"\nversion = \"0.1.0\"\n").unwrap();
+        let files = vec![path.to_string_lossy().into_owned()];
+
+        // 0.0.0 is not what the manifest holds
+        let err =
+            update_version_files(&files, "0.0.0", "0.1.1", &UpdateOptions::default()).unwrap_err();
+        assert!(matches!(err, VersionError::VersionMismatch { .. }));
+
+        let relaxed = UpdateOptions {
+            verify_old_version: false,
+        };
+        update_version_files(&files, "0.0.0", "0.1.1", &relaxed).unwrap();
+        assert!(fs::read_to_string(&path).unwrap().contains("\"0.1.1\""));
     }
 }

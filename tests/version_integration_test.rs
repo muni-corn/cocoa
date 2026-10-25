@@ -7,8 +7,8 @@ use std::fs;
 use cocoa::{
     git_ops::{Git2Ops, GitOperations},
     version::{
-        BumpType, SemVer, detect_bump_type, detect_current_semver, detect_latest_tag,
-        update_version_files,
+        BumpType, SemVer, UpdateOptions, detect_bump_type, detect_current_semver,
+        detect_latest_tag, update_version_files,
     },
 };
 use helpers::git_repo::TestRepo;
@@ -163,7 +163,7 @@ fn test_update_version_files_in_real_project() {
         package_path.to_string_lossy().into_owned(),
     ];
 
-    update_version_files(&files, "1.0.0", "1.1.0").unwrap();
+    update_version_files(&files, "1.0.0", "1.1.0", &UpdateOptions::default()).unwrap();
 
     let cargo_contents = fs::read_to_string(&cargo_path).unwrap();
     assert!(cargo_contents.contains("version = \"1.1.0\""));
@@ -186,7 +186,7 @@ fn test_update_version_files_rollback_on_failure() {
     ];
 
     // the update should fail because the second file doesn't exist
-    let result = update_version_files(&files, "1.0.0", "2.0.0");
+    let result = update_version_files(&files, "1.0.0", "2.0.0", &UpdateOptions::default());
     assert!(result.is_err());
 
     // the first file should be unchanged (or rolled back); since the second

@@ -12,7 +12,7 @@ use crate::{
         goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error_bold,
         print_info, print_success_bold, print_warning,
     },
-    version,
+    version::{self, UpdateOptions},
 };
 
 #[derive(Args)]
@@ -155,7 +155,7 @@ pub fn handle_bump(
             goodbye_with_success();
         }
     } else {
-        match version::update_version_files(files, &old_str, &new_str) {
+        match version::update_version_files(files, &old_str, &new_str, &UpdateOptions::default()) {
             Ok(()) => {
                 if json_output {
                     let out = serde_json::json!({

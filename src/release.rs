@@ -19,7 +19,7 @@ use crate::{
     generate::GenerateError,
     git_ops::GitOperations,
     tag::{self, TagError},
-    version::{self, BumpType, UpdatedFile, VersionError},
+    version::{self, BumpType, UpdateOptions, UpdatedFile, VersionError},
 };
 
 /// Errors from the release orchestration.
@@ -168,7 +168,12 @@ pub fn execute<G: GitOperations>(
         .collect();
 
     let updated_files: Vec<UpdatedFile> = if !all_entries.is_empty() && !dry_run {
-        version::update_version_files_rich(&all_entries, &old_str, &new_str)?
+        version::update_version_files_rich(
+            &all_entries,
+            &old_str,
+            &new_str,
+            &UpdateOptions::default(),
+        )?
     } else {
         // dry-run: report what would be updated without touching disk
         all_entries
