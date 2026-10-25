@@ -3,6 +3,7 @@
 //! Applies a version change to the files listed in the release configuration,
 //! choosing a handler for each file and writing all of them atomically.
 
+pub mod dispatch;
 pub mod options;
 
 pub use options::UpdateOptions;
@@ -66,18 +67,11 @@ pub fn update_version_files_rich(
     options: &UpdateOptions,
 ) -> Result<Vec<UpdatedFile>, VersionError> {
     use super::{
-        cargo_lock::CargoLockHandler,
-        cargo_manifest::CargoManifestHandler,
         command::run_command,
-        detect::infer_kind,
-        handlers::{Handler, apply_updates},
-        npm::{NpmLockHandler, NpmManifestHandler},
-        plain::PlainHandler,
+        handlers::apply_updates,
         pnpm::{update_pnpm_lock, update_yarn_lock},
-        pyproject::PyprojectHandler,
-        regex_handler::RegexHandler,
     };
-    use crate::config::{FileEntryKind, FileEntryStrategy, Occurrences, OccurrencesNamed};
+    use crate::config::{FileEntryKind, FileEntryStrategy};
 
     let mut pending = Vec::new();
 
@@ -86,91 +80,31 @@ pub fn update_version_files_rich(
             continue;
         }
 
+        // resolve the kind so the UpdatedFile record carries the right variant
+        let kind = dispatch::effective_kind(entry);
+
         if entry.strategy == FileEntryStrategy::Command {
-            // resolve the FileKind from the entry kind so the UpdatedFile
-            // record carries the correct variant
-            let effective_kind = if entry.kind == FileEntryKind::Auto {
-                infer_kind(&entry.path)
-            } else {
-                entry.kind.clone()
-            };
-            let kind = entry_kind_to_file_kind(&effective_kind);
             let cmd = entry.command.as_deref().unwrap_or(&[]);
-            let update = run_command(&entry.path, cmd, kind, None)?;
+            let update = run_command(&entry.path, cmd, entry_kind_to_file_kind(&kind), None)?;
             pending.push(update);
             continue;
         }
 
-        // for in-process strategy, resolve auto kind from file basename
-        let effective_kind = if entry.kind == FileEntryKind::Auto {
-            infer_kind(&entry.path)
-        } else {
-            entry.kind.clone()
-        };
-
-        let handler_result = match &effective_kind {
-            FileEntryKind::Cargo => CargoManifestHandler {
-                verify_old_version: options.verify_old_version,
-            }
-            .prepare(&entry.path, old_version, new_version)?,
-            FileEntryKind::CargoLock => CargoLockHandler {
-                verify_old_version: options.verify_old_version,
-                ..Default::default()
-            }
-            .prepare(&entry.path, old_version, new_version)?,
-            FileEntryKind::Npm => {
-                NpmManifestHandler.prepare(&entry.path, old_version, new_version)?
-            }
-            FileEntryKind::NpmLock => {
-                NpmLockHandler.prepare(&entry.path, old_version, new_version)?
-            }
-            FileEntryKind::Regex => {
-                let pattern = entry.pattern.as_deref().unwrap_or("");
-                let occurrences = entry
-                    .occurrences
-                    .clone()
-                    .unwrap_or(Occurrences::Named(OccurrencesNamed::First));
-                RegexHandler::new(&entry.path, pattern, occurrences)?.prepare(
-                    &entry.path,
-                    old_version,
-                    new_version,
-                )?
-            }
-            // plain: use configured occurrences (default: all)
-            FileEntryKind::Plain => {
-                let occurrences = entry
-                    .occurrences
-                    .clone()
-                    .unwrap_or(Occurrences::Named(OccurrencesNamed::All));
-                PlainHandler { occurrences }.prepare(&entry.path, old_version, new_version)?
-            }
+        match dispatch::prepare_in_process(entry, old_version, new_version, options)? {
+            dispatch::Dispatch::Prepared(Some(update)) => pending.push(update),
+            dispatch::Dispatch::Prepared(None) => {}
             // pnpm-lock and yarn-lock default to the command strategy since
             // their file formats are complex; route them here when the user
             // has chosen in-process (which is an explicit override)
-            FileEntryKind::PnpmLock => {
+            dispatch::Dispatch::Toolchain => {
                 let cmd = entry.command.as_deref();
-                let update = update_pnpm_lock(&entry.path, cmd, None)?;
+                let update = if kind == FileEntryKind::PnpmLock {
+                    update_pnpm_lock(&entry.path, cmd, None)?
+                } else {
+                    update_yarn_lock(&entry.path, cmd, None)?
+                };
                 pending.push(update);
-                continue;
             }
-            FileEntryKind::YarnLock => {
-                let cmd = entry.command.as_deref();
-                let update = update_yarn_lock(&entry.path, cmd, None)?;
-                pending.push(update);
-                continue;
-            }
-            FileEntryKind::Pyproject => {
-                PyprojectHandler.prepare(&entry.path, old_version, new_version)?
-            }
-            // auto should never reach here (already resolved above), but
-            // handle it defensively with plain
-            FileEntryKind::Auto => {
-                PlainHandler::default().prepare(&entry.path, old_version, new_version)?
-            }
-        };
-
-        if let Some(update) = handler_result {
-            pending.push(update);
         }
     }
 
