@@ -6,6 +6,7 @@ use rust_i18n::t;
 
 use crate::{
     Config,
+    cmd::ignored_tags::report_ignored_tags,
     git_ops::{Git2Ops, GitOperations},
     style::{
         goodbye_with_death, goodbye_with_success, goodbye_with_warning, print_error_bold,
@@ -49,6 +50,9 @@ pub fn handle_bump(
             goodbye_with_death(5);
         }
     };
+
+    // the names are only needed for the warning, which json mode suppresses
+    report_ignored_tags(&git_ops, &v_config.tag_prefix, json_output);
 
     // detect the current version from git tags; default to 0.0.0 if none exist
     let current_version = match version::detect_current_semver(&git_ops, &v_config.tag_prefix) {
