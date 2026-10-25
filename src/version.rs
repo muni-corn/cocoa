@@ -24,7 +24,7 @@ use std::fmt::Display;
 pub use calver::{CalVer, CalVerError};
 use clap::ValueEnum;
 pub use semver::{SemVer, SemVerError};
-pub use tags::{detect_current_semver, detect_latest_tag};
+pub use tags::{VersionTags, detect_current_semver, detect_latest_tag, scan_version_tags};
 use thiserror::Error;
 pub use update::{update_version_files, update_version_files_rich};
 
