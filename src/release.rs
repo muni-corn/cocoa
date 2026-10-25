@@ -124,6 +124,12 @@ pub fn execute<G: GitOperations>(
     let new_str = new_version.to_string();
     let tag_name = format!("{}{}", version_config.tag_prefix, new_version);
 
+    // fail before touching any file if the tag is taken; checking only at tag
+    // creation would leave bumped files and a release commit behind
+    if !args.skip_tag {
+        tag::verify_tag_unique(ops, &tag_name)?;
+    }
+
     // step 5: update version files
     // merge legacy commit_version_files with [[version.files]] entries.
     // rich entries take precedence; legacy paths that overlap are skipped.
@@ -401,5 +407,68 @@ mod tests {
         // detected version would be 0.0.2, not 0.0.1, so this should succeed
         let outcome = execute(&ops, &v_config(), &cl_config(), &opts, true).unwrap();
         assert_eq!(outcome.new_version, "0.0.2");
+    }
+
+    #[test]
+    fn test_execute_dry_run_unreachable_tag_clash_fails() {
+        // v0.5.2 exists but HEAD cannot reach it, so the next patch release
+        // would try to create v0.5.2 again
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a"), make_tag("v0.5.2", "b")]),
+            unreachable_revs: vec!["b".to_string()],
+            commits_in_range: Ok(vec![make_commit("g1", "fix: small")]),
+            ..Default::default()
+        };
+
+        let err = execute(
+            &ops,
+            &v_config(),
+            &cl_config(),
+            &ReleaseArgs::default(),
+            true,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ReleaseError::Tag(TagError::AlreadyExists(n)) if n == "v0.5.2"));
+    }
+
+    #[test]
+    fn test_execute_tag_clash_leaves_version_files_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("version.txt");
+        std::fs::write(&file, "version 0.5.1\n").unwrap();
+
+        let mut vc = v_config();
+        vc.commit_version_files = Some(vec![file.to_string_lossy().into_owned()]);
+
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a"), make_tag("v0.5.2", "b")]),
+            unreachable_revs: vec!["b".to_string()],
+            commits_in_range: Ok(vec![make_commit("g1", "fix: small")]),
+            ..Default::default()
+        };
+        let args = ReleaseArgs {
+            skip_changelog: true,
+            skip_commit: true,
+            ..Default::default()
+        };
+
+        let err = execute(&ops, &vc, &cl_config(), &args, false).unwrap_err();
+        assert!(matches!(err, ReleaseError::Tag(TagError::AlreadyExists(_))));
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "version 0.5.1\n");
+    }
+
+    #[test]
+    fn test_execute_skip_tag_ignores_tag_clash() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a"), make_tag("v0.5.2", "b")]),
+            unreachable_revs: vec!["b".to_string()],
+            commits_in_range: Ok(vec![make_commit("g1", "fix: small")]),
+            ..Default::default()
+        };
+        let args = ReleaseArgs {
+            skip_tag: true,
+            ..Default::default()
+        };
+        assert!(execute(&ops, &v_config(), &cl_config(), &args, true).is_ok());
     }
 }
