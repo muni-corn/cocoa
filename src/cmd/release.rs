@@ -6,6 +6,7 @@ use rust_i18n::t;
 
 use crate::{
     Config,
+    cmd::ignored_tags::report_ignored_tags,
     git_ops::Git2Ops,
     release,
     style::{
@@ -66,6 +67,10 @@ pub fn handle_release(
         }
     };
 
+    // report stale tags before anything else so the warning shows even when
+    // the release itself fails
+    let ignored_tags = report_ignored_tags(&git_ops, &v_config.tag_prefix, json_output);
+
     match release::execute(&git_ops, &v_config, &cl_config, &args, dry_run) {
         Ok(outcome) => {
             let bump_label = match outcome.bump_type {
@@ -96,6 +101,7 @@ pub fn handle_release(
                     "dry_run": dry_run,
                     "updated_files": files_json,
                     "changelog_path": outcome.changelog_path,
+                    "ignored_tags": ignored_tags,
                 });
                 println!("{}", serde_json::to_string_pretty(&out)?);
             } else if dry_run {
@@ -155,7 +161,11 @@ pub fn handle_release(
                     release::ReleaseError::Git(msg) => (5, msg.clone()),
                     _ => (1, e.to_string()),
                 };
-                let out = serde_json::json!({ "success": false, "error": error_msg });
+                let out = serde_json::json!({
+                    "success": false,
+                    "error": error_msg,
+                    "ignored_tags": ignored_tags,
+                });
                 println!("{}", serde_json::to_string_pretty(&out)?);
                 process::exit(exit_code);
             }

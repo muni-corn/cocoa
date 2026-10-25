@@ -10,6 +10,7 @@ pub mod changelog;
 pub mod commit;
 pub mod generate;
 pub mod hook;
+pub mod ignored_tags;
 pub mod init;
 pub mod lint;
 pub mod man;

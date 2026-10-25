@@ -66,6 +66,8 @@ interactive.prompt.issue_refs: "issue reference(s)"
 
 main.git.open_failed: "failed to open git repository: %{error}"
 main.git.hook_path_failed: "failed to locate hooks directory: %{error}"
+main.git.ignored_tags: "ignoring version tags that HEAD cannot reach: %{tags}"
+main.git.ignored_tags_hint: "these tags were probably left behind by a reset or rebase; delete them with `git tag -d %{tags}`"
 
 # ---------------------------------------------------------------------------
 # main.rs: lint command
