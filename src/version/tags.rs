@@ -84,8 +84,9 @@ pub fn scan_version_tags(
 /// Detect the latest semantic version from repository tags.
 ///
 /// Tags must start with `prefix` (e.g. `"v"`). The version portion (after
-/// stripping the prefix) must be a valid semver string. Returns `None` when no
-/// matching tags exist.
+/// stripping the prefix) must be a valid semver string. Only tags reachable
+/// from HEAD are considered, so tags left behind by a reset are ignored.
+/// Returns `None` when no matching tags exist.
 ///
 /// # Example
 /// ```ignore
@@ -98,46 +99,25 @@ pub fn detect_current_semver(
     ops: &dyn GitOperations,
     prefix: &str,
 ) -> Result<Option<SemVer>, VersionError> {
-    let tags = ops
-        .get_tags()
-        .map_err(|e| VersionError::Git(e.to_string()))?;
-
-    let mut versions: Vec<SemVer> = tags
-        .iter()
-        .filter_map(|t| {
-            let stripped = t.name.strip_prefix(prefix)?;
-            SemVer::parse(stripped).ok()
-        })
-        .collect();
-
-    versions.sort();
-    Ok(versions.into_iter().last())
+    Ok(scan_version_tags(ops, prefix)?
+        .reachable
+        .pop()
+        .map(|(v, _)| v))
 }
 
 /// Return the `TagInfo` for the highest-versioned semver tag.
 ///
-/// Scans all tags, strips `prefix`, parses each as semver, and returns the
-/// tag record for the highest version. Returns `None` if there are no
-/// versioned tags.
+/// Scans the tags reachable from HEAD, strips `prefix`, parses each as semver,
+/// and returns the tag record for the highest version. Returns `None` if there
+/// are no versioned tags.
 pub fn detect_latest_tag(
     ops: &dyn GitOperations,
     prefix: &str,
 ) -> Result<Option<TagInfo>, VersionError> {
-    let tags = ops
-        .get_tags()
-        .map_err(|e| VersionError::Git(e.to_string()))?;
-
-    let mut versioned: Vec<(SemVer, TagInfo)> = tags
-        .into_iter()
-        .filter_map(|t| {
-            let stripped = t.name.strip_prefix(prefix)?;
-            let v = SemVer::parse(stripped).ok()?;
-            Some((v, t))
-        })
-        .collect();
-
-    versioned.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(versioned.into_iter().last().map(|(_, t)| t))
+    Ok(scan_version_tags(ops, prefix)?
+        .reachable
+        .pop()
+        .map(|(_, t)| t))
 }
 
 #[cfg(test)]
@@ -331,5 +311,37 @@ mod tests {
         };
         let found = scan_version_tags(&ops, "v").unwrap();
         assert_eq!(found.ignored_newer().len(), 1);
+    }
+
+    #[test]
+    fn test_detect_current_semver_ignores_unreachable_tags() {
+        let ops = MockGitOps {
+            tags: Ok(vec![tag("v0.5.1", "a"), tag("v0.5.3", "c")]),
+            unreachable_revs: vec!["c".to_string()],
+            ..Default::default()
+        };
+        let result = detect_current_semver(&ops, "v").unwrap();
+        assert_eq!(result.unwrap().to_string(), "0.5.1");
+    }
+
+    #[test]
+    fn test_detect_latest_tag_ignores_unreachable_tags() {
+        let ops = MockGitOps {
+            tags: Ok(vec![tag("v0.5.1", "a"), tag("v0.5.3", "c")]),
+            unreachable_revs: vec!["c".to_string()],
+            ..Default::default()
+        };
+        let latest = detect_latest_tag(&ops, "v").unwrap().unwrap();
+        assert_eq!(latest.name, "v0.5.1");
+    }
+
+    #[test]
+    fn test_detect_current_semver_none_when_only_unreachable_tags() {
+        let ops = MockGitOps {
+            tags: Ok(vec![tag("v0.5.3", "c")]),
+            unreachable_revs: vec!["c".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(detect_current_semver(&ops, "v").unwrap(), None);
     }
 }
