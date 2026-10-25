@@ -85,6 +85,21 @@ pub enum VersionError {
     #[error("'{field}' not found in '{path}'")]
     ManifestFieldMissing { field: String, path: String },
 
+    /// A file holds a different version than the one cocoa expected to replace.
+    ///
+    /// This usually means the version files and the git tags have drifted
+    /// apart, for example after a reset or a manual edit.
+    #[error(
+        "'{path}': {what} is {found}, but {expected} was expected from the latest tag; are the \
+         version files out of sync with your tags?"
+    )]
+    VersionMismatch {
+        path: String,
+        what: String,
+        found: String,
+        expected: String,
+    },
+
     /// A toolchain command was not found on PATH.
     #[error("toolchain command '{tool}' not found on PATH; {hint}")]
     ToolchainNotFound { tool: String, hint: String },
@@ -245,5 +260,20 @@ mod tests {
     fn test_detect_bump_type_unparsable_treated_as_patch() {
         let commits = vec![make_commit("WIP not conventional")];
         assert_eq!(detect_bump_type(&commits), BumpType::Patch);
+    }
+
+    #[test]
+    fn test_version_mismatch_message_names_file_found_and_expected() {
+        let err = VersionError::VersionMismatch {
+            path: "Cargo.lock".to_string(),
+            what: "'cocoa'".to_string(),
+            found: "0.5.1".to_string(),
+            expected: "0.5.3".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("Cargo.lock"));
+        assert!(msg.contains("'cocoa' is 0.5.1"));
+        assert!(msg.contains("0.5.3 was expected"));
+        assert!(msg.contains("out of sync"));
     }
 }
