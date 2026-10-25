@@ -380,6 +380,74 @@ version = "1.0.0"
 pub const VERSION: &str = "1.0.0";
 ```
 
+### "ignoring version tags that HEAD cannot reach"
+
+some of your version tags aren't part of your current history, so i skipped them.
+
+this usually happens after a test release: `cocoa release` made a commit and a tag, then you ran
+`git reset` to throw the commit away. git keeps the tag, but it points at a commit you no longer
+have.
+
+**see which tags are stale:**
+
+```bash
+# tags that are part of your history
+git tag --merged HEAD
+
+# tags that are not
+git tag --no-merged HEAD
+```
+
+**delete the stale ones:**
+
+```bash
+git tag -d v0.5.2 v0.5.3
+```
+
+if you already pushed them, remove them from the remote too:
+
+```bash
+git push origin --delete v0.5.2 v0.5.3
+```
+
+### "tag already exists" right after a reset
+
+if the next version is the same as a stale tag, `cocoa release` stops early and tells you the tag
+exists. no files have been changed at that point. delete the stale tag (see above) and run it again.
+
+### "version files are out of sync with your tags"
+
+i expected your files to hold the version from your latest tag, but they hold something else.
+
+```text
+'Cargo.lock': 'cocoa' is 0.5.1, but 0.5.3 was expected from the latest tag
+```
+
+**check what i think the current version is:**
+
+```bash
+git describe --tags --abbrev=0
+```
+
+**then compare it with your files:**
+
+```bash
+grep -m1 '^version' Cargo.toml
+```
+
+if a stale tag is the culprit, delete it. if you edited the version by hand, either tag the commit
+that matches or put the version in your files back to what the tag says.
+
+### "no commits since 'v1.0.0': nothing to release"
+
+there's nothing new to put in a release!
+
+make a commit first, or release anyway:
+
+```bash
+cocoa release --allow-empty
+```
+
 ### "can't push: tag already exists"
 
 maybe a tag exists locally but with different content.
