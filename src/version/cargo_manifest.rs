@@ -24,14 +24,27 @@ use crate::version::{
 /// when the file is a workspace root that declares `[workspace.package]`.
 /// Both can coexist in the same file (mixed workspace root + member). A
 /// version inherited with `version.workspace = true` is left untouched.
-#[derive(Debug, Default)]
-pub struct CargoManifestHandler;
+#[derive(Debug)]
+pub struct CargoManifestHandler {
+    /// Whether the version fields must currently hold `old_version`.
+    ///
+    /// When `false`, version fields are overwritten whatever they hold.
+    pub verify_old_version: bool,
+}
+
+impl Default for CargoManifestHandler {
+    fn default() -> Self {
+        Self {
+            verify_old_version: true,
+        }
+    }
+}
 
 impl Handler for CargoManifestHandler {
     fn prepare(
         &self,
         path: &str,
-        _old_version: &str,
+        old_version: &str,
         new_version: &str,
     ) -> Result<Option<PendingUpdate>, VersionError> {
         let original_text = read_text(path)?;
@@ -53,6 +66,7 @@ impl Handler for CargoManifestHandler {
             && let Some(ver) = pkg.get_mut("version")
         {
             if ver.is_str() {
+                self.check_old_version(path, "[package].version", ver, old_version)?;
                 *ver = toml_edit::value(new_version);
                 replacements += 1;
             } else {
@@ -66,6 +80,7 @@ impl Handler for CargoManifestHandler {
             && let Some(ver) = ws_pkg.get_mut("version")
         {
             if ver.is_str() {
+                self.check_old_version(path, "[workspace.package].version", ver, old_version)?;
                 *ver = toml_edit::value(new_version);
                 replacements += 1;
             } else {
@@ -98,6 +113,28 @@ impl Handler for CargoManifestHandler {
     }
 }
 
+impl CargoManifestHandler {
+    /// Fail when a version field does not hold the version being replaced.
+    fn check_old_version(
+        &self,
+        path: &str,
+        what: &str,
+        field: &toml_edit::Item,
+        old_version: &str,
+    ) -> Result<(), VersionError> {
+        let found = field.as_str().unwrap_or_default();
+        if self.verify_old_version && found != old_version {
+            return Err(VersionError::VersionMismatch {
+                path: path.to_owned(),
+                what: what.to_owned(),
+                found: found.to_owned(),
+                expected: old_version.to_owned(),
+            });
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -119,7 +156,7 @@ version = "1.0.0"
 edition = "2021"
 "#;
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "1.0.0", "2.0.0").unwrap().unwrap();
         let result = String::from_utf8(update.updated).unwrap();
         assert!(result.contains("version = \"2.0.0\""));
@@ -139,7 +176,7 @@ version = "0.5.0"
 edition = "2021"
 "#;
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "0.5.0", "0.6.0").unwrap().unwrap();
         let result = String::from_utf8(update.updated).unwrap();
         assert!(result.contains("version = \"0.6.0\""));
@@ -159,7 +196,7 @@ name = "root-crate"
 version = "1.2.3"
 "#;
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "1.2.3", "1.3.0").unwrap().unwrap();
         let result = String::from_utf8(update.updated).unwrap();
         // both version fields should be updated
@@ -177,7 +214,7 @@ version = "1.0.0"
 serde = "1.0.0"
 "#;
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "1.0.0", "2.0.0").unwrap().unwrap();
         let result = String::from_utf8(update.updated).unwrap();
         // serde version must stay at 1.0.0
@@ -191,7 +228,7 @@ serde = "1.0.0"
     fn test_cargo_manifest_preserves_comments_and_formatting() {
         let toml = "# top comment\n[package]\nname = \"crate\" # inline\nversion = \"0.1.0\"\n";
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "0.1.0", "0.2.0").unwrap().unwrap();
         let result = String::from_utf8(update.updated).unwrap();
         assert!(result.contains("# top comment"));
@@ -203,7 +240,7 @@ serde = "1.0.0"
     fn test_cargo_manifest_no_version_field_returns_error() {
         let toml = "[package]\nname = \"minimal\"\n";
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let err = h.prepare(&path, "0.1.0", "0.2.0").unwrap_err();
         assert!(matches!(err, VersionError::ManifestFieldMissing { .. }));
     }
@@ -211,7 +248,7 @@ serde = "1.0.0"
     #[test]
     fn test_cargo_manifest_invalid_toml_returns_error() {
         let (_dir, path) = write_tmp("Cargo.toml", "this = [not valid");
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let err = h.prepare(&path, "0.1.0", "0.2.0").unwrap_err();
         assert!(matches!(err, VersionError::ManifestParse { .. }));
     }
@@ -220,7 +257,7 @@ serde = "1.0.0"
     fn test_cargo_manifest_kind_is_cargo_manifest() {
         let toml = "[package]\nname = \"c\"\nversion = \"1.0.0\"\n";
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "1.0.0", "2.0.0").unwrap().unwrap();
         assert_eq!(update.updated_file.kind, FileKind::CargoManifest);
     }
@@ -229,7 +266,7 @@ serde = "1.0.0"
     fn test_cargo_manifest_leaves_inherited_dotted_version_alone() {
         let toml = "[package]\nname = \"member\"\nversion.workspace = true\n";
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         // nothing to change: the workspace root owns the version
         assert!(h.prepare(&path, "1.0.0", "2.0.0").unwrap().is_none());
     }
@@ -238,7 +275,7 @@ serde = "1.0.0"
     fn test_cargo_manifest_leaves_inherited_inline_version_alone() {
         let toml = "[package]\nname = \"member\"\nversion = { workspace = true }\n";
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         assert!(h.prepare(&path, "1.0.0", "2.0.0").unwrap().is_none());
     }
 
@@ -255,11 +292,58 @@ name = "root"
 version.workspace = true
 "#;
         let (_dir, path) = write_tmp("Cargo.toml", toml);
-        let h = CargoManifestHandler;
+        let h = CargoManifestHandler::default();
         let update = h.prepare(&path, "1.0.0", "1.1.0").unwrap().unwrap();
         let result = String::from_utf8(update.updated).unwrap();
         assert!(result.contains("version = \"1.1.0\""));
         assert!(result.contains("version.workspace = true"));
         assert_eq!(update.updated_file.replacements, 1);
+    }
+
+    #[test]
+    fn test_cargo_manifest_version_mismatch_returns_error() {
+        let toml = "[package]\nname = \"cocoa\"\nversion = \"0.5.1\"\n";
+        let (_dir, path) = write_tmp("Cargo.toml", toml);
+        let err = CargoManifestHandler::default()
+            .prepare(&path, "0.5.3", "0.5.4")
+            .unwrap_err();
+        match err {
+            VersionError::VersionMismatch {
+                what,
+                found,
+                expected,
+                ..
+            } => {
+                assert_eq!(what, "[package].version");
+                assert_eq!(found, "0.5.1");
+                assert_eq!(expected, "0.5.3");
+            }
+            other => panic!("expected VersionMismatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_cargo_manifest_workspace_version_mismatch_returns_error() {
+        let toml = "[workspace]\nmembers = []\n\n[workspace.package]\nversion = \"0.5.1\"\n";
+        let (_dir, path) = write_tmp("Cargo.toml", toml);
+        let err = CargoManifestHandler::default()
+            .prepare(&path, "0.5.3", "0.5.4")
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            VersionError::VersionMismatch { what, .. } if what == "[workspace.package].version"
+        ));
+    }
+
+    #[test]
+    fn test_cargo_manifest_without_verification_overwrites_any_version() {
+        let toml = "[package]\nname = \"cocoa\"\nversion = \"0.1.0\"\n";
+        let (_dir, path) = write_tmp("Cargo.toml", toml);
+        let h = CargoManifestHandler {
+            verify_old_version: false,
+        };
+        let update = h.prepare(&path, "0.0.0", "0.1.1").unwrap().unwrap();
+        let result = String::from_utf8(update.updated).unwrap();
+        assert!(result.contains("version = \"0.1.1\""));
     }
 }

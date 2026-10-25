@@ -106,7 +106,7 @@ pub fn update_version_files_rich(
 
         let handler_result = match &effective_kind {
             FileEntryKind::Cargo => {
-                CargoManifestHandler.prepare(&entry.path, old_version, new_version)?
+                CargoManifestHandler::default().prepare(&entry.path, old_version, new_version)?
             }
             FileEntryKind::CargoLock => {
                 CargoLockHandler::default().prepare(&entry.path, old_version, new_version)?
