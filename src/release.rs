@@ -45,6 +45,14 @@ pub enum ReleaseError {
     #[error("file error: {0}")]
     File(String),
 
+    /// There are no commits since the latest version tag, so a release would be
+    /// empty.
+    #[error(
+        "no commits since '{0}', so there is nothing to release; use --allow-empty to release \
+         anyway"
+    )]
+    NoNewCommits(String),
+
     /// An invalid bump type string was provided.
     #[error("unknown bump type '{0}'. try `major`, `minor`, `patch`, or `auto`")]
     InvalidBumpType(String),
@@ -597,5 +605,12 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, ReleaseError::Git(msg) if msg.contains("revwalk failed")));
+    }
+
+    #[test]
+    fn test_no_new_commits_message_names_the_tag_and_the_flag() {
+        let msg = ReleaseError::NoNewCommits("v0.5.1".to_string()).to_string();
+        assert!(msg.contains("'v0.5.1'"));
+        assert!(msg.contains("--allow-empty"));
     }
 }
