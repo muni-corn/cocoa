@@ -5,8 +5,10 @@
 
 pub mod dispatch;
 pub mod options;
+pub mod plan;
 
 pub use options::UpdateOptions;
+pub use plan::plan_version_files;
 
 use super::{FileKind, UpdatedFile, VersionError};
 

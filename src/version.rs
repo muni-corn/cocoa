@@ -26,7 +26,9 @@ use clap::ValueEnum;
 pub use semver::{SemVer, SemVerError};
 pub use tags::{VersionTags, detect_current_semver, detect_latest_tag, scan_version_tags};
 use thiserror::Error;
-pub use update::{UpdateOptions, update_version_files, update_version_files_rich};
+pub use update::{
+    UpdateOptions, plan_version_files, update_version_files, update_version_files_rich,
+};
 
 use crate::{commit::CommitMessage, git_ops::CommitInfo};
 
