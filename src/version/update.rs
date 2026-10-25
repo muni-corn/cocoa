@@ -4,9 +4,11 @@
 //! choosing a handler for each file and writing all of them atomically.
 
 pub mod dispatch;
+pub mod entries;
 pub mod options;
 pub mod plan;
 
+pub use entries::entries_from_paths;
 pub use options::UpdateOptions;
 pub use plan::plan_version_files;
 
@@ -36,20 +38,8 @@ pub fn update_version_files(
     new_version: &str,
     options: &UpdateOptions,
 ) -> Result<(), VersionError> {
-    use crate::config::{FileEntryKind, VersionFileEntry};
-
     // convert the flat list into rich entries so we get auto-detection
-    let entries: Vec<VersionFileEntry> = files
-        .iter()
-        .map(|p| VersionFileEntry {
-            path: p.clone(),
-            kind: FileEntryKind::Auto,
-            strategy: crate::config::FileEntryStrategy::InProcess,
-            command: None,
-            pattern: None,
-            occurrences: None,
-        })
-        .collect();
+    let entries = entries_from_paths(files);
 
     update_version_files_rich(&entries, old_version, new_version, options)?;
     Ok(())

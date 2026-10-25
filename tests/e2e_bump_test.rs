@@ -272,6 +272,51 @@ fn test_bump_ignores_tag_orphaned_by_reset() {
 }
 
 #[test]
+fn test_bump_dry_run_fails_on_version_mismatch() {
+    let repo = TestRepo::new();
+    // the manifest says 0.1.0 while the latest tag says 0.2.0
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"\n",
+        "feat: initial",
+    );
+    repo.create_annotated_tag("v0.2.0", "release");
+    repo.create_commit("x.txt", "x", "fix: a bug");
+    write_version_config(&repo, &["Cargo.toml"]);
+
+    let output = cocoa(&repo)
+        .args(["--dry-run", "bump", "patch"])
+        .assert()
+        .failure()
+        .get_output()
+        .clone();
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("out of sync"), "output: {combined}");
+
+    let contents = std::fs::read_to_string(repo.path.join("Cargo.toml")).unwrap();
+    assert!(contents.contains("version = \"0.1.0\""));
+}
+
+#[test]
+fn test_bump_dry_run_fails_on_missing_file() {
+    let repo = TestRepo::new();
+    repo.create_commit("x.txt", "x", "feat: initial");
+    repo.create_annotated_tag("v0.1.0", "release");
+    repo.create_commit("y.txt", "y", "fix: a bug");
+    write_version_config(&repo, &["does-not-exist.toml"]);
+
+    cocoa(&repo)
+        .args(["--dry-run", "bump", "patch"])
+        .assert()
+        .failure();
+}
+
+#[test]
 fn test_bump_updates_multiple_files() {
     let repo = TestRepo::new();
     // use a proper [package] table so the CargoManifestHandler works correctly

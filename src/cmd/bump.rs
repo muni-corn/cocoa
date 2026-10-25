@@ -141,61 +141,68 @@ pub fn handle_bump(
         return Ok(());
     }
 
-    if dry_run {
-        if json_output {
-            let out = serde_json::json!({
-                "old_version": old_str,
-                "new_version": new_str,
-                "bump_type": bump_label,
-                "dry_run": true,
-                "files": files,
-            });
-            println!("{}", serde_json::to_string_pretty(&out)?);
-        } else {
-            print_info(t!("main.bump.dry_run_would_update", count = files.len()));
-            for f in files {
-                print_info(t!("main.bump.dry_run_file", file = f));
-            }
-            goodbye_with_success();
-        }
-    } else {
-        // without a previous tag, old_version is only the 0.0.0 placeholder,
-        // which the files cannot be expected to hold
-        let options = UpdateOptions {
-            verify_old_version: has_previous_tag,
-        };
+    // without a previous tag, old_version is only the 0.0.0 placeholder,
+    // which the files cannot be expected to hold
+    let options = UpdateOptions {
+        verify_old_version: has_previous_tag,
+    };
 
-        match version::update_version_files(files, &old_str, &new_str, &options) {
-            Ok(()) => {
-                if json_output {
-                    let out = serde_json::json!({
-                        "old_version": old_str,
-                        "new_version": new_str,
-                        "bump_type": bump_label,
-                        "dry_run": false,
-                        "files": files,
-                    });
-                    println!("{}", serde_json::to_string_pretty(&out)?);
-                } else {
-                    print_success_bold(t!("main.bump.bumped", old = old_str, new = new_str));
-                    for f in files {
-                        print_info(t!("main.bump.updated_file", file = f));
-                    }
-                    goodbye_with_success();
+    // a dry run runs the same handler checks as a real run, minus the writes
+    let outcome = if dry_run {
+        let entries = version::entries_from_paths(files);
+        version::plan_version_files(&entries, &old_str, &new_str, &options).map(|_| ())
+    } else {
+        version::update_version_files(files, &old_str, &new_str, &options)
+    };
+
+    match outcome {
+        Ok(()) if dry_run => {
+            if json_output {
+                let out = serde_json::json!({
+                    "old_version": old_str,
+                    "new_version": new_str,
+                    "bump_type": bump_label,
+                    "dry_run": true,
+                    "files": files,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else {
+                print_info(t!("main.bump.dry_run_would_update", count = files.len()));
+                for f in files {
+                    print_info(t!("main.bump.dry_run_file", file = f));
                 }
+                goodbye_with_success();
             }
-            Err(e) => {
-                if json_output {
-                    let out = serde_json::json!({
-                        "success": false,
-                        "error": e.to_string()
-                    });
-                    println!("{}", serde_json::to_string_pretty(&out)?);
-                    process::exit(1);
+        }
+        Ok(()) => {
+            if json_output {
+                let out = serde_json::json!({
+                    "old_version": old_str,
+                    "new_version": new_str,
+                    "bump_type": bump_label,
+                    "dry_run": false,
+                    "files": files,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else {
+                print_success_bold(t!("main.bump.bumped", old = old_str, new = new_str));
+                for f in files {
+                    print_info(t!("main.bump.updated_file", file = f));
                 }
-                print_error_bold(t!("main.bump.update_failed", error = e.to_string()));
-                goodbye_with_death(1);
+                goodbye_with_success();
             }
+        }
+        Err(e) => {
+            if json_output {
+                let out = serde_json::json!({
+                    "success": false,
+                    "error": e.to_string()
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+                process::exit(1);
+            }
+            print_error_bold(t!("main.bump.update_failed", error = e.to_string()));
+            goodbye_with_death(1);
         }
     }
 
