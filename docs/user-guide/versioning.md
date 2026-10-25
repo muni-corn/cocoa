@@ -69,6 +69,51 @@ git push --all --tags
 5. Creates a git commit with all changes.
 6. Creates an annotated git tag.
 
+### Which tags count
+
+Cocoa works out the current version from the highest version tag that your current commit can
+reach. Tags that sit on commits outside your current history are ignored. This usually happens when
+you run `cocoa release`, then undo the release commit with `git reset`, which leaves the tag behind.
+
+When cocoa ignores tags that are newer than the current version, it tells you which ones:
+
+```text
+ignoring version tags that HEAD cannot reach: v0.5.2, v0.5.3
+```
+
+Delete stale tags with `git tag -d <tag>`. If the next version would be the same as one of those
+tags, `cocoa release` stops before it changes any file, because the tag already exists.
+
+### Releasing without new commits
+
+`cocoa release` refuses to run when there are no commits since the last version tag, since the
+release would be empty. Pass `--allow-empty` to release anyway:
+
+```bash
+cocoa release patch --allow-empty
+```
+
+The very first release has no previous tag, so it is never refused.
+
+### What a dry run checks
+
+`cocoa release --dry-run` and `cocoa bump --dry-run` run the same checks as a real run, so a missing
+file or a version mismatch fails in the preview too. Nothing is written. Files updated by a command
+(see [command strategy](#command-strategy)) are listed but the command is never run.
+
+### Version mismatches
+
+Before replacing a version, cocoa checks that `Cargo.toml` and the workspace entries in `Cargo.lock`
+hold the version from the latest tag. If they don't, you get an error like this:
+
+```text
+'Cargo.lock': 'cocoa' is 0.5.1, but 0.5.3 was expected from the latest tag; are the version files
+out of sync with your tags?
+```
+
+This check is skipped for the first release, because there is no tag to compare with. A version
+inherited with `version.workspace = true` is never rewritten in a member crate.
+
 ## Version files
 
 Cocoa can update version strings in your files as part of every release. There are two ways to
