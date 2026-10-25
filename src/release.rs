@@ -167,13 +167,14 @@ pub fn execute<G: GitOperations>(
         .chain(filtered_legacy)
         .collect();
 
+    // without a previous tag, old_version is only the 0.0.0 placeholder, which
+    // the files cannot be expected to hold
+    let update_options = UpdateOptions {
+        verify_old_version: latest_tag.is_some(),
+    };
+
     let updated_files: Vec<UpdatedFile> = if !all_entries.is_empty() && !dry_run {
-        version::update_version_files_rich(
-            &all_entries,
-            &old_str,
-            &new_str,
-            &UpdateOptions::default(),
-        )?
+        version::update_version_files_rich(&all_entries, &old_str, &new_str, &update_options)?
     } else {
         // dry-run: report what would be updated without touching disk
         all_entries
@@ -475,5 +476,72 @@ mod tests {
             ..Default::default()
         };
         assert!(execute(&ops, &v_config(), &cl_config(), &args, true).is_ok());
+    }
+
+    fn manifest_config(
+        dir: &std::path::Path,
+        version: &str,
+    ) -> (VersionConfig, std::path::PathBuf) {
+        let manifest = dir.join("Cargo.toml");
+        std::fs::write(
+            &manifest,
+            format!("[package]\nname = \"demo\"\nversion = \"{version}\"\n"),
+        )
+        .unwrap();
+        let mut vc = v_config();
+        vc.commit_version_files = Some(vec![manifest.to_string_lossy().into_owned()]);
+        (vc, manifest)
+    }
+
+    fn files_only_args() -> ReleaseArgs {
+        ReleaseArgs {
+            skip_changelog: true,
+            skip_commit: true,
+            skip_tag: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_execute_first_release_skips_old_version_check() {
+        let dir = tempfile::tempdir().unwrap();
+        // no tags yet, so the 0.0.0 placeholder differs from the manifest
+        let (vc, manifest) = manifest_config(dir.path(), "0.1.0");
+        let ops = MockGitOps {
+            tags: Ok(vec![]),
+            commits_in_range: Ok(vec![make_commit("h1", "feat: first")]),
+            ..Default::default()
+        };
+
+        let outcome = execute(&ops, &vc, &cl_config(), &files_only_args(), false).unwrap();
+        assert_eq!(outcome.new_version, "0.0.1");
+        assert!(
+            std::fs::read_to_string(&manifest)
+                .unwrap()
+                .contains("version = \"0.0.1\"")
+        );
+    }
+
+    #[test]
+    fn test_execute_with_previous_tag_checks_old_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let (vc, manifest) = manifest_config(dir.path(), "0.5.1");
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.3", "a")]),
+            commits_in_range: Ok(vec![make_commit("h1", "fix: small")]),
+            ..Default::default()
+        };
+
+        let err = execute(&ops, &vc, &cl_config(), &files_only_args(), false).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseError::Version(VersionError::VersionMismatch { .. })
+        ));
+        // the manifest was not touched
+        assert!(
+            std::fs::read_to_string(&manifest)
+                .unwrap()
+                .contains("version = \"0.5.1\"")
+        );
     }
 }
