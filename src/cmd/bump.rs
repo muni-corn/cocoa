@@ -55,17 +55,21 @@ pub fn handle_bump(
     report_ignored_tags(&git_ops, &v_config.tag_prefix, json_output);
 
     // detect the current version from git tags; default to 0.0.0 if none exist
-    let current_version = match version::detect_current_semver(&git_ops, &v_config.tag_prefix) {
-        Ok(Some(v)) => v,
-        Ok(None) => {
-            print_info(t!("main.bump.no_tags"));
-            version::SemVer::parse("0.0.0").expect("0.0.0 is always valid semver")
-        }
-        Err(e) => {
-            print_error_bold(t!("main.bump.detect_failed", error = e.to_string()));
-            goodbye_with_death(5);
-        }
-    };
+    let (current_version, has_previous_tag) =
+        match version::detect_current_semver(&git_ops, &v_config.tag_prefix) {
+            Ok(Some(v)) => (v, true),
+            Ok(None) => {
+                print_info(t!("main.bump.no_tags"));
+                (
+                    version::SemVer::parse("0.0.0").expect("0.0.0 is always valid semver"),
+                    false,
+                )
+            }
+            Err(e) => {
+                print_error_bold(t!("main.bump.detect_failed", error = e.to_string()));
+                goodbye_with_death(5);
+            }
+        };
 
     // resolve the bump type from the argument or auto-detect from commits
     let bump_type = match bump_type_str {
@@ -155,7 +159,13 @@ pub fn handle_bump(
             goodbye_with_success();
         }
     } else {
-        match version::update_version_files(files, &old_str, &new_str, &UpdateOptions::default()) {
+        // without a previous tag, old_version is only the 0.0.0 placeholder,
+        // which the files cannot be expected to hold
+        let options = UpdateOptions {
+            verify_old_version: has_previous_tag,
+        };
+
+        match version::update_version_files(files, &old_str, &new_str, &options) {
             Ok(()) => {
                 if json_output {
                     let out = serde_json::json!({

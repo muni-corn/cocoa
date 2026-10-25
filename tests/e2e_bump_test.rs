@@ -215,6 +215,24 @@ fn test_bump_updates_configured_file() {
 }
 
 #[test]
+fn test_bump_first_release_overwrites_manifest_version() {
+    let repo = TestRepo::new();
+    // no tags exist, so bump starts from the 0.0.0 placeholder and must not
+    // insist that the manifest holds it
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"\n",
+        "feat: initial",
+    );
+    write_version_config(&repo, &["Cargo.toml"]);
+
+    cocoa(&repo).args(["bump", "patch"]).assert().success();
+
+    let contents = std::fs::read_to_string(repo.path.join("Cargo.toml")).unwrap();
+    assert!(contents.contains("version = \"0.0.1\""));
+}
+
+#[test]
 fn test_bump_updates_multiple_files() {
     let repo = TestRepo::new();
     // use a proper [package] table so the CargoManifestHandler works correctly
