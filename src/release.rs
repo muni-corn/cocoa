@@ -99,12 +99,8 @@ pub fn execute<G: GitOperations>(
 
     // step 2: collect commits since last tag
     let latest_tag = version::detect_latest_tag(ops, &version_config.tag_prefix)?;
-    let commits = match &latest_tag {
-        Some(tag) => ops
-            .get_commits_in_range(&tag.target, "HEAD")
-            .unwrap_or_default(),
-        None => ops.get_commits_in_range("", "HEAD").unwrap_or_default(),
-    };
+    let from = latest_tag.as_ref().map_or("", |tag| tag.target.as_str());
+    let commits = ops.get_commits_in_range(from, "HEAD")?;
 
     // step 3: resolve bump type
     let bump_type = if let Some(bt) = args.bump_type {
@@ -581,5 +577,25 @@ mod tests {
             err,
             ReleaseError::Version(VersionError::VersionMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn test_execute_propagates_commit_collection_errors() {
+        use crate::generate::GenerateError;
+
+        let ops = MockGitOps {
+            commits_in_range: Err(GenerateError::GitContext("revwalk failed".to_string())),
+            ..Default::default()
+        };
+
+        let err = execute(
+            &ops,
+            &v_config(),
+            &cl_config(),
+            &ReleaseArgs::default(),
+            true,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ReleaseError::Git(msg) if msg.contains("revwalk failed")));
     }
 }
