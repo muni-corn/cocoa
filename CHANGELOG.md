@@ -1,5 +1,17 @@
 # Changelog
 
+## **v0.5.1**
+
+### new features
+
+- **ai:** tighten commit message prompt constraints
+
+### build system
+
+- **devenv:** switch rust linker from mold to wild
+
+---
+
 ## **v0.5.0**
 
 ### **Breaking changes**
