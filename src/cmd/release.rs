@@ -28,6 +28,13 @@ pub struct ReleaseArgs {
     )]
     pub bump_type: Option<BumpType>,
 
+    /// Release even when there are no commits since the last version tag.
+    #[arg(
+        long,
+        help = "Release even when there are no commits since the last tag"
+    )]
+    pub allow_empty: bool,
+
     /// Skip changelog generation and writing.
     #[arg(long, help = "Skip changelog generation and writing")]
     pub skip_changelog: bool,
