@@ -233,6 +233,45 @@ fn test_bump_first_release_overwrites_manifest_version() {
 }
 
 #[test]
+fn test_bump_ignores_tag_orphaned_by_reset() {
+    let repo = TestRepo::new();
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"\n",
+        "feat: initial",
+    );
+    repo.create_annotated_tag("v0.1.0", "first release");
+    repo.create_commit("x.txt", "x", "fix: a bug");
+    repo.create_annotated_tag("v0.1.1", "orphan");
+
+    // dropping the commit leaves v0.1.1 behind, unreachable from HEAD
+    repo.create_git_command(&["reset", "--hard", "HEAD^"])
+        .output()
+        .unwrap();
+    write_version_config(&repo, &["Cargo.toml"]);
+
+    let output = cocoa(&repo)
+        .args(["bump", "patch"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+
+    // the version comes from v0.1.0, and the stale tag is called out
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("0.1.0 → 0.1.1"), "output: {combined}");
+    assert!(
+        combined.contains("ignoring version tags"),
+        "output: {combined}"
+    );
+    assert!(combined.contains("v0.1.1"), "output: {combined}");
+}
+
+#[test]
 fn test_bump_updates_multiple_files() {
     let repo = TestRepo::new();
     // use a proper [package] table so the CargoManifestHandler works correctly
