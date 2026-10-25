@@ -72,10 +72,24 @@ impl Handler for CargoLockHandler {
         })?;
 
         // update only [[package]] entries whose name is a workspace member
-        let replacements = update_lock_packages(&mut doc, &member_names, old_version, new_version);
+        let LockUpdate {
+            replacements,
+            mismatched,
+        } = update_lock_packages(&mut doc, &member_names, old_version, new_version);
 
         if replacements == 0 {
-            // no matching entries found; this is likely a config mistake
+            // a member was present but at another version: the files and tags
+            // have drifted apart, which the user can fix
+            if let Some((name, found)) = mismatched.into_iter().next() {
+                return Err(VersionError::VersionMismatch {
+                    path: path.to_owned(),
+                    what: format!("'{name}'"),
+                    found,
+                    expected: old_version.to_owned(),
+                });
+            }
+
+            // no member entries at all; this is likely a config mistake
             return Err(VersionError::ManifestFieldMissing {
                 field: format!(
                     "[[package]] entries matching workspace members {:?}",
@@ -200,17 +214,27 @@ fn collect_workspace_member_names(manifest_path: &str) -> Result<Vec<String>, Ve
     Ok(names)
 }
 
+/// The outcome of updating workspace members in a lockfile.
+struct LockUpdate {
+    /// Number of entries whose version was replaced.
+    replacements: usize,
+    /// Member entries left alone because their version was not the old one,
+    /// as `(name, version found)` pairs.
+    mismatched: Vec<(String, String)>,
+}
+
 /// Update `version` in each `[[package]]` entry whose `name` is in `members`.
-///
-/// Returns the number of entries updated.
 fn update_lock_packages(
     doc: &mut DocumentMut,
     members: &[String],
     old_version: &str,
     new_version: &str,
-) -> usize {
+) -> LockUpdate {
     let Some(Item::ArrayOfTables(aot)) = doc.get_mut("package") else {
-        return 0;
+        return LockUpdate {
+            replacements: 0,
+            mismatched: Vec::new(),
+        };
     };
 
     update_packages_in_aot(aot, members, old_version, new_version)
@@ -222,8 +246,12 @@ fn update_packages_in_aot(
     members: &[String],
     old_version: &str,
     new_version: &str,
-) -> usize {
-    let mut count = 0;
+) -> LockUpdate {
+    let mut update = LockUpdate {
+        replacements: 0,
+        mismatched: Vec::new(),
+    };
+
     for table in aot.iter_mut() {
         let name = table
             .get("name")
@@ -237,13 +265,18 @@ fn update_packages_in_aot(
 
         if let Some(ver) = table.get_mut("version") {
             // only update if the version matches what we expect to replace
-            if ver.as_str() == Some(old_version) {
-                *ver = toml_edit::value(new_version);
-                count += 1;
+            match ver.as_str() {
+                Some(v) if v == old_version => {
+                    *ver = toml_edit::value(new_version);
+                    update.replacements += 1;
+                }
+                Some(v) => update.mismatched.push((name, v.to_owned())),
+                None => {}
             }
         }
     }
-    count
+
+    update
 }
 
 #[cfg(test)]
@@ -442,7 +475,32 @@ mod tests {
         let err = handler
             .prepare(&ws.path("Cargo.lock"), "1.0.0", "3.0.0")
             .unwrap_err();
-        // no entries matched old_version so we get ManifestFieldMissing
-        assert!(matches!(err, VersionError::ManifestFieldMissing { .. }));
+        // the member is present at another version, so the error says so
+        match err {
+            VersionError::VersionMismatch {
+                found, expected, ..
+            } => {
+                assert_eq!(found, "2.0.0");
+                assert_eq!(expected, "1.0.0");
+            }
+            other => panic!("expected VersionMismatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_cargo_lock_mismatch_error_names_the_member() {
+        let ws = TmpWorkspace::new();
+        ws.write("Cargo.toml", &single_crate_manifest("0.5.1", "cocoa"));
+        ws.write("Cargo.lock", &simple_lock("cocoa", "0.5.1"));
+
+        let err = CargoLockHandler::default()
+            .prepare(&ws.path("Cargo.lock"), "0.5.3", "0.5.4")
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("'cocoa' is 0.5.1"),
+            "unexpected message: {msg}"
+        );
+        assert!(msg.contains("0.5.3 was expected"));
     }
 }
