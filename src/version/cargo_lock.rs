@@ -35,13 +35,28 @@ use crate::version::{
 ///
 /// Discovers workspace members from `Cargo.toml` (relative to the lockfile
 /// path) and updates only those `[[package]]` entries.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CargoLockHandler {
     /// Path to the workspace root `Cargo.toml`.
     ///
     /// When `None`, the handler infers the manifest location from the lockfile
     /// path.
     pub manifest_path: Option<String>,
+
+    /// Whether member entries must currently hold `old_version` to be updated.
+    ///
+    /// When `false`, every member entry is set to the new version regardless of
+    /// what it holds now.
+    pub verify_old_version: bool,
+}
+
+impl Default for CargoLockHandler {
+    fn default() -> Self {
+        Self {
+            manifest_path: None,
+            verify_old_version: true,
+        }
+    }
 }
 
 impl Handler for CargoLockHandler {
@@ -75,7 +90,11 @@ impl Handler for CargoLockHandler {
         let LockUpdate {
             replacements,
             mismatched,
-        } = update_lock_packages(&mut doc, &member_names, old_version, new_version);
+        } = update_lock_packages(&mut doc, &member_names, VersionChange {
+            old: old_version,
+            new: new_version,
+            verify_old: self.verify_old_version,
+        });
 
         if replacements == 0 {
             // a member was present but at another version: the files and tags
@@ -223,12 +242,20 @@ struct LockUpdate {
     mismatched: Vec<(String, String)>,
 }
 
+/// The version change to apply to lockfile entries.
+#[derive(Clone, Copy)]
+struct VersionChange<'a> {
+    old: &'a str,
+    new: &'a str,
+    /// Whether an entry must hold `old` to be updated.
+    verify_old: bool,
+}
+
 /// Update `version` in each `[[package]]` entry whose `name` is in `members`.
 fn update_lock_packages(
     doc: &mut DocumentMut,
     members: &[String],
-    old_version: &str,
-    new_version: &str,
+    change: VersionChange<'_>,
 ) -> LockUpdate {
     let Some(Item::ArrayOfTables(aot)) = doc.get_mut("package") else {
         return LockUpdate {
@@ -237,15 +264,14 @@ fn update_lock_packages(
         };
     };
 
-    update_packages_in_aot(aot, members, old_version, new_version)
+    update_packages_in_aot(aot, members, change)
 }
 
 /// Walk an `ArrayOfTables` updating matching entries.
 fn update_packages_in_aot(
     aot: &mut ArrayOfTables,
     members: &[String],
-    old_version: &str,
-    new_version: &str,
+    change: VersionChange<'_>,
 ) -> LockUpdate {
     let mut update = LockUpdate {
         replacements: 0,
@@ -266,8 +292,8 @@ fn update_packages_in_aot(
         if let Some(ver) = table.get_mut("version") {
             // only update if the version matches what we expect to replace
             match ver.as_str() {
-                Some(v) if v == old_version => {
-                    *ver = toml_edit::value(new_version);
+                Some(v) if !change.verify_old || v == change.old => {
+                    *ver = toml_edit::value(change.new);
                     update.replacements += 1;
                 }
                 Some(v) => update.mismatched.push((name, v.to_owned())),
@@ -452,6 +478,7 @@ mod tests {
 
         let handler = CargoLockHandler {
             manifest_path: Some(ws.path("Cargo.toml")),
+            ..Default::default()
         };
         let update = handler
             .prepare(&ws.path("Cargo.lock"), "1.0.0", "2.0.0")
@@ -502,5 +529,47 @@ mod tests {
             "unexpected message: {msg}"
         );
         assert!(msg.contains("0.5.3 was expected"));
+    }
+
+    #[test]
+    fn test_cargo_lock_without_verification_updates_any_member_version() {
+        let ws = TmpWorkspace::new();
+        ws.write("Cargo.toml", &single_crate_manifest("0.1.0", "my-crate"));
+        ws.write("Cargo.lock", &simple_lock("my-crate", "0.1.0"));
+
+        let handler = CargoLockHandler {
+            verify_old_version: false,
+            ..Default::default()
+        };
+        // 0.0.0 is a placeholder that the lockfile never held
+        let update = handler
+            .prepare(&ws.path("Cargo.lock"), "0.0.0", "0.1.1")
+            .unwrap()
+            .unwrap();
+
+        let result = String::from_utf8(update.updated).unwrap();
+        assert!(result.contains("version = \"0.1.1\""));
+        assert_eq!(update.updated_file.replacements, 1);
+    }
+
+    #[test]
+    fn test_cargo_lock_without_verification_still_skips_transient_deps() {
+        let ws = TmpWorkspace::new();
+        ws.write("Cargo.toml", &single_crate_manifest("0.1.0", "my-crate"));
+        let lock = "version = 4\n\n[[package]]\nname = \"my-crate\"\nversion = \
+                    \"0.1.0\"\n\n[[package]]\nname = \"transient-dep\"\nversion = \"0.1.0\"\n";
+        ws.write("Cargo.lock", lock);
+
+        let handler = CargoLockHandler {
+            verify_old_version: false,
+            ..Default::default()
+        };
+        let update = handler
+            .prepare(&ws.path("Cargo.lock"), "0.0.0", "0.2.0")
+            .unwrap()
+            .unwrap();
+
+        let result = String::from_utf8(update.updated).unwrap();
+        assert!(result.contains("name = \"transient-dep\"\nversion = \"0.1.0\""));
     }
 }
