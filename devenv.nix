@@ -25,5 +25,6 @@ in
   outputs.default = config.languages.rust.crane.import ./. {
     inherit buildInputs nativeBuildInputs;
     runtimeDependencies = buildInputs;
+    extraPaths = [ ./locales ];
   };
 }
