@@ -250,3 +250,122 @@ fn test_release_patch_fix_commit_bumps_correctly() {
     let tags = String::from_utf8_lossy(&tag_list.stdout);
     assert!(tags.contains("v1.0.1"));
 }
+
+// tags orphaned by a reset
+
+/// Build a repo where `v0.5.1` is reachable and the given extra tags were
+/// orphaned by resetting past them.
+fn repo_with_orphaned_tags(orphaned: &[&str]) -> TestRepo {
+    let repo = TestRepo::new();
+    repo.create_commit("file.txt", "v1", "feat: initial");
+    repo.create_annotated_tag("v0.5.1", "release");
+
+    repo.create_commit("file.txt", "v2", "chore(release): bump");
+    for tag in orphaned {
+        repo.create_annotated_tag(tag, "orphan");
+    }
+
+    // dropping the release commit leaves its tags behind
+    repo.create_git_command(&["reset", "--hard", "HEAD^"])
+        .output()
+        .unwrap();
+    repo.create_commit("file.txt", "v3", "fix: real change");
+    repo
+}
+
+/// Run cocoa and return its exit success flag and combined stdout and stderr.
+fn run_combined(repo: &TestRepo, args: &[&str]) -> (bool, String) {
+    let output = cocoa(repo).args(args).output().unwrap();
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    (output.status.success(), combined)
+}
+
+#[test]
+fn test_release_ignores_orphaned_tag_and_warns() {
+    let repo = repo_with_orphaned_tags(&["v0.5.3"]);
+
+    let (ok, out) = run_combined(&repo, &["--dry-run", "release", "patch"]);
+
+    assert!(ok, "output: {out}");
+    // the version moves on from the reachable v0.5.1, not the stale v0.5.3
+    assert!(out.contains("0.5.1 → 0.5.2"), "output: {out}");
+    assert!(out.contains("ignoring version tags"), "output: {out}");
+    assert!(out.contains("v0.5.3"), "output: {out}");
+}
+
+#[test]
+fn test_release_fails_early_when_orphaned_tag_clashes() {
+    let repo = repo_with_orphaned_tags(&["v0.5.2"]);
+
+    let (ok, out) = run_combined(&repo, &["release", "patch"]);
+
+    assert!(!ok, "output: {out}");
+    assert!(out.contains("v0.5.2"), "output: {out}");
+    assert!(out.contains("already exists"), "output: {out}");
+    // nothing was committed or tagged on the way
+    assert_eq!(repo.last_commit_message().trim(), "fix: real change");
+}
+
+// empty releases
+
+#[test]
+fn test_release_refuses_without_new_commits() {
+    let repo = TestRepo::new();
+    repo.create_commit("file.txt", "v1", "feat: initial");
+    repo.create_annotated_tag("v1.0.0", "release");
+
+    let (ok, out) = run_combined(&repo, &["release", "patch"]);
+
+    assert!(!ok, "output: {out}");
+    assert!(out.contains("no commits since 'v1.0.0'"), "output: {out}");
+    assert!(out.contains("--allow-empty"), "output: {out}");
+}
+
+#[test]
+fn test_release_allow_empty_releases_anyway() {
+    let repo = TestRepo::new();
+    repo.create_commit("file.txt", "v1", "feat: initial");
+    repo.create_annotated_tag("v1.0.0", "release");
+
+    let (ok, out) = run_combined(&repo, &[
+        "release",
+        "patch",
+        "--allow-empty",
+        "--skip-commit",
+    ]);
+
+    assert!(ok, "output: {out}");
+    let tags = repo.create_git_command(&["tag", "-l"]).output().unwrap();
+    assert!(String::from_utf8_lossy(&tags.stdout).contains("v1.0.1"));
+}
+
+// dry-run validation
+
+#[test]
+fn test_release_dry_run_fails_on_version_mismatch() {
+    let repo = TestRepo::new();
+    repo.create_commit(
+        "Cargo.toml",
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n",
+        "feat: initial",
+    );
+    // the latest tag claims 0.2.0 while the manifest still says 0.1.0
+    repo.create_annotated_tag("v0.2.0", "release");
+    repo.create_commit("file.txt", "x", "fix: a bug");
+    std::fs::write(
+        repo.path.join(".cocoa.toml"),
+        "[version]\ncommit_version_files = [\"Cargo.toml\"]\n",
+    )
+    .unwrap();
+
+    let (ok, out) = run_combined(&repo, &["--dry-run", "release", "patch"]);
+
+    assert!(!ok, "output: {out}");
+    assert!(out.contains("out of sync"), "output: {out}");
+    let manifest = std::fs::read_to_string(repo.path.join("Cargo.toml")).unwrap();
+    assert!(manifest.contains("version = \"0.1.0\""));
+}
