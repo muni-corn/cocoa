@@ -1,6 +1,5 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }:
@@ -13,16 +12,12 @@ let
   nativeBuildInputs = with pkgs; [
     autoPatchelfHook
   ];
-  libraryPath = lib.makeLibraryPath buildInputs;
 in
 {
-  # needed for dynamic linking at runtime
-  env.RUSTFLAGS = lib.mkForce "-C link-args=-Wl,-fuse-ld=mold,-rpath,${libraryPath}";
-
   languages.rust = {
     enable = true;
     channel = "nightly";
-    mold.enable = true;
+    wild.enable = true;
   };
 
   packages = buildInputs ++ nativeBuildInputs;
