@@ -54,6 +54,14 @@ pub trait GitOperations {
         unimplemented!("get_tags not yet implemented for this backend")
     }
 
+    /// Report whether the commit behind `rev` is HEAD or one of its ancestors.
+    ///
+    /// Annotated tags are peeled to the commit they point to. Returns `false`
+    /// for commits that HEAD cannot reach, such as those orphaned by a reset.
+    fn is_reachable_from_head(&self, _rev: &str) -> Result<bool, GenerateError> {
+        unimplemented!("is_reachable_from_head not yet implemented for this backend")
+    }
+
     /// Create an annotated tag at HEAD.
     ///
     /// Set `sign` to `true` to GPG-sign the tag (requires a configured signing
@@ -364,6 +372,34 @@ impl GitOperations for Git2Ops {
         Ok(tags)
     }
 
+    fn is_reachable_from_head(&self, rev: &str) -> Result<bool, GenerateError> {
+        let commit = self
+            .repo
+            .revparse_single(rev)
+            .and_then(|o| o.peel_to_commit())
+            .map_err(|e| {
+                GenerateError::GitContext(format!("failed to resolve '{}': {}", rev, e))
+            })?;
+
+        let head = self
+            .repo
+            .head()
+            .and_then(|h| h.peel_to_commit())
+            .map_err(|e| {
+                GenerateError::GitContext(format!("failed to resolve HEAD commit: {}", e))
+            })?;
+
+        if head.id() == commit.id() {
+            return Ok(true);
+        }
+
+        self.repo
+            .graph_descendant_of(head.id(), commit.id())
+            .map_err(|e| {
+                GenerateError::GitContext(format!("failed to compare '{}' with HEAD: {}", rev, e))
+            })
+    }
+
     fn create_tag(&self, name: &str, message: &str, sign: bool) -> Result<(), GenerateError> {
         if sign {
             // libgit2 signing requires a custom callback; fall back to the git
@@ -477,6 +513,8 @@ pub struct MockGitOps {
     pub tags: Result<Vec<TagInfo>, GenerateError>,
     pub hook_path: Result<PathBuf, GenerateError>,
     pub repo_root: Result<PathBuf, GenerateError>,
+    /// Revisions that `is_reachable_from_head` reports as unreachable.
+    pub unreachable_revs: Vec<String>,
 }
 
 #[cfg(test)]
@@ -494,6 +532,7 @@ impl Default for MockGitOps {
             tags: Ok(Vec::new()),
             hook_path: Ok(PathBuf::from(".git/hooks")),
             repo_root: Ok(PathBuf::from(".")),
+            unreachable_revs: Vec::new(),
         }
     }
 }
@@ -542,6 +581,10 @@ impl GitOperations for MockGitOps {
 
     fn get_tags(&self) -> Result<Vec<TagInfo>, GenerateError> {
         self.tags.clone()
+    }
+
+    fn is_reachable_from_head(&self, rev: &str) -> Result<bool, GenerateError> {
+        Ok(!self.unreachable_revs.iter().any(|r| r == rev))
     }
 
     fn create_tag(&self, _name: &str, _message: &str, _sign: bool) -> Result<(), GenerateError> {
@@ -955,5 +998,91 @@ mod tests {
         let result = ops.get_commits_in_range("", "nonexistent-ref");
         assert!(result.is_err());
         drop(dir);
+    }
+
+    /// Add a commit on top of HEAD and return its id.
+    fn add_commit(path: &std::path::Path, file: &str, message: &str) -> git2::Oid {
+        let repo = git2::Repository::open(path).unwrap();
+        std::fs::write(path.join(file), message).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new(file)).unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let sig = git2::Signature::now("Test", "test@example.com").unwrap();
+        let parent = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&parent])
+            .unwrap()
+    }
+
+    #[test]
+    fn test_git2ops_is_reachable_from_head_for_ancestor() {
+        let (dir, path) = make_temp_repo();
+        let repo = git2::Repository::open(&path).unwrap();
+        let root = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.tag_lightweight("v0.1.0", root.as_object(), false)
+            .unwrap();
+        add_commit(&path, "second.txt", "feat: second");
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        assert!(ops.is_reachable_from_head("v0.1.0").unwrap());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_is_reachable_from_head_for_head_itself() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        assert!(ops.is_reachable_from_head("HEAD").unwrap());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_is_reachable_from_head_false_after_reset() {
+        let (dir, path) = make_temp_repo();
+        let repo = git2::Repository::open(&path).unwrap();
+        let root = repo.head().unwrap().peel_to_commit().unwrap();
+        let orphan = add_commit(&path, "second.txt", "chore(release): bump");
+        repo.tag_lightweight(
+            "v0.2.0",
+            repo.find_object(orphan, None).as_ref().unwrap(),
+            false,
+        )
+        .unwrap();
+
+        // mimic `git reset --hard HEAD^`, which leaves the tag behind
+        repo.reset(root.as_object(), git2::ResetType::Hard, None)
+            .unwrap();
+
+        let ops = Git2Ops::open_at(&path).unwrap();
+        assert!(!ops.is_reachable_from_head("v0.2.0").unwrap());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_is_reachable_from_head_peels_annotated_tags() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        ops.create_tag("v1.0.0", "release v1.0.0", false).unwrap();
+        add_commit(&path, "second.txt", "feat: second");
+
+        assert!(ops.is_reachable_from_head("v1.0.0").unwrap());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_git2ops_is_reachable_from_head_unknown_rev_errors() {
+        let (dir, path) = make_temp_repo();
+        let ops = Git2Ops::open_at(&path).unwrap();
+        assert!(ops.is_reachable_from_head("nonexistent-ref").is_err());
+        drop(dir);
+    }
+
+    #[test]
+    fn test_mock_git_ops_reports_unreachable_revs() {
+        let mock = MockGitOps {
+            unreachable_revs: vec!["abc".to_string()],
+            ..Default::default()
+        };
+        assert!(!mock.is_reachable_from_head("abc").unwrap());
+        assert!(mock.is_reachable_from_head("def").unwrap());
     }
 }
