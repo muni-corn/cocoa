@@ -173,18 +173,14 @@ pub fn execute<G: GitOperations>(
         verify_old_version: latest_tag.is_some(),
     };
 
-    let updated_files: Vec<UpdatedFile> = if !all_entries.is_empty() && !dry_run {
-        version::update_version_files_rich(&all_entries, &old_str, &new_str, &update_options)?
+    // a dry run still runs every handler's checks, so mismatches and missing
+    // files fail here just as they would in a real release
+    let updated_files: Vec<UpdatedFile> = if all_entries.is_empty() {
+        Vec::new()
+    } else if dry_run {
+        version::plan_version_files(&all_entries, &old_str, &new_str, &update_options)?
     } else {
-        // dry-run: report what would be updated without touching disk
-        all_entries
-            .iter()
-            .map(|e| UpdatedFile {
-                path: e.path.clone(),
-                kind: version::FileKind::Plain,
-                replacements: 0,
-            })
-            .collect()
+        version::update_version_files_rich(&all_entries, &old_str, &new_str, &update_options)?
     };
 
     // step 6: generate and write changelog
@@ -543,5 +539,47 @@ mod tests {
                 .unwrap()
                 .contains("version = \"0.5.1\"")
         );
+    }
+
+    #[test]
+    fn test_execute_dry_run_reports_handler_details_without_writing() {
+        let dir = tempfile::tempdir().unwrap();
+        let (vc, manifest) = manifest_config(dir.path(), "0.5.1");
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a")]),
+            commits_in_range: Ok(vec![make_commit("i1", "fix: small")]),
+            ..Default::default()
+        };
+
+        let outcome = execute(&ops, &vc, &cl_config(), &files_only_args(), true).unwrap();
+
+        assert_eq!(outcome.updated_files.len(), 1);
+        assert_eq!(
+            outcome.updated_files[0].kind,
+            version::FileKind::CargoManifest
+        );
+        assert_eq!(outcome.updated_files[0].replacements, 1);
+        assert!(
+            std::fs::read_to_string(&manifest)
+                .unwrap()
+                .contains("version = \"0.5.1\"")
+        );
+    }
+
+    #[test]
+    fn test_execute_dry_run_surfaces_version_mismatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let (vc, _manifest) = manifest_config(dir.path(), "0.5.1");
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.3", "a")]),
+            commits_in_range: Ok(vec![make_commit("i1", "fix: small")]),
+            ..Default::default()
+        };
+
+        let err = execute(&ops, &vc, &cl_config(), &files_only_args(), true).unwrap_err();
+        assert!(matches!(
+            err,
+            ReleaseError::Version(VersionError::VersionMismatch { .. })
+        ));
     }
 }
