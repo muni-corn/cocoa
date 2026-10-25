@@ -23,7 +23,9 @@ its format. The handler knows which fields are "ours" and which belong to depend
 
 **`CargoManifestHandler` (`cargo_manifest.rs`)** uses `toml_edit` to parse `Cargo.toml` and update
 only `[package].version` and/or `[workspace.package].version`. The `[dependencies]` table is never
-touched.
+touched. Like the lockfile handler, it checks that the field holds `old_version` and returns
+`VersionError::VersionMismatch` otherwise. A version inherited with `version.workspace = true` is not
+a string, so it is left alone; a file whose only version is inherited needs no update.
 
 **`CargoLockHandler` (`cargo_lock.rs`)** parses `Cargo.lock` with `toml_edit` and discovers which
 `[[package]]` entries belong to the current workspace by:
@@ -33,7 +35,10 @@ touched.
    their `[package].name` values.
 
 Only those entries whose `name` is in the discovered member set are updated. A safety guard
-additionally checks that the entry's current `version` matches `old_version` before updating.
+additionally checks that the entry's current `version` matches `old_version` before updating. When
+no entry could be updated but a member was present at another version, the handler returns
+`VersionError::VersionMismatch` naming the member, instead of the generic "entries not found" error.
+Members that are in sync are still updated when another member has drifted.
 
 **Why not `cargo update --workspace`?** Running `cargo update --workspace` requires `cargo` to be
 installed, may fail in offline CI environments, and technically touches more than just the version
@@ -92,6 +97,28 @@ The dispatch order for any file is:
 3. Unknown basenames fall back to `PlainHandler` (global string replace), preserving historical
    behavior.
 
+## Verifying the old version
+
+`update::UpdateOptions::verify_old_version` (default `true`) tells the Cargo handlers whether to
+enforce the `old_version` check. `release` and `bump` turn it off when there is no previous tag,
+because `old_version` is then the `0.0.0` placeholder rather than something the files ever held.
+Plain, regex, npm and pyproject handlers keep their own behavior: plain and regex need the old text
+to find what to replace, and the others overwrite the field.
+
+## Which tags define the old version
+
+`old_version` comes from `version::detect_current_semver`, which only looks at tags reachable from
+HEAD (`GitOperations::is_reachable_from_head`). Tags left behind by a `git reset` are reported as
+ignored through `version::scan_version_tags` instead of silently feeding the version check.
+
+## Dry-run planning
+
+`update::plan_version_files` runs the same handler dispatch as a real update
+(`update::dispatch::prepare_in_process`) but never writes. In-process handlers run their full checks,
+so a dry run fails on a missing file or a version mismatch. Entries that must shell out (`command`
+strategy, pnpm and yarn lockfiles) are listed with zero replacements and never executed, since
+running them would modify files.
+
 ## Atomicity
 
 All handlers work in two phases:
@@ -110,5 +137,6 @@ of how many files are in the list.
 2. Add a new `FileKind` variant in `version.rs`.
 3. Add a new `FileEntryKind` variant in `config.rs` and update `detect::infer_kind` in
    `version/detect.rs` to recognize the relevant basenames.
-4. Wire the handler into `update_version_files_rich` in `version.rs`.
+4. Wire the handler into `prepare_in_process` in `version/update/dispatch.rs`. Both real updates and
+   dry-run planning pick it up from there.
 5. Add tests for: normal update, no-op (wrong file content), parse error, missing-field error.
