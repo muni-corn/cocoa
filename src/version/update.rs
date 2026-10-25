@@ -3,6 +3,10 @@
 //! Applies a version change to the files listed in the release configuration,
 //! choosing a handler for each file and writing all of them atomically.
 
+pub mod options;
+
+pub use options::UpdateOptions;
+
 use super::{FileKind, UpdatedFile, VersionError};
 
 /// Update the version string in each of the given files atomically.
