@@ -87,7 +87,8 @@ pub struct ReleaseOutcome {
 /// Steps performed (each respects `dry_run`):
 ///
 /// 1. Detect the current version from git tags (defaults to `0.0.0`).
-/// 2. Collect commits since the last tag.
+/// 2. Collect commits since the last tag, refusing an empty release unless
+///    `allow_empty` is set.
 /// 3. Resolve the bump type from `opts.bump_type` or auto-detect.
 /// 4. Compute the new version.
 /// 5. Update version files listed in `[version].commit_version_files`.
@@ -109,6 +110,15 @@ pub fn execute<G: GitOperations>(
     let latest_tag = version::detect_latest_tag(ops, &version_config.tag_prefix)?;
     let from = latest_tag.as_ref().map_or("", |tag| tag.target.as_str());
     let commits = ops.get_commits_in_range(from, "HEAD")?;
+
+    // an empty release only makes sense against a previous tag; the very first
+    // release has no tag to compare with
+    if let Some(tag) = &latest_tag
+        && commits.is_empty()
+        && !args.allow_empty
+    {
+        return Err(ReleaseError::NoNewCommits(tag.name.clone()));
+    }
 
     // step 3: resolve bump type
     let bump_type = if let Some(bt) = args.bump_type {
@@ -340,6 +350,7 @@ mod tests {
         };
         let opts = ReleaseArgs {
             bump_type: BumpType::Minor.into(),
+            allow_empty: true,
             ..Default::default()
         };
 
@@ -357,6 +368,7 @@ mod tests {
         };
         let opts = ReleaseArgs {
             bump_type: BumpType::Patch.into(),
+            allow_empty: true,
             ..Default::default()
         };
 
@@ -612,5 +624,78 @@ mod tests {
         let msg = ReleaseError::NoNewCommits("v0.5.1".to_string()).to_string();
         assert!(msg.contains("'v0.5.1'"));
         assert!(msg.contains("--allow-empty"));
+    }
+
+    #[test]
+    fn test_execute_refuses_release_without_new_commits() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a")]),
+            commits_in_range: Ok(vec![]),
+            ..Default::default()
+        };
+
+        let err = execute(
+            &ops,
+            &v_config(),
+            &cl_config(),
+            &ReleaseArgs::default(),
+            true,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ReleaseError::NoNewCommits(tag) if tag == "v0.5.1"));
+    }
+
+    #[test]
+    fn test_execute_allow_empty_releases_without_new_commits() {
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a")]),
+            commits_in_range: Ok(vec![]),
+            ..Default::default()
+        };
+        let args = ReleaseArgs {
+            allow_empty: true,
+            ..Default::default()
+        };
+
+        let outcome = execute(&ops, &v_config(), &cl_config(), &args, true).unwrap();
+        assert_eq!(outcome.new_version, "0.5.2");
+    }
+
+    #[test]
+    fn test_execute_first_release_without_commits_is_not_refused() {
+        // no previous tag, so there is nothing to be "empty" relative to
+        let ops = MockGitOps {
+            tags: Ok(vec![]),
+            commits_in_range: Ok(vec![]),
+            ..Default::default()
+        };
+        assert!(
+            execute(
+                &ops,
+                &v_config(),
+                &cl_config(),
+                &ReleaseArgs::default(),
+                true
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn test_execute_empty_refusal_happens_before_files_change() {
+        let dir = tempfile::tempdir().unwrap();
+        let (vc, manifest) = manifest_config(dir.path(), "0.5.1");
+        let ops = MockGitOps {
+            tags: Ok(vec![make_tag("v0.5.1", "a")]),
+            commits_in_range: Ok(vec![]),
+            ..Default::default()
+        };
+
+        assert!(execute(&ops, &vc, &cl_config(), &files_only_args(), false).is_err());
+        assert!(
+            std::fs::read_to_string(&manifest)
+                .unwrap()
+                .contains("version = \"0.5.1\"")
+        );
     }
 }

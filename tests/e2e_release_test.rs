@@ -177,6 +177,8 @@ fn test_release_duplicate_tag_exits_with_error() {
     // collision case by adding a second tag.
     repo.create_commit("file.txt", "v2", "fix: another fix");
     repo.create_annotated_tag("v0.0.2", "collision");
+    // a release needs commits since the last tag
+    repo.create_commit("file.txt", "v3", "fix: one more fix");
 
     // current = 0.0.2, fix commit → 0.0.3, which doesn't exist; succeeds
     // to create a real collision we need the next version to already be tagged:

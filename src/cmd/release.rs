@@ -186,6 +186,11 @@ pub fn handle_release(
                     print_info(t!("main.release.tag_exists_hint"));
                     goodbye_with_death(1);
                 }
+                release::ReleaseError::NoNewCommits(tag) => {
+                    print_error_bold(t!("main.release.no_new_commits", tag = tag));
+                    print_info(t!("main.release.no_new_commits_hint"));
+                    goodbye_with_death(1);
+                }
                 release::ReleaseError::Git(msg) => {
                     print_error_bold(t!("main.release.git_failed", error = msg));
                     goodbye_with_death(5);
