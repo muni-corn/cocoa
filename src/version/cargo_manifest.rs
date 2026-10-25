@@ -22,7 +22,8 @@ use crate::version::{
 ///
 /// Updates `[package].version` when present, and `[workspace.package].version`
 /// when the file is a workspace root that declares `[workspace.package]`.
-/// Both can coexist in the same file (mixed workspace root + member).
+/// Both can coexist in the same file (mixed workspace root + member). A
+/// version inherited with `version.workspace = true` is left untouched.
 #[derive(Debug, Default)]
 pub struct CargoManifestHandler;
 
@@ -44,13 +45,19 @@ impl Handler for CargoManifestHandler {
         })?;
 
         let mut replacements = 0;
+        let mut inherited = false;
 
-        // update [package].version if present
+        // update [package].version if present; `version.workspace = true` is
+        // not a string, and replacing it would break the inheritance
         if let Some(pkg) = doc.get_mut("package").and_then(|v| v.as_table_mut())
             && let Some(ver) = pkg.get_mut("version")
         {
-            *ver = toml_edit::value(new_version);
-            replacements += 1;
+            if ver.is_str() {
+                *ver = toml_edit::value(new_version);
+                replacements += 1;
+            } else {
+                inherited = true;
+            }
         }
 
         // update [workspace.package].version if present (workspace root)
@@ -58,8 +65,17 @@ impl Handler for CargoManifestHandler {
             && let Some(ws_pkg) = ws.get_mut("package").and_then(|v| v.as_table_mut())
             && let Some(ver) = ws_pkg.get_mut("version")
         {
-            *ver = toml_edit::value(new_version);
-            replacements += 1;
+            if ver.is_str() {
+                *ver = toml_edit::value(new_version);
+                replacements += 1;
+            } else {
+                inherited = true;
+            }
+        }
+
+        // the version lives in the workspace root, so this file needs no change
+        if replacements == 0 && inherited {
+            return Ok(None);
         }
 
         if replacements == 0 {
@@ -207,5 +223,43 @@ serde = "1.0.0"
         let h = CargoManifestHandler;
         let update = h.prepare(&path, "1.0.0", "2.0.0").unwrap().unwrap();
         assert_eq!(update.updated_file.kind, FileKind::CargoManifest);
+    }
+
+    #[test]
+    fn test_cargo_manifest_leaves_inherited_dotted_version_alone() {
+        let toml = "[package]\nname = \"member\"\nversion.workspace = true\n";
+        let (_dir, path) = write_tmp("Cargo.toml", toml);
+        let h = CargoManifestHandler;
+        // nothing to change: the workspace root owns the version
+        assert!(h.prepare(&path, "1.0.0", "2.0.0").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_cargo_manifest_leaves_inherited_inline_version_alone() {
+        let toml = "[package]\nname = \"member\"\nversion = { workspace = true }\n";
+        let (_dir, path) = write_tmp("Cargo.toml", toml);
+        let h = CargoManifestHandler;
+        assert!(h.prepare(&path, "1.0.0", "2.0.0").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_cargo_manifest_updates_workspace_version_but_keeps_inherited_member() {
+        let toml = r#"[workspace]
+members = ["a"]
+
+[workspace.package]
+version = "1.0.0"
+
+[package]
+name = "root"
+version.workspace = true
+"#;
+        let (_dir, path) = write_tmp("Cargo.toml", toml);
+        let h = CargoManifestHandler;
+        let update = h.prepare(&path, "1.0.0", "1.1.0").unwrap().unwrap();
+        let result = String::from_utf8(update.updated).unwrap();
+        assert!(result.contains("version = \"1.1.0\""));
+        assert!(result.contains("version.workspace = true"));
+        assert_eq!(update.updated_file.replacements, 1);
     }
 }
