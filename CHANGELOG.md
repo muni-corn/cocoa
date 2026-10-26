@@ -1,5 +1,55 @@
 # Changelog
 
+## **v0.5.2**
+
+### new features
+
+- **release:** refuse to release without new commits
+- **release:** add --allow-empty flag
+- **release:** add no new commits error
+- **bump:** validate version files during dry runs
+- **release:** validate version files during dry runs
+- **version:** add dry-run planning for version files
+- **version:** pass update options through version file updates
+- **version:** allow skipping old version checks in cargo lockfiles
+- **version:** add update options for version files
+- **version:** add version mismatch error
+- **tag:** warn about ignored unreachable tags
+- **bump:** warn about ignored unreachable tags
+- **release:** warn about ignored unreachable tags
+- **version:** add version tag scanning by reachability
+- **git:** add reachability check for revisions
+
+### bug fixes
+
+- **release:** clarify tag exists hint message
+- **devenv:** point cocoa input at the hook tools attribute
+- **release:** propagate errors when collecting commits
+- **bump:** skip old version checks for first releases
+- **release:** skip old version checks for first releases
+- **version:** verify old version in cargo manifests
+- **version:** preserve inherited workspace versions in cargo manifests
+- **version:** report version mismatches in cargo lockfiles
+- **release:** verify the new tag is unused before changing files
+- **version:** ignore version tags not reachable from HEAD
+
+### tests
+
+- **release:** cover stale tags and empty releases
+- **bump:** cover tags orphaned by a reset
+
+### build system
+
+- **devenv:** include locales directory in crane build
+
+### documentation
+
+- **notes:** update lockfile handler notes
+- **troubleshooting:** add stale tag recovery
+- **versioning:** document reachable tags and empty releases
+
+---
+
 ## **v0.5.1**
 
 ### new features
