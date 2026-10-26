@@ -8,7 +8,7 @@ let
   cocoa = config.lib.getInput {
     name = "cocoa";
     url = "github:muni-corn/cocoa";
-    attribute = "git-hooks.hooks.cocoa-lint.enable";
+    attribute = "git-hooks.hooks.tools.cocoa";
     follows = [ "nixpkgs" ];
   };
 in
