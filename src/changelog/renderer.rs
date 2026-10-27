@@ -31,7 +31,7 @@ pub fn render(
         OutputFormat::Markdown => render_builtin(changelog, config, &builtin::MARKDOWN),
         OutputFormat::Json => render_json(changelog),
         OutputFormat::Html => Ok(render_html(changelog)),
-        OutputFormat::ReStructuredText => Ok(render_rst(changelog)),
+        OutputFormat::ReStructuredText => render_builtin(changelog, config, &builtin::RST),
         OutputFormat::AsciiDoc => render_builtin(changelog, config, &builtin::ASCIIDOC),
         OutputFormat::Template(path) => render_template(changelog, config, path),
     }
@@ -109,68 +109,6 @@ fn html_escape(s: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
-}
-
-// reStructuredText
-
-/// Render the changelog as reStructuredText.
-pub fn render_rst(changelog: &Changelog) -> String {
-    let mut out = String::new();
-    let title = "Changelog";
-    out.push_str(title);
-    out.push('\n');
-    out.push_str(&"=".repeat(title.chars().count()));
-    out.push_str("\n\n");
-
-    for version in &changelog.versions {
-        let heading = rst_version_heading(version);
-        out.push_str(&heading);
-        out.push('\n');
-        out.push_str(&"-".repeat(heading.chars().count()));
-        out.push_str("\n\n");
-
-        if !version.breaking_changes.is_empty() {
-            let sub = "Breaking changes";
-            out.push_str(sub);
-            out.push('\n');
-            out.push_str(&"~".repeat(sub.chars().count()));
-            out.push_str("\n\n");
-            for entry in &version.breaking_changes {
-                out.push_str(&rst_entry(entry));
-            }
-            out.push('\n');
-        }
-
-        for section in &version.sections {
-            out.push_str(&section.title);
-            out.push('\n');
-            out.push_str(&"~".repeat(section.title.chars().count()));
-            out.push_str("\n\n");
-            for entry in &section.entries {
-                out.push_str(&rst_entry(entry));
-            }
-            out.push('\n');
-        }
-    }
-
-    out
-}
-
-fn rst_version_heading(version: &ChangelogVersion) -> String {
-    let name = &version.version;
-    match &version.date {
-        Some(date) => format!("[{}] - {}", name, date),
-        None => format!("[{}]", name),
-    }
-}
-
-fn rst_entry(entry: &ChangelogEntry) -> String {
-    let scope = entry
-        .scope
-        .as_ref()
-        .map(|s| format!("**{}:** ", s))
-        .unwrap_or_default();
-    format!("* {}{} (``{}``)\n", scope, entry.subject, entry.id)
 }
 
 #[cfg(test)]
@@ -285,7 +223,12 @@ mod tests {
     #[test]
     fn test_render_rst_structure() {
         let cl = sample_changelog();
-        let out = render_rst(&cl);
+        let out = render(
+            &cl,
+            &ChangelogConfig::default(),
+            &OutputFormat::ReStructuredText,
+        )
+        .unwrap();
         assert!(out.contains("Changelog"));
         assert!(out.contains("========="));
         assert!(out.contains("[v1.0.0] - 2024-01-01"));
@@ -393,23 +336,39 @@ mod tests {
     #[test]
     fn test_render_rst_unreleased_no_date() {
         let cl = unreleased_changelog();
-        let out = render_rst(&cl);
+        let out = render(
+            &cl,
+            &ChangelogConfig::default(),
+            &OutputFormat::ReStructuredText,
+        )
+        .unwrap();
         assert!(out.contains("[Next version]"));
     }
 
     #[test]
     fn test_render_rst_breaking_changes() {
         let cl = unreleased_changelog();
-        let out = render_rst(&cl);
+        let out = render(
+            &cl,
+            &ChangelogConfig::default(),
+            &OutputFormat::ReStructuredText,
+        )
+        .unwrap();
         assert!(out.contains("Breaking changes"));
         assert!(out.contains("renamed endpoint"));
     }
 
     #[test]
     fn test_render_rst_entry_with_scope() {
-        let mut entry = sample_entry("abc", "feat", "add feature");
-        entry.scope = Some("core".to_string());
-        assert!(rst_entry(&entry).contains("**core:**"));
+        let mut cl = sample_changelog();
+        cl.versions[0].sections[0].entries[0].scope = Some("core".to_string());
+        let out = render(
+            &cl,
+            &ChangelogConfig::default(),
+            &OutputFormat::ReStructuredText,
+        )
+        .unwrap();
+        assert!(out.contains("* **core:** add login"));
     }
 
     #[test]

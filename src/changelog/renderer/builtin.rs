@@ -26,6 +26,12 @@ pub const ASCIIDOC: BuiltinTemplate = BuiltinTemplate {
     source: include_str!("../templates/changelog.adoc.jinja"),
 };
 
+/// The reStructuredText template.
+pub const RST: BuiltinTemplate = BuiltinTemplate {
+    name: "changelog.rst.jinja",
+    source: include_str!("../templates/changelog.rst.jinja"),
+};
+
 /// Renders the changelog with a built-in template.
 ///
 /// # Errors

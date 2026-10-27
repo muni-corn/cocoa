@@ -1,0 +1,24 @@
+{% macro bullet(item) %}* {% if item.scope %}**{{ item.scope }}:** {% endif %}{{ item.subject }} (``{{ item.id }}``){% endmacro %}
+{{ "Changelog"|heading("=") }}
+
+{% for version in changelog.versions %}
+{% set title = "[" ~ version.version ~ "]" ~ (" - " ~ version.date if version.date else "") %}
+{{ title|heading("-") }}
+
+{% if version.breaking_changes %}
+{{ config.sections.breaking|default("Breaking changes")|heading("~") }}
+
+{% for item in version.breaking_changes %}
+{{ bullet(item) }}
+{% endfor %}
+
+{% endif %}
+{% for section in version.sections %}
+{{ section.title|heading("~") }}
+
+{% for item in section.entries %}
+{{ bullet(item) }}
+{% endfor %}
+
+{% endfor %}
+{% endfor %}
