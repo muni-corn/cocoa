@@ -65,7 +65,7 @@ impl CommitMessage {
     ///
     /// let msg = "feat(auth)!: rotate tokens\n\nreasoning\n\nCloses: #42";
     /// let parsed = CommitMessage::parse(msg).unwrap();
-    /// assert_eq!(parsed.commit_type, "feat");
+    /// assert_eq!(parsed.commit_type, Some("feat".into()));
     /// assert_eq!(parsed.scope.as_deref(), Some("auth"));
     /// assert!(parsed.breaking);
     /// assert_eq!(parsed.subject, "rotate tokens");
