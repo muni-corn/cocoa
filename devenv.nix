@@ -26,5 +26,6 @@ in
     inherit buildInputs nativeBuildInputs;
     runtimeDependencies = buildInputs;
     extraPaths = [ ./locales ];
+    extraFileTypes = [ "jinja" ];
   };
 }
