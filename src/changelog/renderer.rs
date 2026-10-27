@@ -4,8 +4,12 @@ use minijinja::value::Serde;
 
 use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
+mod json;
+
 #[cfg(test)]
 mod snapshot_tests;
+
+use json::render_json;
 
 /// Render a `Changelog` in the requested output format.
 pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, ChangelogError> {
@@ -61,13 +65,6 @@ fn markdown_entry(entry: &ChangelogEntry) -> String {
         .map(|s| format!("**{s}:** "))
         .unwrap_or_default();
     format!("- {}{}\n", scope, entry.subject)
-}
-
-// JSON
-
-/// Serialize the changelog to pretty-printed JSON.
-pub fn render_json(changelog: &Changelog) -> Result<String, ChangelogError> {
-    serde_json::to_string_pretty(changelog).map_err(|e| ChangelogError::Render(e.to_string()))
 }
 
 // HTML
@@ -371,15 +368,6 @@ mod tests {
         cl.versions[0].sections[0].entries[0].scope = Some("auth".to_string());
         let out = render_markdown(&cl);
         assert!(out.contains("**auth:**"));
-    }
-
-    #[test]
-    fn test_render_json_is_valid() {
-        let cl = sample_changelog();
-        let out = render_json(&cl).unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
-        assert!(parsed["versions"].is_array());
-        assert_eq!(parsed["versions"][0]["version"], "v1.0.0");
     }
 
     #[test]
