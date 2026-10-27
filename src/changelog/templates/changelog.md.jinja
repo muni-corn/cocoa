@@ -1,0 +1,24 @@
+{% macro bullet(item) %}- {% if item.scope %}**{{ item.scope }}:** {% endif %}{{ item.subject }}{% endmacro %}
+# Changelog
+{% for version in changelog.versions %}
+
+## **{{ version.version }}**
+{% if version.breaking_changes %}
+
+### **Breaking changes**
+
+{% for item in version.breaking_changes %}
+{{ bullet(item) }}
+{% endfor %}
+{% endif %}
+{% for section in version.sections %}
+
+### {{ section.title }}
+
+{% for item in section.entries %}
+{{ bullet(item) }}
+{% endfor %}
+{% endfor %}
+
+---
+{% endfor %}

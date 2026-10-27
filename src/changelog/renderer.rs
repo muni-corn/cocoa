@@ -2,6 +2,7 @@
 
 use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
+mod builtin;
 mod environment;
 mod filters;
 mod json;
@@ -10,63 +11,20 @@ mod template;
 #[cfg(test)]
 mod snapshot_tests;
 
+use builtin::render_builtin;
 use json::render_json;
 use template::render_template;
 
 /// Render a `Changelog` in the requested output format.
 pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, ChangelogError> {
     match format {
-        OutputFormat::Markdown => Ok(render_markdown(changelog)),
+        OutputFormat::Markdown => render_builtin(changelog, &builtin::MARKDOWN),
         OutputFormat::Json => render_json(changelog),
         OutputFormat::Html => Ok(render_html(changelog)),
         OutputFormat::ReStructuredText => Ok(render_rst(changelog)),
         OutputFormat::AsciiDoc => Ok(render_asciidoc(changelog)),
         OutputFormat::Template(path) => render_template(changelog, path),
     }
-}
-
-// Markdown
-
-/// Render the changelog as GitHub-flavored Markdown.
-pub fn render_markdown(changelog: &Changelog) -> String {
-    let mut out = String::from("# Changelog\n");
-
-    for version in &changelog.versions {
-        out.push('\n');
-        out.push_str(&markdown_version_heading(version));
-        out.push('\n');
-
-        if !version.breaking_changes.is_empty() {
-            out.push_str("\n### **Breaking changes**\n\n");
-            for entry in &version.breaking_changes {
-                out.push_str(&markdown_entry(entry));
-            }
-        }
-
-        for section in &version.sections {
-            out.push_str(&format!("\n### {}\n\n", section.title));
-            for entry in &section.entries {
-                out.push_str(&markdown_entry(entry));
-            }
-        }
-
-        out.push_str("\n---\n");
-    }
-
-    out
-}
-
-fn markdown_version_heading(version: &ChangelogVersion) -> String {
-    format!("## **{}**", version.version)
-}
-
-fn markdown_entry(entry: &ChangelogEntry) -> String {
-    let scope = entry
-        .scope
-        .as_ref()
-        .map(|s| format!("**{s}:** "))
-        .unwrap_or_default();
-    format!("- {}{}\n", scope, entry.subject)
 }
 
 // HTML
@@ -295,7 +253,7 @@ mod tests {
     #[test]
     fn test_render_markdown_contains_version() {
         let cl = sample_changelog();
-        let out = render_markdown(&cl);
+        let out = render(&cl, &OutputFormat::Markdown).unwrap();
         assert!(out.contains("# Changelog"));
         assert!(out.contains("## **v1.0.0**"));
         assert!(out.contains("### Features"));
@@ -317,7 +275,7 @@ mod tests {
                 }],
             }],
         };
-        let out = render_markdown(&cl);
+        let out = render(&cl, &OutputFormat::Markdown).unwrap();
         assert!(out.contains("## **Next version**"));
     }
 
@@ -329,7 +287,7 @@ mod tests {
             e.breaking = true;
             e
         }];
-        let out = render_markdown(&cl);
+        let out = render(&cl, &OutputFormat::Markdown).unwrap();
         assert!(out.contains("### **Breaking changes**"));
         assert!(out.contains("api overhaul"));
     }
@@ -338,7 +296,7 @@ mod tests {
     fn test_render_markdown_scope() {
         let mut cl = sample_changelog();
         cl.versions[0].sections[0].entries[0].scope = Some("auth".to_string());
-        let out = render_markdown(&cl);
+        let out = render(&cl, &OutputFormat::Markdown).unwrap();
         assert!(out.contains("**auth:**"));
     }
 

@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use minijinja::value::Serde;
+use minijinja::{Environment, value::Serde};
 
 use super::environment::build_environment;
 use crate::changelog::{Changelog, ChangelogError};
@@ -33,8 +33,20 @@ pub fn render_template(
         .and_then(|n| n.to_str())
         .unwrap_or("changelog");
 
-    let mut env = build_environment();
-    env.add_template(name, &template_content)
+    render_source(build_environment(), name, &template_content, changelog)
+}
+
+/// Renders `source` registered as `name` in `env`.
+///
+/// The template receives a single variable `changelog`. The name matters
+/// because it decides autoescaping.
+pub fn render_source(
+    mut env: Environment<'_>,
+    name: &str,
+    source: &str,
+    changelog: &Changelog,
+) -> Result<String, ChangelogError> {
+    env.add_template_owned(name.to_string(), source.to_string())
         .map_err(|e| ChangelogError::Template(format!("failed to parse template: {}", e)))?;
 
     let tmpl = env
