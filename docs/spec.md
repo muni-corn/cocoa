@@ -111,7 +111,7 @@ include_merge_commits = false
 include_reverts = true
 date_format = "%Y-%m-%d"
 
-[changelong.sections]
+[changelog.sections]
 feat = "Features"
 fix = "Bug fixes"
 perf = "Performance"
