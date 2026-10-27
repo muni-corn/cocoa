@@ -1,15 +1,16 @@
 //! Changelog output format renderers.
 
-use minijinja::value::Serde;
-
 use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
+mod environment;
 mod json;
+mod template;
 
 #[cfg(test)]
 mod snapshot_tests;
 
 use json::render_json;
+use template::render_template;
 
 /// Render a `Changelog` in the requested output format.
 pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, ChangelogError> {
@@ -249,36 +250,6 @@ fn asciidoc_entry(entry: &ChangelogEntry) -> String {
     format!("* {}{} (`{}`)\n", scope, entry.subject, entry.id)
 }
 
-// template
-
-/// Render using a Jinja2-compatible template loaded from `template_path`.
-///
-/// The template receives a single variable `changelog` containing the full
-/// serialized changelog data.
-pub fn render_template(
-    changelog: &Changelog,
-    template_path: &str,
-) -> Result<String, ChangelogError> {
-    let template_content = std::fs::read_to_string(template_path).map_err(|e| {
-        ChangelogError::Template(format!(
-            "failed to read template '{}': {}",
-            template_path, e
-        ))
-    })?;
-
-    let mut env = minijinja::Environment::new();
-    env.add_template("changelog", &template_content)
-        .map_err(|e| ChangelogError::Template(format!("failed to parse template: {}", e)))?;
-
-    let tmpl = env
-        .get_template("changelog")
-        .map_err(|e| ChangelogError::Template(format!("failed to load template: {}", e)))?;
-
-    let ctx = minijinja::Value::from(Serde(changelog));
-    tmpl.render(minijinja::context! { changelog => ctx })
-        .map_err(|e| ChangelogError::Template(format!("failed to render template: {}", e)))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,28 +380,6 @@ mod tests {
         assert!(out.contains("=== Features"));
         assert!(out.contains("* add login"));
         assert!(out.contains("(`abc12345`)"));
-    }
-
-    #[test]
-    fn test_render_template_basic() {
-        let mut tf = tempfile::NamedTempFile::new().unwrap();
-        // write_all avoids Rust format string interpretation of braces
-        use std::io::Write as _;
-        tf.write_all(b"{% for v in changelog.versions %}{{ v.version }}{% endfor %}")
-            .unwrap();
-
-        let cl = sample_changelog();
-        let out = render_template(&cl, tf.path().to_str().unwrap()).unwrap();
-        assert!(out.contains("v1.0.0"));
-    }
-
-    #[test]
-    fn test_render_template_missing_file() {
-        let cl = sample_changelog();
-        let result = render_template(&cl, "/nonexistent/template.jinja");
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("template"));
     }
 
     // --- render() dispatch function ---
