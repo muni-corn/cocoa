@@ -3,14 +3,15 @@ source: src/changelog/renderer/snapshot_tests.rs
 expression: "rendered(OutputFormat::Html)"
 ---
 <!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Changelog</title>
-        </head>
-        <body>
-        <h1>Changelog</h1><section>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Changelog</title>
+</head>
+<body>
+<h1>Changelog</h1>
+<section>
 <h2>Next version</h2>
 <h3>Bug fixes</h3>
 <ul>

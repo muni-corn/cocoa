@@ -43,14 +43,15 @@ pub fn render(
 pub fn render_html(changelog: &Changelog) -> String {
     let mut out = String::from(
         "<!DOCTYPE html>
-        <html lang=\"en\">
-        <head>
-        <meta charset=\"UTF-8\">
-        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-        <title>Changelog</title>
-        </head>
-        <body>
-        <h1>Changelog</h1>",
+<html lang=\"en\">
+<head>
+<meta charset=\"UTF-8\">
+<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+<title>Changelog</title>
+</head>
+<body>
+<h1>Changelog</h1>
+",
     );
 
     for version in &changelog.versions {
