@@ -1,5 +1,37 @@
 # Changelog
 
+## **v0.6.0**
+
+### **Breaking changes**
+
+- **changelog:** move breaking changes header into sections
+
+### new features
+
+- **changelog:** move breaking changes header into sections
+- **changelog:** make the breaking changes header configurable in templates
+- **changelog:** add heading filter for rst templates
+
+### bug fixes
+
+- **commit:** correct doctest for parsed commit type
+- **changelog:** remove stray indentation from html output
+- **changelog:** use char count for rst heading underlines
+
+### tests
+
+- **ai:** fix retry prompt assertion to match capitalized ONLY
+- **changelog:** fix snapshot to match rst heading underline to title length
+- **changelog:** add insta snapshot tests for all renderers
+
+### documentation
+
+- **changelog:** document formats, templates, and range usage
+- correct changelog sections typo in spec
+- **changelog:** document template rendering internals
+
+---
+
 ## **v0.5.2**
 
 ### new features
