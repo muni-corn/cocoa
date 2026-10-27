@@ -20,8 +20,8 @@ use template::render_template;
 
 /// Render a `Changelog` in the requested output format.
 ///
-/// Template-based formats can read `config` (for example the breaking changes
-/// header) as the `config` template variable.
+/// Template-based formats can read `config` (for example the `breaking` entry
+/// of `config.sections`) as the `config` template variable.
 pub fn render(
     changelog: &Changelog,
     config: &ChangelogConfig,

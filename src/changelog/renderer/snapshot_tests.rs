@@ -1,5 +1,7 @@
 //! Snapshot tests that pin the exact output of every changelog format.
 
+use std::collections::HashMap;
+
 use crate::{
     changelog::{
         Changelog, ChangelogEntry, ChangelogSection, ChangelogVersion, OutputFormat,
@@ -86,11 +88,24 @@ fn snapshot_markdown() {
 #[test]
 fn snapshot_markdown_custom_breaking_header() {
     let config = ChangelogConfig {
-        breaking_changes_header: "\u{1f4a5} Breaking changes".to_string(),
+        sections: HashMap::from([(
+            "breaking".to_string(),
+            "\u{1f4a5} Breaking changes".to_string(),
+        )]),
         ..ChangelogConfig::default()
     };
     let out = render(&fixture(), &config, &OutputFormat::Markdown).expect("fixture should render");
     insta::assert_snapshot!(out);
+}
+
+#[test]
+fn markdown_breaking_heading_falls_back_without_breaking_key() {
+    let config = ChangelogConfig {
+        sections: HashMap::new(),
+        ..ChangelogConfig::default()
+    };
+    let out = render(&fixture(), &config, &OutputFormat::Markdown).expect("fixture should render");
+    assert!(out.contains("### **Breaking changes**"));
 }
 
 #[test]

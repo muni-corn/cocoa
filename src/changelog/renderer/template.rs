@@ -50,7 +50,7 @@ pub fn render_template(
 ///
 /// The template receives two variables: `changelog`, the serialized changelog
 /// data, and `config`, the serialized `[changelog]` configuration (for example
-/// `config.breaking_changes_header`). The name matters because it decides
+/// `config.sections.breaking`). The name matters because it decides
 /// autoescaping.
 pub fn render_source(
     mut env: Environment<'_>,
@@ -75,6 +75,8 @@ pub fn render_source(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
     use crate::changelog::ChangelogVersion;
 
@@ -187,9 +189,9 @@ mod tests {
     #[test]
     fn test_render_template_exposes_config() {
         let dir = tempfile::tempdir().unwrap();
-        let path = write_template(&dir, "changelog.md", "{{ config.breaking_changes_header }}");
+        let path = write_template(&dir, "changelog.md", "{{ config.sections.breaking }}");
         let config = ChangelogConfig {
-            breaking_changes_header: "Big changes".to_string(),
+            sections: HashMap::from([("breaking".to_string(), "Big changes".to_string())]),
             ..ChangelogConfig::default()
         };
         let out = render_template(&changelog_with_version("v1"), &config, &path).unwrap();
