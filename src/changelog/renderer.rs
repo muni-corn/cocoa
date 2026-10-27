@@ -1,7 +1,7 @@
 //! Changelog output format renderers.
 
 use crate::{
-    changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat},
+    changelog::{Changelog, ChangelogError, OutputFormat},
     config::ChangelogConfig,
 };
 
@@ -30,92 +30,17 @@ pub fn render(
     match format {
         OutputFormat::Markdown => render_builtin(changelog, config, &builtin::MARKDOWN),
         OutputFormat::Json => render_json(changelog),
-        OutputFormat::Html => Ok(render_html(changelog)),
+        OutputFormat::Html => render_builtin(changelog, config, &builtin::HTML),
         OutputFormat::ReStructuredText => render_builtin(changelog, config, &builtin::RST),
         OutputFormat::AsciiDoc => render_builtin(changelog, config, &builtin::ASCIIDOC),
         OutputFormat::Template(path) => render_template(changelog, config, path),
     }
 }
 
-// HTML
-
-/// Render the changelog as a standalone HTML document.
-pub fn render_html(changelog: &Changelog) -> String {
-    let mut out = String::from(
-        "<!DOCTYPE html>
-<html lang=\"en\">
-<head>
-<meta charset=\"UTF-8\">
-<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-<title>Changelog</title>
-</head>
-<body>
-<h1>Changelog</h1>
-",
-    );
-
-    for version in &changelog.versions {
-        out.push_str("<section>\n");
-        out.push_str(&format!("<h2>{}</h2>\n", html_version_heading(version)));
-
-        if !version.breaking_changes.is_empty() {
-            out.push_str("<h3>Breaking changes</h3>\n<ul>\n");
-            for entry in &version.breaking_changes {
-                out.push_str(&html_entry(entry));
-            }
-            out.push_str("</ul>\n");
-        }
-
-        for section in &version.sections {
-            out.push_str(&format!("<h3>{}</h3>\n<ul>\n", html_escape(&section.title)));
-            for entry in &section.entries {
-                out.push_str(&html_entry(entry));
-            }
-            out.push_str("</ul>\n");
-        }
-
-        out.push_str("</section>\n");
-    }
-
-    out.push_str("</body>\n</html>\n");
-    out
-}
-
-fn html_version_heading(version: &ChangelogVersion) -> String {
-    let name = html_escape(&version.version);
-    match &version.date {
-        Some(date) => format!("{} &mdash; {}", name, html_escape(date)),
-        None => name,
-    }
-}
-
-fn html_entry(entry: &ChangelogEntry) -> String {
-    let scope = entry
-        .scope
-        .as_ref()
-        .map(|s| format!("<strong>{}:</strong> ", html_escape(s)))
-        .unwrap_or_default();
-    format!(
-        "<li>{}{} (<code>{}</code>)</li>\n",
-        scope,
-        html_escape(&entry.subject),
-        html_escape(&entry.id)
-    )
-}
-
-/// Escape characters that have special meaning in HTML.
-fn html_escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::changelog::{ChangelogSection, ChangelogVersion};
+    use crate::changelog::{ChangelogEntry, ChangelogSection, ChangelogVersion};
 
     fn sample_entry(id: &str, typ: &str, subject: &str) -> ChangelogEntry {
         ChangelogEntry {
@@ -206,19 +131,12 @@ mod tests {
     #[test]
     fn test_render_html_structure() {
         let cl = sample_changelog();
-        let out = render_html(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Html).unwrap();
         assert!(out.contains("<!DOCTYPE html>"));
         assert!(out.contains("<h1>Changelog</h1>"));
         assert!(out.contains("v1.0.0"));
         assert!(out.contains("<h3>Features</h3>"));
         assert!(out.contains("<li>"));
-    }
-
-    #[test]
-    fn test_html_escape() {
-        assert_eq!(html_escape("a & b"), "a &amp; b");
-        assert_eq!(html_escape("<script>"), "&lt;script&gt;");
-        assert_eq!(html_escape("\"quoted\""), "&quot;quoted&quot;");
     }
 
     #[test]
@@ -312,7 +230,7 @@ mod tests {
     #[test]
     fn test_render_html_unreleased_no_date() {
         let cl = unreleased_changelog();
-        let out = render_html(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Html).unwrap();
         // should contain "Next version" as the heading text
         assert!(out.contains("Next version"));
     }
@@ -320,7 +238,7 @@ mod tests {
     #[test]
     fn test_render_html_breaking_changes() {
         let cl = unreleased_changelog();
-        let out = render_html(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Html).unwrap();
         assert!(out.contains("<h3>Breaking changes</h3>"));
         assert!(out.contains("renamed endpoint"));
     }
@@ -329,7 +247,7 @@ mod tests {
     fn test_render_html_entry_with_scope() {
         let mut cl = sample_changelog();
         cl.versions[0].sections[0].entries[0].scope = Some("api & ui".to_string());
-        let out = render_html(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Html).unwrap();
         // scope is HTML-escaped
         assert!(out.contains("api &amp; ui"));
     }

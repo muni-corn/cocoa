@@ -1,0 +1,33 @@
+{% macro item_li(item) %}<li>{% if item.scope %}<strong>{{ item.scope }}:</strong> {% endif %}{{ item.subject }} (<code>{{ item.id }}</code>)</li>{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Changelog</title>
+</head>
+<body>
+<h1>Changelog</h1>
+{% for version in changelog.versions %}
+<section>
+<h2>{{ version.version }}{% if version.date %} &mdash; {{ version.date }}{% endif %}</h2>
+{% if version.breaking_changes %}
+<h3>{{ config.sections.breaking|default("Breaking changes") }}</h3>
+<ul>
+{% for item in version.breaking_changes %}
+{{ item_li(item) }}
+{% endfor %}
+</ul>
+{% endif %}
+{% for section in version.sections %}
+<h3>{{ section.title }}</h3>
+<ul>
+{% for item in section.entries %}
+{{ item_li(item) }}
+{% endfor %}
+</ul>
+{% endfor %}
+</section>
+{% endfor %}
+</body>
+</html>

@@ -27,8 +27,8 @@ expression: "rendered(OutputFormat::Html)"
 <h3>Features</h3>
 <ul>
 <li><strong>api:</strong> overhaul &lt;routes&gt; and &quot;auth&quot; (<code>brk12345</code>)</li>
-<li><strong>ui/forms:</strong> add login &amp; signup (<code>abc12345</code>)</li>
-<li>it&#39;s a &#39;quoted&#39; subject (<code>abc67890</code>)</li>
+<li><strong>ui&#x2f;forms:</strong> add login &amp; signup (<code>abc12345</code>)</li>
+<li>it&#x27;s a &#x27;quoted&#x27; subject (<code>abc67890</code>)</li>
 </ul>
 <h3>📚 Documentation</h3>
 <ul>

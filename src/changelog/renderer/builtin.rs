@@ -32,6 +32,12 @@ pub const RST: BuiltinTemplate = BuiltinTemplate {
     source: include_str!("../templates/changelog.rst.jinja"),
 };
 
+/// The HTML template. The `.html` in the name turns on autoescaping.
+pub const HTML: BuiltinTemplate = BuiltinTemplate {
+    name: "changelog.html.jinja",
+    source: include_str!("../templates/changelog.html.jinja"),
+};
+
 /// Renders the changelog with a built-in template.
 ///
 /// # Errors
