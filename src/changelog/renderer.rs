@@ -119,21 +119,21 @@ pub fn render_rst(changelog: &Changelog) -> String {
     let title = "Changelog";
     out.push_str(title);
     out.push('\n');
-    out.push_str(&"=".repeat(title.len()));
+    out.push_str(&"=".repeat(title.chars().count()));
     out.push_str("\n\n");
 
     for version in &changelog.versions {
         let heading = rst_version_heading(version);
         out.push_str(&heading);
         out.push('\n');
-        out.push_str(&"-".repeat(heading.len()));
+        out.push_str(&"-".repeat(heading.chars().count()));
         out.push_str("\n\n");
 
         if !version.breaking_changes.is_empty() {
             let sub = "Breaking changes";
             out.push_str(sub);
             out.push('\n');
-            out.push_str(&"~".repeat(sub.len()));
+            out.push_str(&"~".repeat(sub.chars().count()));
             out.push_str("\n\n");
             for entry in &version.breaking_changes {
                 out.push_str(&rst_entry(entry));
@@ -144,7 +144,7 @@ pub fn render_rst(changelog: &Changelog) -> String {
         for section in &version.sections {
             out.push_str(&section.title);
             out.push('\n');
-            out.push_str(&"~".repeat(section.title.len()));
+            out.push_str(&"~".repeat(section.title.chars().count()));
             out.push_str("\n\n");
             for entry in &section.entries {
                 out.push_str(&rst_entry(entry));
