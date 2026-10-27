@@ -1,0 +1,27 @@
+---
+source: src/changelog/renderer/snapshot_tests.rs
+expression: "rendered(OutputFormat::AsciiDoc)"
+---
+= Changelog
+
+== [Next version]
+
+=== Bug fixes
+
+* handle empty input (`fff00000`)
+
+== [v1.0.0] - 2024-01-01
+
+=== Breaking changes
+
+* *api:* overhaul <routes> and "auth" (`brk12345`)
+
+=== Features
+
+* *api:* overhaul <routes> and "auth" (`brk12345`)
+* *ui/forms:* add login & signup (`abc12345`)
+* it's a 'quoted' subject (`abc67890`)
+
+=== 📚 Documentation
+
+* *readme:* explain usage (`ddd11111`)

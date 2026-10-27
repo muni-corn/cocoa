@@ -1,0 +1,107 @@
+---
+source: src/changelog/renderer/snapshot_tests.rs
+expression: "rendered(OutputFormat::Json)"
+---
+{
+  "versions": [
+    {
+      "version": "Next version",
+      "date": null,
+      "breaking_changes": [],
+      "sections": [
+        {
+          "commit_type": "fix",
+          "title": "Bug fixes",
+          "entries": [
+            {
+              "id": "fff00000",
+              "commit_type": "feat",
+              "scope": null,
+              "breaking": false,
+              "subject": "handle empty input",
+              "body": null,
+              "author": "Author",
+              "timestamp": 1000,
+              "date": "2024-01-01"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "v1.0.0",
+      "date": "2024-01-01",
+      "breaking_changes": [
+        {
+          "id": "brk12345",
+          "commit_type": "feat",
+          "scope": "api",
+          "breaking": true,
+          "subject": "overhaul <routes> and \"auth\"",
+          "body": null,
+          "author": "Author",
+          "timestamp": 1000,
+          "date": "2024-01-01"
+        }
+      ],
+      "sections": [
+        {
+          "commit_type": "feat",
+          "title": "Features",
+          "entries": [
+            {
+              "id": "brk12345",
+              "commit_type": "feat",
+              "scope": "api",
+              "breaking": true,
+              "subject": "overhaul <routes> and \"auth\"",
+              "body": null,
+              "author": "Author",
+              "timestamp": 1000,
+              "date": "2024-01-01"
+            },
+            {
+              "id": "abc12345",
+              "commit_type": "feat",
+              "scope": "ui/forms",
+              "breaking": false,
+              "subject": "add login & signup",
+              "body": null,
+              "author": "Author",
+              "timestamp": 1000,
+              "date": "2024-01-01"
+            },
+            {
+              "id": "abc67890",
+              "commit_type": "feat",
+              "scope": null,
+              "breaking": false,
+              "subject": "it's a 'quoted' subject",
+              "body": null,
+              "author": "Author",
+              "timestamp": 1000,
+              "date": "2024-01-01"
+            }
+          ]
+        },
+        {
+          "commit_type": "docs",
+          "title": "📚 Documentation",
+          "entries": [
+            {
+              "id": "ddd11111",
+              "commit_type": "feat",
+              "scope": "readme",
+              "breaking": false,
+              "subject": "explain usage",
+              "body": null,
+              "author": "Author",
+              "timestamp": 1000,
+              "date": "2024-01-01"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+---
+source: src/changelog/renderer/snapshot_tests.rs
+expression: "rendered(OutputFormat::Html)"
+---
+<!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Changelog</title>
+        </head>
+        <body>
+        <h1>Changelog</h1><section>
+<h2>Next version</h2>
+<h3>Bug fixes</h3>
+<ul>
+<li>handle empty input (<code>fff00000</code>)</li>
+</ul>
+</section>
+<section>
+<h2>v1.0.0 &mdash; 2024-01-01</h2>
+<h3>Breaking changes</h3>
+<ul>
+<li><strong>api:</strong> overhaul &lt;routes&gt; and &quot;auth&quot; (<code>brk12345</code>)</li>
+</ul>
+<h3>Features</h3>
+<ul>
+<li><strong>api:</strong> overhaul &lt;routes&gt; and &quot;auth&quot; (<code>brk12345</code>)</li>
+<li><strong>ui/forms:</strong> add login &amp; signup (<code>abc12345</code>)</li>
+<li>it&#39;s a &#39;quoted&#39; subject (<code>abc67890</code>)</li>
+</ul>
+<h3>📚 Documentation</h3>
+<ul>
+<li><strong>readme:</strong> explain usage (<code>ddd11111</code>)</li>
+</ul>
+</section>
+</body>
+</html>

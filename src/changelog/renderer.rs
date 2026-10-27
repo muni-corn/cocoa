@@ -4,6 +4,9 @@ use minijinja::value::Serde;
 
 use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
+#[cfg(test)]
+mod snapshot_tests;
+
 /// Render a `Changelog` in the requested output format.
 pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, ChangelogError> {
     match format {
