@@ -32,7 +32,7 @@ pub fn render(
         OutputFormat::Json => render_json(changelog),
         OutputFormat::Html => Ok(render_html(changelog)),
         OutputFormat::ReStructuredText => Ok(render_rst(changelog)),
-        OutputFormat::AsciiDoc => Ok(render_asciidoc(changelog)),
+        OutputFormat::AsciiDoc => render_builtin(changelog, config, &builtin::ASCIIDOC),
         OutputFormat::Template(path) => render_template(changelog, config, path),
     }
 }
@@ -173,52 +173,6 @@ fn rst_entry(entry: &ChangelogEntry) -> String {
     format!("* {}{} (``{}``)\n", scope, entry.subject, entry.id)
 }
 
-// AsciiDoc
-
-/// Render the changelog as AsciiDoc.
-pub fn render_asciidoc(changelog: &Changelog) -> String {
-    let mut out = String::from("= Changelog\n\n");
-
-    for version in &changelog.versions {
-        out.push_str(&format!("== {}\n\n", asciidoc_version_heading(version)));
-
-        if !version.breaking_changes.is_empty() {
-            out.push_str("=== Breaking changes\n\n");
-            for entry in &version.breaking_changes {
-                out.push_str(&asciidoc_entry(entry));
-            }
-            out.push('\n');
-        }
-
-        for section in &version.sections {
-            out.push_str(&format!("=== {}\n\n", section.title));
-            for entry in &section.entries {
-                out.push_str(&asciidoc_entry(entry));
-            }
-            out.push('\n');
-        }
-    }
-
-    out
-}
-
-fn asciidoc_version_heading(version: &ChangelogVersion) -> String {
-    let name = &version.version;
-    match &version.date {
-        Some(date) => format!("[{}] - {}", name, date),
-        None => format!("[{}]", name),
-    }
-}
-
-fn asciidoc_entry(entry: &ChangelogEntry) -> String {
-    let scope = entry
-        .scope
-        .as_ref()
-        .map(|s| format!("*{}:* ", s))
-        .unwrap_or_default();
-    format!("* {}{} (`{}`)\n", scope, entry.subject, entry.id)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,7 +297,7 @@ mod tests {
     #[test]
     fn test_render_asciidoc_structure() {
         let cl = sample_changelog();
-        let out = render_asciidoc(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::AsciiDoc).unwrap();
         assert!(out.starts_with("= Changelog"));
         assert!(out.contains("== [v1.0.0] - 2024-01-01"));
         assert!(out.contains("=== Features"));
@@ -461,22 +415,23 @@ mod tests {
     #[test]
     fn test_render_asciidoc_unreleased_no_date() {
         let cl = unreleased_changelog();
-        let out = render_asciidoc(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::AsciiDoc).unwrap();
         assert!(out.contains("[Next version]"));
     }
 
     #[test]
     fn test_render_asciidoc_breaking_changes() {
         let cl = unreleased_changelog();
-        let out = render_asciidoc(&cl);
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::AsciiDoc).unwrap();
         assert!(out.contains("=== Breaking changes"));
         assert!(out.contains("renamed endpoint"));
     }
 
     #[test]
     fn test_render_asciidoc_entry_with_scope() {
-        let mut entry = sample_entry("abc", "feat", "add feature");
-        entry.scope = Some("core".to_string());
-        assert!(asciidoc_entry(&entry).contains("*core:*"));
+        let mut cl = sample_changelog();
+        cl.versions[0].sections[0].entries[0].scope = Some("core".to_string());
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::AsciiDoc).unwrap();
+        assert!(out.contains("* *core:* add login"));
     }
 }

@@ -20,6 +20,12 @@ pub const MARKDOWN: BuiltinTemplate = BuiltinTemplate {
     source: include_str!("../templates/changelog.md.jinja"),
 };
 
+/// The AsciiDoc template.
+pub const ASCIIDOC: BuiltinTemplate = BuiltinTemplate {
+    name: "changelog.adoc.jinja",
+    source: include_str!("../templates/changelog.adoc.jinja"),
+};
+
 /// Renders the changelog with a built-in template.
 ///
 /// # Errors
