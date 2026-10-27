@@ -3,6 +3,7 @@
 use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
 
 mod environment;
+mod filters;
 mod json;
 mod template;
 

@@ -2,6 +2,8 @@
 
 use minijinja::{Environment, syntax::SyntaxConfig};
 
+use super::filters;
+
 /// Builds the environment used for both built-in and user-supplied templates.
 ///
 /// Autoescaping follows minijinja's default rules, which key off the template
@@ -15,6 +17,7 @@ pub fn build_environment<'source>() -> Environment<'source> {
         .build()
         .expect("default delimiters are always valid");
     env.set_syntax(syntax);
+    env.add_filter("heading", filters::heading);
     env
 }
 
@@ -28,6 +31,16 @@ mod tests {
         env.add_template("t.txt", "hello\n").unwrap();
         let out = env.get_template("t.txt").unwrap().render(()).unwrap();
         assert_eq!(out, "hello\n");
+    }
+
+    #[test]
+    fn test_environment_registers_heading_filter() {
+        let mut env = build_environment();
+        env.add_template("t.rst", "{{ title|heading('~') }}")
+            .unwrap();
+        let ctx = minijinja::context! { title => "Hi" };
+        let out = env.get_template("t.rst").unwrap().render(&ctx).unwrap();
+        assert_eq!(out, "Hi\n~~");
     }
 
     #[test]
