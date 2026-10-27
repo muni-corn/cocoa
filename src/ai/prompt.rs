@@ -276,7 +276,7 @@ mod tests {
         let prompt = build_retry_prompt(&["type-enum: bad type".to_string()]);
 
         assert!(prompt.contains("try again"));
-        assert!(prompt.contains("only the corrected commit message"));
+        assert!(prompt.contains("ONLY the corrected commit message"));
     }
 
     #[test]
