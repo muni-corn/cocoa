@@ -55,13 +55,14 @@ pub struct ChangelogConfig {
     #[serde(default = "default_date_format")]
     pub date_format: String,
 
+    /// Heading shown above breaking changes in templated changelog formats.
     #[serde(default = "default_breaking_changes_header")]
     pub breaking_changes_header: String,
 
     /// Mapping of commit type to human-readable section title.
     ///
-    /// Only types listed here appear in the changelog. The special key
-    /// `"breaking"` controls the section heading for breaking changes.
+    /// Only types listed here appear in the changelog. The heading for breaking
+    /// changes is set separately with `breaking_changes_header`.
     #[serde(default = "default_sections")]
     pub sections: HashMap<String, String>,
 }

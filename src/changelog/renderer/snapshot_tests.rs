@@ -1,7 +1,11 @@
 //! Snapshot tests that pin the exact output of every changelog format.
 
-use crate::changelog::{
-    Changelog, ChangelogEntry, ChangelogSection, ChangelogVersion, OutputFormat, renderer::render,
+use crate::{
+    changelog::{
+        Changelog, ChangelogEntry, ChangelogSection, ChangelogVersion, OutputFormat,
+        renderer::render,
+    },
+    config::ChangelogConfig,
 };
 
 fn entry(id: &str, scope: Option<&str>, breaking: bool, subject: &str) -> ChangelogEntry {
@@ -71,12 +75,22 @@ fn fixture() -> Changelog {
 }
 
 fn rendered(format: OutputFormat) -> String {
-    render(&fixture(), &format).expect("fixture should render")
+    render(&fixture(), &ChangelogConfig::default(), &format).expect("fixture should render")
 }
 
 #[test]
 fn snapshot_markdown() {
     insta::assert_snapshot!(rendered(OutputFormat::Markdown));
+}
+
+#[test]
+fn snapshot_markdown_custom_breaking_header() {
+    let config = ChangelogConfig {
+        breaking_changes_header: "\u{1f4a5} Breaking changes".to_string(),
+        ..ChangelogConfig::default()
+    };
+    let out = render(&fixture(), &config, &OutputFormat::Markdown).expect("fixture should render");
+    insta::assert_snapshot!(out);
 }
 
 #[test]

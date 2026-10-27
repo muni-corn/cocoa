@@ -204,7 +204,8 @@ pub fn execute<G: GitOperations>(
         let cl = changelog::parser::parse_history(ops, None, changelog_config, Some(&tag_name))?;
 
         if !dry_run {
-            let rendered = changelog::renderer::render(&cl, &OutputFormat::Markdown)?;
+            let rendered =
+                changelog::renderer::render(&cl, changelog_config, &OutputFormat::Markdown)?;
             std::fs::write(&changelog_path, rendered).map_err(|e| {
                 ReleaseError::File(format!("failed to write '{}': {}", changelog_path, e))
             })?;

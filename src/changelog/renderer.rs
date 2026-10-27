@@ -1,6 +1,9 @@
 //! Changelog output format renderers.
 
-use crate::changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat};
+use crate::{
+    changelog::{Changelog, ChangelogEntry, ChangelogError, ChangelogVersion, OutputFormat},
+    config::ChangelogConfig,
+};
 
 mod builtin;
 mod environment;
@@ -16,14 +19,21 @@ use json::render_json;
 use template::render_template;
 
 /// Render a `Changelog` in the requested output format.
-pub fn render(changelog: &Changelog, format: &OutputFormat) -> Result<String, ChangelogError> {
+///
+/// Template-based formats can read `config` (for example the breaking changes
+/// header) as the `config` template variable.
+pub fn render(
+    changelog: &Changelog,
+    config: &ChangelogConfig,
+    format: &OutputFormat,
+) -> Result<String, ChangelogError> {
     match format {
-        OutputFormat::Markdown => render_builtin(changelog, &builtin::MARKDOWN),
+        OutputFormat::Markdown => render_builtin(changelog, config, &builtin::MARKDOWN),
         OutputFormat::Json => render_json(changelog),
         OutputFormat::Html => Ok(render_html(changelog)),
         OutputFormat::ReStructuredText => Ok(render_rst(changelog)),
         OutputFormat::AsciiDoc => Ok(render_asciidoc(changelog)),
-        OutputFormat::Template(path) => render_template(changelog, path),
+        OutputFormat::Template(path) => render_template(changelog, config, path),
     }
 }
 
@@ -253,7 +263,7 @@ mod tests {
     #[test]
     fn test_render_markdown_contains_version() {
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Markdown).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Markdown).unwrap();
         assert!(out.contains("# Changelog"));
         assert!(out.contains("## **v1.0.0**"));
         assert!(out.contains("### Features"));
@@ -275,7 +285,7 @@ mod tests {
                 }],
             }],
         };
-        let out = render(&cl, &OutputFormat::Markdown).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Markdown).unwrap();
         assert!(out.contains("## **Next version**"));
     }
 
@@ -287,7 +297,7 @@ mod tests {
             e.breaking = true;
             e
         }];
-        let out = render(&cl, &OutputFormat::Markdown).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Markdown).unwrap();
         assert!(out.contains("### **Breaking changes**"));
         assert!(out.contains("api overhaul"));
     }
@@ -296,7 +306,7 @@ mod tests {
     fn test_render_markdown_scope() {
         let mut cl = sample_changelog();
         cl.versions[0].sections[0].entries[0].scope = Some("auth".to_string());
-        let out = render(&cl, &OutputFormat::Markdown).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Markdown).unwrap();
         assert!(out.contains("**auth:**"));
     }
 
@@ -346,14 +356,14 @@ mod tests {
     #[test]
     fn test_render_dispatch_markdown() {
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Markdown).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Markdown).unwrap();
         assert!(out.contains("# Changelog"));
     }
 
     #[test]
     fn test_render_dispatch_json() {
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Json).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Json).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(v["versions"].is_array());
     }
@@ -361,21 +371,26 @@ mod tests {
     #[test]
     fn test_render_dispatch_html() {
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::Html).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::Html).unwrap();
         assert!(out.contains("<!DOCTYPE html>"));
     }
 
     #[test]
     fn test_render_dispatch_rst() {
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::ReStructuredText).unwrap();
+        let out = render(
+            &cl,
+            &ChangelogConfig::default(),
+            &OutputFormat::ReStructuredText,
+        )
+        .unwrap();
         assert!(out.contains("Changelog"));
     }
 
     #[test]
     fn test_render_dispatch_asciidoc() {
         let cl = sample_changelog();
-        let out = render(&cl, &OutputFormat::AsciiDoc).unwrap();
+        let out = render(&cl, &ChangelogConfig::default(), &OutputFormat::AsciiDoc).unwrap();
         assert!(out.starts_with("= Changelog"));
     }
 

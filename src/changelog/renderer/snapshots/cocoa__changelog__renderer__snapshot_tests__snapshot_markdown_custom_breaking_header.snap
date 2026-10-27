@@ -1,0 +1,31 @@
+---
+source: src/changelog/renderer/snapshot_tests.rs
+expression: out
+---
+# Changelog
+
+## **Next version**
+
+### Bug fixes
+
+- handle empty input
+
+---
+
+## **v1.0.0**
+
+### **💥 Breaking changes**
+
+- **api:** overhaul <routes> and "auth"
+
+### Features
+
+- **api:** overhaul <routes> and "auth"
+- **ui/forms:** add login & signup
+- it's a 'quoted' subject
+
+### 📚 Documentation
+
+- **readme:** explain usage
+
+---

@@ -98,7 +98,7 @@ pub fn handle_changelog(
         return Ok(());
     }
 
-    let rendered = match changelog::renderer::render(&cl, &format) {
+    let rendered = match changelog::renderer::render(&cl, &cl_config, &format) {
         Ok(s) => s,
         Err(e) => {
             print_error_bold(t!("main.changelog.render_failed", error = e.to_string()));

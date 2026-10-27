@@ -5,13 +5,16 @@ use std::path::Path;
 use minijinja::{Environment, value::Serde};
 
 use super::environment::build_environment;
-use crate::changelog::{Changelog, ChangelogError};
+use crate::{
+    changelog::{Changelog, ChangelogError},
+    config::ChangelogConfig,
+};
 
 /// Renders using a Jinja2-compatible template loaded from `template_path`.
 ///
-/// The template receives a single variable `changelog` containing the full
-/// serialized changelog data. It is registered under its file name, so the
-/// extension decides whether output is autoescaped (see [`build_environment`]).
+/// The template receives the variables described on [`render_source`]. It is
+/// registered under its file name, so the extension decides whether output is
+/// autoescaped (see [`build_environment`]).
 ///
 /// # Errors
 ///
@@ -19,6 +22,7 @@ use crate::changelog::{Changelog, ChangelogError};
 /// rendered.
 pub fn render_template(
     changelog: &Changelog,
+    config: &ChangelogConfig,
     template_path: &str,
 ) -> Result<String, ChangelogError> {
     let template_content = std::fs::read_to_string(template_path).map_err(|e| {
@@ -33,18 +37,27 @@ pub fn render_template(
         .and_then(|n| n.to_str())
         .unwrap_or("changelog");
 
-    render_source(build_environment(), name, &template_content, changelog)
+    render_source(
+        build_environment(),
+        name,
+        &template_content,
+        changelog,
+        config,
+    )
 }
 
 /// Renders `source` registered as `name` in `env`.
 ///
-/// The template receives a single variable `changelog`. The name matters
-/// because it decides autoescaping.
+/// The template receives two variables: `changelog`, the serialized changelog
+/// data, and `config`, the serialized `[changelog]` configuration (for example
+/// `config.breaking_changes_header`). The name matters because it decides
+/// autoescaping.
 pub fn render_source(
     mut env: Environment<'_>,
     name: &str,
     source: &str,
     changelog: &Changelog,
+    config: &ChangelogConfig,
 ) -> Result<String, ChangelogError> {
     env.add_template_owned(name.to_string(), source.to_string())
         .map_err(|e| ChangelogError::Template(format!("failed to parse template: {}", e)))?;
@@ -53,9 +66,11 @@ pub fn render_source(
         .get_template(name)
         .map_err(|e| ChangelogError::Template(format!("failed to load template: {}", e)))?;
 
-    let ctx = minijinja::Value::from(Serde(changelog));
-    tmpl.render(minijinja::context! { changelog => ctx })
-        .map_err(|e| ChangelogError::Template(format!("failed to render template: {}", e)))
+    tmpl.render(minijinja::context! {
+        changelog => minijinja::Value::from(Serde(changelog)),
+        config => minijinja::Value::from(Serde(config)),
+    })
+    .map_err(|e| ChangelogError::Template(format!("failed to render template: {}", e)))
 }
 
 #[cfg(test)]
@@ -88,7 +103,12 @@ mod tests {
             "changelog.jinja",
             "{% for v in changelog.versions %}{{ v.version }}{% endfor %}",
         );
-        let out = render_template(&changelog_with_version("v1.0.0"), &path).unwrap();
+        let out = render_template(
+            &changelog_with_version("v1.0.0"),
+            &ChangelogConfig::default(),
+            &path,
+        )
+        .unwrap();
         assert_eq!(out, "v1.0.0");
     }
 
@@ -100,7 +120,12 @@ mod tests {
             "changelog.md",
             "{{ changelog.versions[0].version }}\n",
         );
-        let out = render_template(&changelog_with_version("v1.0.0"), &path).unwrap();
+        let out = render_template(
+            &changelog_with_version("v1.0.0"),
+            &ChangelogConfig::default(),
+            &path,
+        )
+        .unwrap();
         assert_eq!(out, "v1.0.0\n");
     }
 
@@ -112,7 +137,12 @@ mod tests {
             "changelog.html",
             "{{ changelog.versions[0].version }}",
         );
-        let out = render_template(&changelog_with_version("<v1>"), &path).unwrap();
+        let out = render_template(
+            &changelog_with_version("<v1>"),
+            &ChangelogConfig::default(),
+            &path,
+        )
+        .unwrap();
         assert_eq!(out, "&lt;v1&gt;");
     }
 
@@ -120,13 +150,22 @@ mod tests {
     fn test_render_template_does_not_escape_other_files() {
         let dir = tempfile::tempdir().unwrap();
         let path = write_template(&dir, "changelog.md", "{{ changelog.versions[0].version }}");
-        let out = render_template(&changelog_with_version("<v1>"), &path).unwrap();
+        let out = render_template(
+            &changelog_with_version("<v1>"),
+            &ChangelogConfig::default(),
+            &path,
+        )
+        .unwrap();
         assert_eq!(out, "<v1>");
     }
 
     #[test]
     fn test_render_template_missing_file() {
-        let result = render_template(&changelog_with_version("v1"), "/nonexistent/template.jinja");
+        let result = render_template(
+            &changelog_with_version("v1"),
+            &ChangelogConfig::default(),
+            "/nonexistent/template.jinja",
+        );
         let err = result.unwrap_err().to_string();
         assert!(err.contains("template"));
     }
@@ -135,9 +174,25 @@ mod tests {
     fn test_render_template_syntax_error() {
         let dir = tempfile::tempdir().unwrap();
         let path = write_template(&dir, "changelog.jinja", "{% for %}");
-        let err = render_template(&changelog_with_version("v1"), &path)
-            .unwrap_err()
-            .to_string();
+        let err = render_template(
+            &changelog_with_version("v1"),
+            &ChangelogConfig::default(),
+            &path,
+        )
+        .unwrap_err()
+        .to_string();
         assert!(err.contains("failed to parse template"));
+    }
+
+    #[test]
+    fn test_render_template_exposes_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_template(&dir, "changelog.md", "{{ config.breaking_changes_header }}");
+        let config = ChangelogConfig {
+            breaking_changes_header: "Big changes".to_string(),
+            ..ChangelogConfig::default()
+        };
+        let out = render_template(&changelog_with_version("v1"), &config, &path).unwrap();
+        assert_eq!(out, "Big changes");
     }
 }

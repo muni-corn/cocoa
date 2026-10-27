@@ -1,7 +1,10 @@
 //! Built-in changelog templates that ship inside the binary.
 
 use super::{environment::build_builtin_environment, template::render_source};
-use crate::changelog::{Changelog, ChangelogError};
+use crate::{
+    changelog::{Changelog, ChangelogError},
+    config::ChangelogConfig,
+};
 
 /// A template embedded at compile time.
 ///
@@ -24,6 +27,7 @@ pub const MARKDOWN: BuiltinTemplate = BuiltinTemplate {
 /// Returns [`ChangelogError::Template`] if the template fails to render.
 pub fn render_builtin(
     changelog: &Changelog,
+    config: &ChangelogConfig,
     template: &BuiltinTemplate,
 ) -> Result<String, ChangelogError> {
     render_source(
@@ -31,5 +35,6 @@ pub fn render_builtin(
         template.name,
         template.source,
         changelog,
+        config,
     )
 }

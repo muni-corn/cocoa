@@ -5,7 +5,7 @@
 ## **{{ version.version }}**
 {% if version.breaking_changes %}
 
-### **Breaking changes**
+### **{{ config.breaking_changes_header }}**
 
 {% for item in version.breaking_changes %}
 {{ bullet(item) }}
